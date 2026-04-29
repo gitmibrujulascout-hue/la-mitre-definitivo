@@ -18,48 +18,56 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
     if (!file) return;
     setLoading(true);
 
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
-    const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-      file_url,
-      json_schema: {
-        type: "object",
-        properties: {
-          personas: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                nombre:               { type: "string", description: "Nombre completo de la persona" },
-                dni:                  { type: "string", description: "DNI o número de documento" },
-                telefono_contacto:    { type: "string", description: "Teléfono" },
-                funcion:              { type: "string", description: "Función dentro del grupo" },
-                categoria:            { type: "string", description: "Categoría scout" },
-                zona:                 { type: "string", description: "Zona" },
-                distrito:             { type: "string", description: "Distrito" },
-                codigo:               { type: "string", description: "Código" },
-                organismo:            { type: "string", description: "Organismo" },
-                fecha_nacimiento:     { type: "string", description: "Fecha de nacimiento en formato YYYY-MM-DD" },
-                religion:             { type: "string", description: "Religión (código)" },
-                religion_descripcion: { type: "string", description: "Descripción de la religión" }
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `Tenés un archivo Excel de un grupo scout con las columnas: DNI, Nombre, Teléfono, Función, Categoría, Zona, Distrito, Código, Organismo, Fecha de Nacimiento, Religión, Religion Descripcion.
+Extraé TODAS las filas de datos (ignorá la fila de encabezados).
+Para la fecha de nacimiento, convertila al formato YYYY-MM-DD.
+Devolvé un JSON con el array "personas" con todos los campos de cada persona.`,
+        file_urls: [file_url],
+        response_json_schema: {
+          type: "object",
+          properties: {
+            personas: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  nombre:               { type: "string" },
+                  dni:                  { type: "string" },
+                  telefono_contacto:    { type: "string" },
+                  funcion:              { type: "string" },
+                  categoria:            { type: "string" },
+                  zona:                 { type: "string" },
+                  distrito:             { type: "string" },
+                  codigo:               { type: "string" },
+                  organismo:            { type: "string" },
+                  fecha_nacimiento:     { type: "string" },
+                  religion:             { type: "string" },
+                  religion_descripcion: { type: "string" }
+                }
               }
             }
           }
         }
-      }
-    });
-
-    if (result.status === 'success' && result.output?.personas) {
-      // Enriquecer con rama y tipo auto-detectados
-      const enriched = result.output.personas.map(p => {
-        const rama = ramaDesdeEdad(p.fecha_nacimiento);
-        const tipo = rama === 'Voluntario' ? 'Voluntario' : 'Beneficiario';
-        return { ...p, rama, tipo, activo: true, becado: false };
       });
-      setExtractedData(enriched);
-    } else {
-      toast.error('No se pudieron extraer los datos. Verificá el formato del archivo.');
+
+      if (result?.personas?.length > 0) {
+        const enriched = result.personas.map(p => {
+          const rama = ramaDesdeEdad(p.fecha_nacimiento);
+          const tipo = rama === 'Voluntario' ? 'Voluntario' : 'Beneficiario';
+          return { ...p, rama, tipo, activo: true, becado: false };
+        });
+        setExtractedData(enriched);
+      } else {
+        toast.error('No se pudieron extraer los datos. Verificá el formato del archivo.');
+      }
+    } catch (e) {
+      toast.error('Error al procesar el archivo: ' + (e?.message || 'desconocido'));
     }
+
     setLoading(false);
   };
 
@@ -151,8 +159,7 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           {!extractedData ? (
             <Button onClick={handleUpload} disabled={!file || loading}>
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {loading ? 'Analizando...' : 'Analizar archivo'}
+              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analizando (puede tardar ~30s)...</> : 'Analizar archivo'}
             </Button>
           ) : (
             <Button onClick={handleImport} disabled={loading}>
