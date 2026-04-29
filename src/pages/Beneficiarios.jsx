@@ -118,9 +118,16 @@ export default function Beneficiarios() {
             ) : filtered.length === 0 ? (
               <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No hay beneficiarios</TableCell></TableRow>
             ) : (
-              filtered.map(b => (
+              filtered.map(b => {
+                const edad = b.fecha_nacimiento
+                  ? Math.floor((new Date() - new Date(b.fecha_nacimiento)) / (365.25 * 24 * 3600 * 1000))
+                  : null;
+                return (
                 <TableRow key={b.id} className="hover:bg-muted/30">
-                  <TableCell className="font-medium">{b.nombre}</TableCell>
+                  <TableCell className="font-medium">
+                    {b.nombre}
+                    {edad !== null && edad < 25 && <span className="text-muted-foreground font-normal ml-1">({edad} años)</span>}
+                  </TableCell>
                   <TableCell><RamaBadge rama={b.rama} /></TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground">{b.dni || '—'}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{b.funcion || '—'}</TableCell>
@@ -141,7 +148,7 @@ export default function Beneficiarios() {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))
+              )})
             )}
           </TableBody>
         </Table>
