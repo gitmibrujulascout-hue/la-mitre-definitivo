@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, CheckCircle2, XCircle, Award, Tent } from 'lucide-react';
 import RamaBadge from '@/components/shared/RamaBadge';
-import { MESES, CUOTA_EFECTIVO, formatMoney } from '@/lib/ramaUtils';
+import { MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS, CUOTA_EFECTIVO, formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 
 export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, onBack }) {
@@ -45,15 +45,26 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
         {MESES.map(mes => {
           const pago = pagosAnio.find(p => p.mes === mes);
           const pagado = !!pago;
+          const sinCuota = MESES_SIN_CUOTA.includes(mes);
+          const bonificado = MESES_BONIFICADOS.includes(mes);
+
           return (
             <Card key={mes} className={cn(
               'p-3 text-center transition-all',
-              beneficiario.becado ? 'bg-amber-50 border-amber-200' :
+              sinCuota ? 'bg-slate-50 border-slate-200 opacity-50' :
+              beneficiario.becado || bonificado ? 'bg-amber-50 border-amber-200' :
               pagado ? 'bg-green-50 border-green-200' : 'bg-muted/50'
             )}>
               <p className="text-xs font-medium text-muted-foreground">{mes.substring(0, 3)}</p>
-              {beneficiario.becado ? (
+              {sinCuota ? (
+                <p className="text-xs text-slate-400 mt-1">—</p>
+              ) : beneficiario.becado ? (
                 <Award className="w-5 h-5 text-amber-500 mx-auto mt-1" />
+              ) : bonificado && !pagado ? (
+                <>
+                  <Award className="w-5 h-5 text-amber-400 mx-auto mt-1" />
+                  <p className="text-xs text-amber-600 mt-1">Bonif.</p>
+                </>
               ) : pagado ? (
                 <>
                   <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto mt-1" />

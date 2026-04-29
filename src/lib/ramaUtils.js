@@ -12,6 +12,10 @@ export const RAMA_CONFIG = {
 
 export const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
+// Meses que NO generan deuda de cuota
+export const MESES_SIN_CUOTA = ['Enero', 'Febrero']; // No hay actividad
+export const MESES_BONIFICADOS = ['Marzo']; // Bonificado por la asociación
+
 export const CUOTA_EFECTIVO = 25000;
 export const CUOTA_TRANSFERENCIA = 27000;
 

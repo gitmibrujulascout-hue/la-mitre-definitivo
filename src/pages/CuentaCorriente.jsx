@@ -10,7 +10,7 @@ import { Search, CheckCircle2, AlertCircle, Award, User } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
-import { RAMAS, MESES, CUOTA_EFECTIVO, formatMoney, esBeneficiarioConCuota } from '@/lib/ramaUtils';
+import { RAMAS, MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS, CUOTA_EFECTIVO, formatMoney, esBeneficiarioConCuota } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 
 export default function CuentaCorriente() {
@@ -47,10 +47,13 @@ export default function CuentaCorriente() {
       const campBen = campamentos.filter(c => c.beneficiarios_ids?.includes(b.id));
       const totalCampamentos = campBen.reduce((s, c) => s + (c.costo_por_persona || 0), 0);
 
-      // Deuda: cuota mensual * meses transcurridos + campamentos - pagos
+      // Deuda: solo los meses que generan cuota (excluir Enero, Febrero y Marzo que es bonificado)
       const mesActual = new Date().getMonth(); // 0-indexed
       const mesesTranscurridos = anio < new Date().getFullYear() ? 12 : anio > new Date().getFullYear() ? 0 : mesActual + 1;
-      const deudaCuotas = (!esBeneficiarioConCuota(b)) ? 0 : mesesTranscurridos * CUOTA_EFECTIVO;
+      const mesesQueGeneranDeuda = MESES.slice(0, mesesTranscurridos).filter(
+        m => !MESES_SIN_CUOTA.includes(m) && !MESES_BONIFICADOS.includes(m)
+      );
+      const deudaCuotas = (!esBeneficiarioConCuota(b)) ? 0 : mesesQueGeneranDeuda.length * CUOTA_EFECTIVO;
       const saldo = totalPagado - deudaCuotas - totalCampamentos;
 
       return {
