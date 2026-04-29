@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
@@ -24,6 +25,7 @@ export default function Beneficiarios() {
   const [filterDni, setFilterDni] = useState('');
   const [filterRama, setFilterRama] = useState('todas');
   const [filterTipo, setFilterTipo] = useState('todos');
+  const [selected, setSelected] = useState([]);
 
   const queryClient = useQueryClient();
   const { data: beneficiarios = [], isLoading } = useQuery({
@@ -53,6 +55,21 @@ export default function Beneficiarios() {
     const matchTipo = filterTipo === 'todos' || b.tipo === filterTipo || (!b.tipo && filterTipo === 'Beneficiario');
     return matchSearch && matchDni && matchRama && matchTipo;
   });
+
+  const allFilteredIds = filtered.map(b => b.id);
+  const allSelected = allFilteredIds.length > 0 && allFilteredIds.every(id => selected.includes(id));
+  const someSelected = selected.length > 0;
+
+  const toggleSelect = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleAll = () => setSelected(allSelected ? [] : allFilteredIds);
+
+  const deleteSelected = async () => {
+    if (!confirm(`¿Eliminar ${selected.length} beneficiario(s)?`)) return;
+    for (const id of selected) await base44.entities.Beneficiario.delete(id);
+    queryClient.invalidateQueries({ queryKey: ['beneficiarios'] });
+    setSelected([]);
+    toast.success(`${selected.length} beneficiarios eliminados`);
+  };
 
   const handleSave = (data) => {
     if (editing) {
@@ -99,11 +116,25 @@ export default function Beneficiarios() {
         </div>
       </Card>
 
+      {/* Barra de acciones masivas */}
+      {someSelected && (
+        <div className="flex items-center gap-3 mb-3 px-4 py-2 bg-primary/10 border border-primary/20 rounded-lg">
+          <span className="text-sm font-medium text-primary">{selected.length} seleccionado(s)</span>
+          <Button size="sm" variant="destructive" onClick={deleteSelected}>
+            <Trash2 className="w-4 h-4 mr-1" />Eliminar seleccionados
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setSelected([])}>Deseleccionar</Button>
+        </div>
+      )}
+
       {/* Tabla */}
       <Card className="overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
+              <TableHead className="w-10">
+                <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+              </TableHead>
               <TableHead>Nombre</TableHead>
               <TableHead>Rama</TableHead>
               <TableHead className="hidden sm:table-cell">DNI</TableHead>
@@ -114,16 +145,20 @@ export default function Beneficiarios() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No hay beneficiarios</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No hay beneficiarios</TableCell></TableRow>
             ) : (
               filtered.map(b => {
                 const edad = b.fecha_nacimiento
                   ? Math.floor((new Date() - new Date(b.fecha_nacimiento)) / (365.25 * 24 * 3600 * 1000))
                   : null;
+                const isChecked = selected.includes(b.id);
                 return (
-                <TableRow key={b.id} className="hover:bg-muted/30">
+                <TableRow key={b.id} className={`hover:bg-muted/30 ${isChecked ? 'bg-primary/5' : ''}`}>
+                  <TableCell>
+                    <Checkbox checked={isChecked} onCheckedChange={() => toggleSelect(b.id)} />
+                  </TableCell>
                   <TableCell className="font-medium">
                     {b.nombre}
                     {edad !== null && edad < 25 && <span className="text-muted-foreground font-normal ml-1">({edad} años)</span>}
