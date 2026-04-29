@@ -21,6 +21,7 @@ export default function Beneficiarios() {
   const [editing, setEditing] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [search, setSearch] = useState('');
+  const [filterDni, setFilterDni] = useState('');
   const [filterRama, setFilterRama] = useState('todas');
   const [filterTipo, setFilterTipo] = useState('todos');
 
@@ -46,10 +47,11 @@ export default function Beneficiarios() {
   });
 
   const filtered = beneficiarios.filter(b => {
-    const matchSearch = b.nombre?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || b.nombre?.toLowerCase().includes(search.toLowerCase());
+    const matchDni = !filterDni || b.dni?.includes(filterDni);
     const matchRama = filterRama === 'todas' || b.rama === filterRama;
     const matchTipo = filterTipo === 'todos' || b.tipo === filterTipo || (!b.tipo && filterTipo === 'Beneficiario');
-    return matchSearch && matchRama && matchTipo;
+    return matchSearch && matchDni && matchRama && matchTipo;
   });
 
   const handleSave = (data) => {
@@ -78,6 +80,7 @@ export default function Beneficiarios() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Buscar por nombre..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
           </div>
+          <Input placeholder="Filtrar por DNI..." value={filterDni} onChange={e => setFilterDni(e.target.value)} className="w-full sm:w-44" />
           <Select value={filterRama} onValueChange={setFilterRama}>
             <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
             <SelectContent>

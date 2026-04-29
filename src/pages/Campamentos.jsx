@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, MapPin, Calendar, Users, DollarSign } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Trash2, MapPin, Calendar, Users, DollarSign, Search } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CampamentoForm from '@/components/campamentos/CampamentoForm';
-import { formatMoney } from '@/lib/ramaUtils';
+import { formatMoney, RAMAS } from '@/lib/ramaUtils';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -15,6 +17,10 @@ import { es } from 'date-fns/locale';
 
 export default function Campamentos() {
   const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterRama, setFilterRama] = useState('todas');
+  const [montoMin, setMontoMin] = useState('');
+  const [montoMax, setMontoMax] = useState('');
   const queryClient = useQueryClient();
 
   const { data: campamentos = [], isLoading } = useQuery({
@@ -34,21 +40,47 @@ export default function Campamentos() {
 
   const getBenName = (id) => beneficiarios.find(b => b.id === id)?.nombre || id;
 
+  const filtered = useMemo(() => campamentos.filter(c => {
+    const matchSearch = !search || c.nombre?.toLowerCase().includes(search.toLowerCase()) || c.ubicacion?.toLowerCase().includes(search.toLowerCase());
+    const matchRama = filterRama === 'todas' || c.ramas_participantes?.includes(filterRama);
+    const matchMin = !montoMin || (c.costo_por_persona || 0) >= parseFloat(montoMin);
+    const matchMax = !montoMax || (c.costo_por_persona || 0) <= parseFloat(montoMax);
+    return matchSearch && matchRama && matchMin && matchMax;
+  }), [campamentos, search, filterRama, montoMin, montoMax]);
+
   return (
     <div>
       <PageHeader title="Campamentos" description="Eventos y actividades especiales">
         <Button onClick={() => setShowForm(true)}><Plus className="w-4 h-4 mr-2" />Nuevo Campamento</Button>
       </PageHeader>
 
+      <Card className="p-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input placeholder="Buscar por nombre o ubicación..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          </div>
+          <Select value={filterRama} onValueChange={setFilterRama}>
+            <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas las ramas</SelectItem>
+              {RAMAS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input placeholder="Costo mín." type="number" value={montoMin} onChange={e => setMontoMin(e.target.value)} className="w-full sm:w-32" />
+          <Input placeholder="Costo máx." type="number" value={montoMax} onChange={e => setMontoMax(e.target.value)} className="w-full sm:w-32" />
+        </div>
+      </Card>
+
       {isLoading ? (
         <p className="text-muted-foreground text-center py-12">Cargando...</p>
-      ) : campamentos.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <Card className="p-12 text-center">
-          <p className="text-muted-foreground">No hay campamentos creados aún</p>
+          <p className="text-muted-foreground">No hay campamentos que coincidan con los filtros</p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {campamentos.map(c => (
+          {filtered.map(c => (
             <Card key={c.id} className="p-5 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-3">
                 <h3 className="font-bold text-lg">{c.nombre}</h3>

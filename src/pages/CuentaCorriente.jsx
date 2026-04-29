@@ -11,11 +11,14 @@ import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
 import { RAMAS, MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS, CUOTA_EFECTIVO, formatMoney, esBeneficiarioConCuota } from '@/lib/ramaUtils';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 export default function CuentaCorriente() {
   const [search, setSearch] = useState('');
+  const [filterDni, setFilterDni] = useState('');
   const [filterRama, setFilterRama] = useState('todas');
+  const [filterEstado, setFilterEstado] = useState('todos');
   const [selectedBen, setSelectedBen] = useState(null);
   const [anio, setAnio] = useState(new Date().getFullYear());
 
@@ -68,9 +71,14 @@ export default function CuentaCorriente() {
   }, [activos, pagos, campamentos, anio]);
 
   const filtered = cuentas.filter(c => {
-    const matchSearch = c.nombre?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || c.nombre?.toLowerCase().includes(search.toLowerCase());
+    const matchDni = !filterDni || c.dni?.includes(filterDni);
     const matchRama = filterRama === 'todas' || c.rama === filterRama;
-    return matchSearch && matchRama;
+    const matchEstado = filterEstado === 'todos' || 
+      (filterEstado === 'alDia' && c.alDia) || 
+      (filterEstado === 'debe' && !c.alDia && !c.becado) || 
+      (filterEstado === 'becado' && c.becado);
+    return matchSearch && matchDni && matchRama && matchEstado;
   });
 
   const alDiaCount = filtered.filter(c => c.alDia).length;
@@ -87,16 +95,26 @@ export default function CuentaCorriente() {
       <PageHeader title="Cuenta Corriente" description={`${alDiaCount}/${filtered.length} al día`} />
 
       <Card className="p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
+        <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[160px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder="Buscar por nombre..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
           </div>
+          <Input placeholder="Filtrar por DNI..." value={filterDni} onChange={e => setFilterDni(e.target.value)} className="w-full sm:w-40" />
           <Select value={filterRama} onValueChange={setFilterRama}>
             <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="todas">Todas las ramas</SelectItem>
               {RAMAS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterEstado} onValueChange={setFilterEstado}>
+            <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos los estados</SelectItem>
+              <SelectItem value="alDia">Al día</SelectItem>
+              <SelectItem value="debe">Debe</SelectItem>
+              <SelectItem value="becado">Becado</SelectItem>
             </SelectContent>
           </Select>
           <Select value={anio.toString()} onValueChange={v => setAnio(parseInt(v))}>
