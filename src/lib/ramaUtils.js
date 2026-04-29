@@ -40,10 +40,15 @@ export function ramaDesdeEdad(fechaNacimiento) {
   if (!fechaNacimiento) return null;
   const hoy = new Date();
   const nacimiento = new Date(fechaNacimiento);
-  const edad = hoy.getFullYear() - nacimiento.getFullYear();
+  let edad = hoy.getFullYear() - nacimiento.getFullYear();
+  const cumplioEsteAnio =
+    hoy.getMonth() > nacimiento.getMonth() ||
+    (hoy.getMonth() === nacimiento.getMonth() && hoy.getDate() >= nacimiento.getDate());
+  if (!cumplioEsteAnio) edad--;
   if (edad >= 22) return 'Voluntario';
   if (edad >= 18) return 'Rovers';
   if (edad >= 14) return 'KM';
   if (edad >= 10) return 'Tropa';
-  return 'Lobatos';
+  if (edad >= 7) return 'Lobatos';
+  return null;
 }
