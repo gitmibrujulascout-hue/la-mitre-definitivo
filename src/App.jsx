@@ -5,7 +5,13 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-// Add page imports here
+import AppLayout from '@/components/layout/AppLayout';
+import Dashboard from '@/pages/Dashboard';
+import Beneficiarios from '@/pages/Beneficiarios';
+import Pagos from '@/pages/Pagos';
+import Gastos from '@/pages/Gastos';
+import Campamentos from '@/pages/Campamentos';
+import CuentaCorriente from '@/pages/CuentaCorriente';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -33,7 +39,14 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      {/* Add your page Route elements here */}
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/beneficiarios" element={<Beneficiarios />} />
+        <Route path="/pagos" element={<Pagos />} />
+        <Route path="/gastos" element={<Gastos />} />
+        <Route path="/campamentos" element={<Campamentos />} />
+        <Route path="/cuenta-corriente" element={<CuentaCorriente />} />
+      </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

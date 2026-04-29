@@ -1,0 +1,51 @@
+{
+  "name": "Beneficiario",
+  "type": "object",
+  "properties": {
+    "nombre": {
+      "type": "string",
+      "description": "Nombre completo del beneficiario"
+    },
+    "dni": {
+      "type": "string",
+      "description": "DNI del beneficiario"
+    },
+    "fecha_nacimiento": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de nacimiento"
+    },
+    "rama": {
+      "type": "string",
+      "enum": [
+        "Lobatos",
+        "Tropa",
+        "KM",
+        "Rovers"
+      ],
+      "description": "Rama scout seg\u00fan edad"
+    },
+    "becado": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si el beneficiario est\u00e1 becado (no paga cuota)"
+    },
+    "email_contacto": {
+      "type": "string",
+      "description": "Email de contacto del padre/tutor"
+    },
+    "telefono_contacto": {
+      "type": "string",
+      "description": "Tel\u00e9fono de contacto"
+    },
+    "activo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Si el beneficiario est\u00e1 activo"
+    }
+  },
+  "required": [
+    "nombre",
+    "rama"
+  ]
+}

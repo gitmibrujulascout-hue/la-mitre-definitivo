@@ -1,0 +1,23 @@
+export const RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
+
+export const RAMA_CONFIG = {
+  Lobatos: { color: 'bg-yellow-400', text: 'text-yellow-900', border: 'border-yellow-400', badge: 'bg-yellow-100 text-yellow-800 border-yellow-300', dot: 'bg-yellow-400', edad: '7-9 años' },
+  Tropa: { color: 'bg-green-500', text: 'text-green-900', border: 'border-green-500', badge: 'bg-green-100 text-green-800 border-green-300', dot: 'bg-green-500', edad: '10-13 años' },
+  KM: { color: 'bg-blue-400', text: 'text-blue-900', border: 'border-blue-400', badge: 'bg-blue-100 text-blue-800 border-blue-300', dot: 'bg-blue-400', edad: '14-17 años' },
+  Rovers: { color: 'bg-red-500', text: 'text-red-900', border: 'border-red-500', badge: 'bg-red-100 text-red-800 border-red-300', dot: 'bg-red-500', edad: '18-21 años' },
+};
+
+export const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+export const CUOTA_EFECTIVO = 25000;
+export const CUOTA_TRANSFERENCIA = 27000;
+
+export function getRamaBadge(rama) {
+  const config = RAMA_CONFIG[rama];
+  if (!config) return 'bg-muted text-muted-foreground';
+  return config.badge;
+}
+
+export function formatMoney(amount) {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(amount || 0);
+}

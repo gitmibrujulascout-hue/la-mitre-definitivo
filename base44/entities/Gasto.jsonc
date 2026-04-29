@@ -1,0 +1,53 @@
+{
+  "name": "Gasto",
+  "type": "object",
+  "properties": {
+    "descripcion": {
+      "type": "string",
+      "description": "Descripci\u00f3n del gasto"
+    },
+    "monto": {
+      "type": "number",
+      "description": "Monto del gasto"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha del gasto"
+    },
+    "categoria": {
+      "type": "string",
+      "enum": [
+        "Materiales",
+        "Alimentos",
+        "Transporte",
+        "Servicios",
+        "Mantenimiento",
+        "Campamento",
+        "Otro"
+      ],
+      "description": "Categor\u00eda del gasto"
+    },
+    "proveedor": {
+      "type": "string",
+      "description": "Proveedor o comercio"
+    },
+    "numero_factura": {
+      "type": "string",
+      "description": "N\u00famero de factura o recibo"
+    },
+    "archivo_url": {
+      "type": "string",
+      "description": "URL del archivo adjunto (PDF o imagen)"
+    },
+    "observaciones": {
+      "type": "string",
+      "description": "Notas adicionales"
+    }
+  },
+  "required": [
+    "descripcion",
+    "monto",
+    "fecha"
+  ]
+}

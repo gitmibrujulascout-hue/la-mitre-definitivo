@@ -1,0 +1,51 @@
+{
+  "name": "Campamento",
+  "type": "object",
+  "properties": {
+    "nombre": {
+      "type": "string",
+      "description": "Nombre del campamento"
+    },
+    "fecha_inicio": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de inicio"
+    },
+    "fecha_fin": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de fin"
+    },
+    "costo_por_persona": {
+      "type": "number",
+      "description": "Costo por persona del campamento"
+    },
+    "ramas_participantes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ramas que participan"
+    },
+    "beneficiarios_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs de beneficiarios que asisten"
+    },
+    "ubicacion": {
+      "type": "string",
+      "description": "Ubicaci\u00f3n del campamento"
+    },
+    "observaciones": {
+      "type": "string",
+      "description": "Notas adicionales"
+    }
+  },
+  "required": [
+    "nombre",
+    "fecha_inicio",
+    "costo_por_persona"
+  ]
+}

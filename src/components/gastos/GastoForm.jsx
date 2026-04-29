@@ -1,0 +1,186 @@
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { base44 } from '@/api/base44Client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Upload, Loader2, Sparkles, FileText } from 'lucide-react';
+import { toast } from 'sonner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+const CATEGORIAS = ['Materiales', 'Alimentos', 'Transporte', 'Servicios', 'Mantenimiento', 'Campamento', 'Otro'];
+
+export default function GastoForm({ open, onClose }) {
+  const [tab, setTab] = useState('manual');
+  const [form, setForm] = useState({
+    descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0],
+    categoria: '', proveedor: '', numero_factura: '', archivo_url: '', observaciones: ''
+  });
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+
+  const queryClient = useQueryClient();
+  const createMutation = useMutation({
+    mutationFn: data => base44.entities.Gasto.create(data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['gastos'] }); onClose(); toast.success('Gasto registrado'); },
+  });
+
+  const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+
+  const handleFileUpload = async () => {
+    if (!file) return;
+    setUploading(true);
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    update('archivo_url', file_url);
+    setUploading(false);
+    toast.success('Archivo subido');
+    return file_url;
+  };
+
+  const handleExtractFromFile = async () => {
+    if (!file) return;
+    setExtracting(true);
+    let fileUrl = form.archivo_url;
+    if (!fileUrl) {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      fileUrl = file_url;
+      update('archivo_url', fileUrl);
+    }
+
+    const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
+      file_url: fileUrl,
+      json_schema: {
+        type: "object",
+        properties: {
+          descripcion: { type: "string", description: "Descripción del producto o servicio" },
+          monto_total: { type: "number", description: "Monto total del recibo o factura" },
+          fecha: { type: "string", description: "Fecha de la factura en formato YYYY-MM-DD" },
+          proveedor: { type: "string", description: "Nombre del proveedor o comercio" },
+          numero_factura: { type: "string", description: "Número de factura o recibo" },
+          categoria: { type: "string", enum: CATEGORIAS }
+        }
+      }
+    });
+
+    if (result.status === 'success' && result.output) {
+      const d = result.output;
+      setForm(prev => ({
+        ...prev,
+        descripcion: d.descripcion || prev.descripcion,
+        monto: d.monto_total || prev.monto,
+        fecha: d.fecha || prev.fecha,
+        proveedor: d.proveedor || prev.proveedor,
+        numero_factura: d.numero_factura || prev.numero_factura,
+        categoria: d.categoria || prev.categoria,
+        archivo_url: fileUrl,
+      }));
+      toast.success('Datos extraídos correctamente. Verificá y corregí si es necesario.');
+    } else {
+      toast.error('No se pudieron extraer todos los datos. Completá manualmente.');
+    }
+    setExtracting(false);
+  };
+
+  const handleSave = () => {
+    if (!form.descripcion || !form.monto) return;
+    createMutation.mutate({ ...form, monto: parseFloat(form.monto) });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Registrar Gasto</DialogTitle>
+        </DialogHeader>
+
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="w-full">
+            <TabsTrigger value="manual" className="flex-1">Manual</TabsTrigger>
+            <TabsTrigger value="archivo" className="flex-1">Desde archivo</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="archivo" className="space-y-4 pt-4">
+            <div className="border-2 border-dashed border-border rounded-xl p-6 text-center">
+              <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setFile(e.target.files[0])} className="hidden" id="gasto-file" />
+              <label htmlFor="gasto-file" className="cursor-pointer">
+                <p className="text-sm font-medium text-primary">Seleccionar factura o recibo</p>
+                <p className="text-xs text-muted-foreground mt-1">PDF, JPG o PNG</p>
+              </label>
+              {file && <p className="text-sm mt-3 font-medium">{file.name}</p>}
+            </div>
+            {file && (
+              <Button onClick={handleExtractFromFile} disabled={extracting} className="w-full">
+                {extracting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                Extraer datos con IA
+              </Button>
+            )}
+          </TabsContent>
+
+          <TabsContent value="manual" className="pt-4" />
+        </Tabs>
+
+        <div className="space-y-4">
+          <div>
+            <Label>Descripción *</Label>
+            <Input value={form.descripcion} onChange={e => update('descripcion', e.target.value)} placeholder="Ej: Compra de materiales" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Monto *</Label>
+              <Input type="number" value={form.monto} onChange={e => update('monto', e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <Label>Fecha</Label>
+              <Input type="date" value={form.fecha} onChange={e => update('fecha', e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Categoría</Label>
+              <Select value={form.categoria} onValueChange={v => update('categoria', v)}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Proveedor</Label>
+              <Input value={form.proveedor} onChange={e => update('proveedor', e.target.value)} placeholder="Nombre" />
+            </div>
+          </div>
+          <div>
+            <Label>Nro. Factura/Recibo</Label>
+            <Input value={form.numero_factura} onChange={e => update('numero_factura', e.target.value)} placeholder="Opcional" />
+          </div>
+          <div>
+            <Label>Observaciones</Label>
+            <Textarea value={form.observaciones} onChange={e => update('observaciones', e.target.value)} placeholder="Opcional" className="h-20" />
+          </div>
+          {tab === 'manual' && (
+            <div>
+              <Label>Adjuntar archivo</Label>
+              <div className="flex gap-2 mt-1">
+                <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setFile(e.target.files[0])} />
+                {file && !form.archivo_url && (
+                  <Button variant="outline" size="sm" onClick={handleFileUpload} disabled={uploading}>
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  </Button>
+                )}
+              </div>
+              {form.archivo_url && <p className="text-xs text-green-600 mt-1">✓ Archivo adjuntado</p>}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={!form.descripcion || !form.monto}>Guardar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
