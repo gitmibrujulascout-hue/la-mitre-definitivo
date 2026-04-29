@@ -25,6 +25,7 @@ export default function Beneficiarios() {
   const [filterDni, setFilterDni] = useState('');
   const [filterRama, setFilterRama] = useState('todas');
   const [filterTipo, setFilterTipo] = useState('todos');
+  const [filterFuncion, setFilterFuncion] = useState('todas');
   const [selected, setSelected] = useState([]);
 
   const queryClient = useQueryClient();
@@ -48,12 +49,15 @@ export default function Beneficiarios() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['beneficiarios'] }); toast.success('Beneficiario eliminado'); },
   });
 
+  const funciones = [...new Set(beneficiarios.map(b => b.funcion).filter(Boolean))].sort();
+
   const filtered = beneficiarios.filter(b => {
     const matchSearch = !search || b.nombre?.toLowerCase().includes(search.toLowerCase());
     const matchDni = !filterDni || b.dni?.includes(filterDni);
     const matchRama = filterRama === 'todas' || b.rama === filterRama;
     const matchTipo = filterTipo === 'todos' || b.tipo === filterTipo || (!b.tipo && filterTipo === 'Beneficiario');
-    return matchSearch && matchDni && matchRama && matchTipo;
+    const matchFuncion = filterFuncion === 'todas' || b.funcion === filterFuncion;
+    return matchSearch && matchDni && matchRama && matchTipo && matchFuncion;
   });
 
   const allFilteredIds = filtered.map(b => b.id);
@@ -113,6 +117,13 @@ export default function Beneficiarios() {
               <SelectItem value="Voluntario">Solo voluntarios</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={filterFuncion} onValueChange={setFilterFuncion}>
+            <SelectTrigger className="w-full sm:w-52"><SelectValue placeholder="Todas las funciones" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas las funciones</SelectItem>
+              {funciones.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
       </Card>
 
@@ -139,6 +150,7 @@ export default function Beneficiarios() {
               <TableHead>Rama</TableHead>
               <TableHead className="hidden sm:table-cell">DNI</TableHead>
               <TableHead className="hidden md:table-cell">Función</TableHead>
+              <TableHead className="hidden lg:table-cell">Cumpleaños</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
@@ -166,6 +178,9 @@ export default function Beneficiarios() {
                   <TableCell><RamaBadge rama={b.rama} /></TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground">{b.dni || '—'}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{b.funcion || '—'}</TableCell>
+                  <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
+                    {b.fecha_nacimiento ? new Date(b.fecha_nacimiento).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                  </TableCell>
                   <TableCell>
                     {b.tipo === 'Voluntario' ? (
                       <Badge className="bg-purple-100 text-purple-700 border-purple-300 border"><UserCog className="w-3 h-3 mr-1" />Voluntario</Badge>
