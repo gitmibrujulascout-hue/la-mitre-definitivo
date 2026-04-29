@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 export default function StatsCard({ title, value, subtitle, icon: Icon, iconColor }) {
   return (
-    <Card className="bg-[#0910dc] text-card-foreground p-5 rounded-xl border shadow relative overflow-hidden group hover:shadow-md transition-shadow">
+    <Card className="bg-[#61e4ef] text-card-foreground p-5 rounded-xl border shadow relative overflow-hidden group hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
