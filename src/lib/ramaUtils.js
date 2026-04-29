@@ -45,7 +45,7 @@ export function ramaDesdeEdad(fechaNacimiento) {
     hoy.getMonth() > nacimiento.getMonth() ||
     (hoy.getMonth() === nacimiento.getMonth() && hoy.getDate() >= nacimiento.getDate());
   if (!cumplioEsteAnio) edad--;
-  if (edad >= 22) return 'Voluntario';
+  if (edad >= 23) return 'Voluntario';
   if (edad >= 18) return 'Rovers';
   if (edad >= 14) return 'KM';
   if (edad >= 10) return 'Tropa';
