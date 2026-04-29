@@ -10,7 +10,7 @@ import { Search, CheckCircle2, AlertCircle, Award, User } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
-import { RAMAS, MESES, CUOTA_EFECTIVO, formatMoney } from '@/lib/ramaUtils';
+import { RAMAS, MESES, CUOTA_EFECTIVO, formatMoney, esBeneficiarioConCuota } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 
 export default function CuentaCorriente() {
@@ -34,7 +34,8 @@ export default function CuentaCorriente() {
     queryFn: () => base44.entities.Campamento.list(),
   });
 
-  const activos = beneficiarios.filter(b => b.activo !== false);
+  // Solo mostrar en Cuenta Corriente a los que abonen cuota (excluir voluntarios)
+  const activos = beneficiarios.filter(b => b.activo !== false && b.tipo !== 'Voluntario' && !['Voluntario', 'Educador'].includes(b.rama));
 
   const cuentas = useMemo(() => {
     return activos.map(b => {
@@ -49,7 +50,7 @@ export default function CuentaCorriente() {
       // Deuda: cuota mensual * meses transcurridos + campamentos - pagos
       const mesActual = new Date().getMonth(); // 0-indexed
       const mesesTranscurridos = anio < new Date().getFullYear() ? 12 : anio > new Date().getFullYear() ? 0 : mesActual + 1;
-      const deudaCuotas = b.becado ? 0 : mesesTranscurridos * CUOTA_EFECTIVO;
+      const deudaCuotas = (!esBeneficiarioConCuota(b)) ? 0 : mesesTranscurridos * CUOTA_EFECTIVO;
       const saldo = totalPagado - deudaCuotas - totalCampamentos;
 
       return {

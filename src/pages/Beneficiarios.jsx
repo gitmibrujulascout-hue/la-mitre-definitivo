@@ -7,12 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award } from 'lucide-react';
+import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import BeneficiarioForm from '@/components/beneficiarios/BeneficiarioForm';
 import ImportBeneficiariosDialog from '@/components/beneficiarios/ImportBeneficiariosDialog';
-import { RAMAS } from '@/lib/ramaUtils';
+import { TODOS_LOS_ROLES } from '@/lib/ramaUtils';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
@@ -22,6 +22,7 @@ export default function Beneficiarios() {
   const [showImport, setShowImport] = useState(false);
   const [search, setSearch] = useState('');
   const [filterRama, setFilterRama] = useState('todas');
+  const [filterTipo, setFilterTipo] = useState('todos');
 
   const queryClient = useQueryClient();
   const { data: beneficiarios = [], isLoading } = useQuery({
@@ -47,7 +48,8 @@ export default function Beneficiarios() {
   const filtered = beneficiarios.filter(b => {
     const matchSearch = b.nombre?.toLowerCase().includes(search.toLowerCase());
     const matchRama = filterRama === 'todas' || b.rama === filterRama;
-    return matchSearch && matchRama;
+    const matchTipo = filterTipo === 'todos' || b.tipo === filterTipo || (!b.tipo && filterTipo === 'Beneficiario');
+    return matchSearch && matchRama && matchTipo;
   });
 
   const handleSave = (data) => {
@@ -77,10 +79,18 @@ export default function Beneficiarios() {
             <Input placeholder="Buscar por nombre..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
           </div>
           <Select value={filterRama} onValueChange={setFilterRama}>
-            <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="todas">Todas las ramas</SelectItem>
-              {RAMAS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+              {TODOS_LOS_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterTipo} onValueChange={setFilterTipo}>
+            <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos los tipos</SelectItem>
+              <SelectItem value="Beneficiario">Solo beneficiarios</SelectItem>
+              <SelectItem value="Voluntario">Solo voluntarios</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -94,6 +104,7 @@ export default function Beneficiarios() {
               <TableHead>Nombre</TableHead>
               <TableHead>Rama</TableHead>
               <TableHead className="hidden sm:table-cell">DNI</TableHead>
+              <TableHead className="hidden md:table-cell">Función</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
@@ -109,8 +120,13 @@ export default function Beneficiarios() {
                   <TableCell className="font-medium">{b.nombre}</TableCell>
                   <TableCell><RamaBadge rama={b.rama} /></TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground">{b.dni || '—'}</TableCell>
+                  <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{b.funcion || '—'}</TableCell>
                   <TableCell>
-                    {b.becado && <Badge className="bg-amber-100 text-amber-700 border-amber-300 border"><Award className="w-3 h-3 mr-1" />Becado</Badge>}
+                    {b.tipo === 'Voluntario' ? (
+                      <Badge className="bg-purple-100 text-purple-700 border-purple-300 border"><UserCog className="w-3 h-3 mr-1" />Voluntario</Badge>
+                    ) : b.becado ? (
+                      <Badge className="bg-amber-100 text-amber-700 border-amber-300 border"><Award className="w-3 h-3 mr-1" />Becado</Badge>
+                    ) : null}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

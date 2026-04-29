@@ -1,6 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { RAMA_CONFIG } from '@/lib/ramaUtils';
+import { RAMA_CONFIG, TODOS_LOS_ROLES } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 
 export default function RamaBadge({ rama, className }) {

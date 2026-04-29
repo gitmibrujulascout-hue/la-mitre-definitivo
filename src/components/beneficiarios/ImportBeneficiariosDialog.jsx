@@ -3,8 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Upload, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { FileSpreadsheet, Loader2, CheckCircle2, Users, UserCog } from 'lucide-react';
 import { toast } from 'sonner';
+import { ramaDesdeEdad } from '@/lib/ramaUtils';
+import { Badge } from '@/components/ui/badge';
 
 export default function ImportBeneficiariosDialog({ open, onClose }) {
   const [file, setFile] = useState(null);
@@ -15,33 +17,48 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
   const handleUpload = async () => {
     if (!file) return;
     setLoading(true);
+
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
+
     const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
       file_url,
       json_schema: {
         type: "object",
         properties: {
-          beneficiarios: {
+          personas: {
             type: "array",
             items: {
               type: "object",
               properties: {
-                nombre: { type: "string" },
-                dni: { type: "string" },
-                fecha_nacimiento: { type: "string" },
-                rama: { type: "string", enum: ["Lobatos", "Tropa", "KM", "Rovers"] },
-                email_contacto: { type: "string" },
-                telefono_contacto: { type: "string" },
+                nombre:               { type: "string", description: "Nombre completo de la persona" },
+                dni:                  { type: "string", description: "DNI o número de documento" },
+                telefono_contacto:    { type: "string", description: "Teléfono" },
+                funcion:              { type: "string", description: "Función dentro del grupo" },
+                categoria:            { type: "string", description: "Categoría scout" },
+                zona:                 { type: "string", description: "Zona" },
+                distrito:             { type: "string", description: "Distrito" },
+                codigo:               { type: "string", description: "Código" },
+                organismo:            { type: "string", description: "Organismo" },
+                fecha_nacimiento:     { type: "string", description: "Fecha de nacimiento en formato YYYY-MM-DD" },
+                religion:             { type: "string", description: "Religión (código)" },
+                religion_descripcion: { type: "string", description: "Descripción de la religión" }
               }
             }
           }
         }
       }
     });
-    if (result.status === 'success' && result.output?.beneficiarios) {
-      setExtractedData(result.output.beneficiarios);
+
+    if (result.status === 'success' && result.output?.personas) {
+      // Enriquecer con rama y tipo auto-detectados
+      const enriched = result.output.personas.map(p => {
+        const rama = ramaDesdeEdad(p.fecha_nacimiento);
+        const tipo = rama === 'Voluntario' ? 'Voluntario' : 'Beneficiario';
+        return { ...p, rama, tipo, activo: true, becado: false };
+      });
+      setExtractedData(enriched);
     } else {
-      toast.error('No se pudieron extraer los datos');
+      toast.error('No se pudieron extraer los datos. Verificá el formato del archivo.');
     }
     setLoading(false);
   };
@@ -49,57 +66,84 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
   const handleImport = async () => {
     if (!extractedData?.length) return;
     setLoading(true);
-    const records = extractedData.map(b => ({
-      ...b,
-      activo: true,
-      becado: false
-    }));
-    await base44.entities.Beneficiario.bulkCreate(records);
+    await base44.entities.Beneficiario.bulkCreate(extractedData);
     queryClient.invalidateQueries({ queryKey: ['beneficiarios'] });
-    toast.success(`${records.length} beneficiarios importados`);
+    const benefs = extractedData.filter(p => p.tipo === 'Beneficiario').length;
+    const vols = extractedData.filter(p => p.tipo === 'Voluntario').length;
+    toast.success(`Importados: ${benefs} beneficiarios y ${vols} voluntarios`);
     setLoading(false);
     onClose();
   };
+
+  const beneficiarios = extractedData?.filter(p => p.tipo === 'Beneficiario') || [];
+  const voluntarios = extractedData?.filter(p => p.tipo === 'Voluntario') || [];
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Importar Beneficiarios</DialogTitle>
+          <DialogTitle>Importar desde Excel</DialogTitle>
         </DialogHeader>
         <div className="py-4">
           {!extractedData ? (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Subí un archivo Excel, CSV o PDF con el listado de beneficiarios. El sistema extraerá los datos automáticamente.
-              </p>
+              <div className="p-3 rounded-lg bg-muted text-sm space-y-1">
+                <p className="font-medium">Columnas esperadas en el archivo:</p>
+                <p className="text-muted-foreground font-mono text-xs">
+                  DNI · Nombre · Teléfono · Función · Categoría · Zona · Distrito · Código · Organismo · Fecha de Nacimiento · Religión · Religion Descripcion
+                </p>
+              </div>
               <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
                 <FileSpreadsheet className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                 <input
                   type="file"
-                  accept=".csv,.xlsx,.xls,.pdf,.jpg,.jpeg,.png"
+                  accept=".csv,.xlsx,.xls"
                   onChange={e => setFile(e.target.files[0])}
                   className="hidden"
                   id="import-file"
                 />
                 <label htmlFor="import-file" className="cursor-pointer">
-                  <p className="text-sm font-medium text-primary">Seleccionar archivo</p>
-                  <p className="text-xs text-muted-foreground mt-1">CSV, Excel, PDF o imagen</p>
+                  <p className="text-sm font-medium text-primary">Seleccionar archivo Excel o CSV</p>
+                  <p className="text-xs text-muted-foreground mt-1">Los voluntarios (22+ años) se detectan automáticamente</p>
                 </label>
-                {file && <p className="text-sm mt-3 font-medium">{file.name}</p>}
+                {file && <p className="text-sm mt-3 font-medium text-foreground">{file.name}</p>}
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Se encontraron {extractedData.length} beneficiarios:</p>
-              <div className="max-h-60 overflow-y-auto space-y-2">
-                {extractedData.map((b, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 rounded bg-muted text-sm">
-                    <span className="font-medium">{b.nombre}</span>
-                    <span className="text-muted-foreground">{b.rama}</span>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-center">
+                  <Users className="w-6 h-6 text-blue-600 mx-auto mb-1" />
+                  <p className="text-xl font-bold text-blue-700">{beneficiarios.length}</p>
+                  <p className="text-xs text-blue-600">Beneficiarios</p>
+                </div>
+                <div className="p-3 rounded-lg bg-purple-50 border border-purple-200 text-center">
+                  <UserCog className="w-6 h-6 text-purple-600 mx-auto mb-1" />
+                  <p className="text-xl font-bold text-purple-700">{voluntarios.length}</p>
+                  <p className="text-xs text-purple-600">Voluntarios/Educadores</p>
+                </div>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto space-y-1 border rounded-lg p-2">
+                {extractedData.map((p, i) => (
+                  <div key={i} className="flex items-center justify-between p-2 rounded hover:bg-muted text-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-medium truncate">{p.nombre}</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                      {p.rama && (
+                        <Badge variant="secondary" className="text-xs">{p.rama}</Badge>
+                      )}
+                      <Badge className={p.tipo === 'Voluntario' ? 'bg-purple-100 text-purple-700 border-purple-200 border text-xs' : 'bg-blue-100 text-blue-700 border-blue-200 border text-xs'}>
+                        {p.tipo}
+                      </Badge>
+                    </div>
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">
+                ✓ La rama y el tipo se asignaron automáticamente según la fecha de nacimiento. Podés editarlos después individualmente.
+              </p>
             </div>
           )}
         </div>
@@ -108,12 +152,12 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
           {!extractedData ? (
             <Button onClick={handleUpload} disabled={!file || loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Analizar archivo
+              {loading ? 'Analizando...' : 'Analizar archivo'}
             </Button>
           ) : (
             <Button onClick={handleImport} disabled={loading}>
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Importar {extractedData.length} beneficiarios
+              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+              Importar {extractedData.length} personas
             </Button>
           )}
         </DialogFooter>

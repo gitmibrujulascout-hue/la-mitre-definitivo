@@ -4,16 +4,52 @@
   "properties": {
     "nombre": {
       "type": "string",
-      "description": "Nombre completo del beneficiario"
+      "description": "Nombre completo"
     },
     "dni": {
       "type": "string",
-      "description": "DNI del beneficiario"
+      "description": "DNI"
+    },
+    "telefono_contacto": {
+      "type": "string",
+      "description": "Tel\u00e9fono"
     },
     "fecha_nacimiento": {
       "type": "string",
       "format": "date",
       "description": "Fecha de nacimiento"
+    },
+    "funcion": {
+      "type": "string",
+      "description": "Funci\u00f3n dentro del grupo (ej: Scout, Jefe de Secci\u00f3n, etc.)"
+    },
+    "categoria": {
+      "type": "string",
+      "description": "Categor\u00eda seg\u00fan el sistema scout (ej: Lobato, Scout, Caminante, etc.)"
+    },
+    "zona": {
+      "type": "string",
+      "description": "Zona"
+    },
+    "distrito": {
+      "type": "string",
+      "description": "Distrito"
+    },
+    "codigo": {
+      "type": "string",
+      "description": "C\u00f3digo del organismo"
+    },
+    "organismo": {
+      "type": "string",
+      "description": "Organismo"
+    },
+    "religion": {
+      "type": "string",
+      "description": "Religi\u00f3n"
+    },
+    "religion_descripcion": {
+      "type": "string",
+      "description": "Descripci\u00f3n de religi\u00f3n"
     },
     "rama": {
       "type": "string",
@@ -21,31 +57,37 @@
         "Lobatos",
         "Tropa",
         "KM",
-        "Rovers"
+        "Rovers",
+        "Voluntario",
+        "Educador"
       ],
-      "description": "Rama scout seg\u00fan edad"
+      "description": "Rama scout seg\u00fan edad o rol"
+    },
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "Beneficiario",
+        "Voluntario"
+      ],
+      "default": "Beneficiario",
+      "description": "Tipo: Beneficiario (menor, abona cuota) o Voluntario (adulto, no abona)"
     },
     "becado": {
       "type": "boolean",
       "default": false,
-      "description": "Si el beneficiario est\u00e1 becado (no paga cuota)"
+      "description": "Si est\u00e1 becado (no paga cuota)"
     },
     "email_contacto": {
       "type": "string",
-      "description": "Email de contacto del padre/tutor"
-    },
-    "telefono_contacto": {
-      "type": "string",
-      "description": "Tel\u00e9fono de contacto"
+      "description": "Email de contacto"
     },
     "activo": {
       "type": "boolean",
       "default": true,
-      "description": "Si el beneficiario est\u00e1 activo"
+      "description": "Si est\u00e1 activo"
     }
   },
   "required": [
-    "nombre",
-    "rama"
+    "nombre"
   ]
 }
