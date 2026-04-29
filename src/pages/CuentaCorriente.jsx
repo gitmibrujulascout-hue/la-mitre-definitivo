@@ -11,7 +11,6 @@ import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
 import { RAMAS, MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS, CUOTA_EFECTIVO, formatMoney, esBeneficiarioConCuota } from '@/lib/ramaUtils';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 export default function CuentaCorriente() {
