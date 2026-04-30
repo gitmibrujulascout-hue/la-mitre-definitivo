@@ -56,9 +56,9 @@ export default function Dashboard() {
         {RAMAS.map((rama) => {
           const config = RAMA_CONFIG[rama];
           return (
-            <Card key={rama} className="bg-transparent text-card-foreground p-4 rounded-xl border shadow relative overflow-hidden">
-              <div className={cn('absolute top-0 left-0 w-1 h-full', config.color)} />
-              <div className="pl-3">
+            <Card key={rama} className={cn('text-card-foreground p-4 rounded-xl border-2 shadow relative overflow-hidden', config.border)} style={{ backgroundColor: 'transparent' }}>
+              <div className={cn('absolute inset-0 opacity-[0.08]', config.color)} />
+              <div className="relative pl-3">
                 <p className="text-xs font-medium text-muted-foreground">{rama}</p>
                 <p className="text-2xl font-bold">{ramaCount[rama] || 0}</p>
                 <p className="text-xs text-muted-foreground">{config.edad}</p>
