@@ -5,22 +5,21 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, MapPin, Calendar, Users, DollarSign, Search } from 'lucide-react';
+import { Plus, Trash2, MapPin, Calendar, Users, DollarSign, Search, Pencil, Eye } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CampamentoForm from '@/components/campamentos/CampamentoForm';
+import CampamentoDetalle from '@/components/campamentos/CampamentoDetalle';
 import { formatMoney, RAMAS } from '@/lib/ramaUtils';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 
 export default function Campamentos() {
   const [showForm, setShowForm] = useState(false);
+  const [editingCamp, setEditingCamp] = useState(null);
+  const [viewingCamp, setViewingCamp] = useState(null);
   const [search, setSearch] = useState('');
   const [filterRama, setFilterRama] = useState('todas');
-  const [montoMin, setMontoMin] = useState('');
-  const [montoMax, setMontoMax] = useState('');
   const queryClient = useQueryClient();
 
   const { data: campamentos = [], isLoading } = useQuery({
@@ -33,6 +32,11 @@ export default function Campamentos() {
     queryFn: () => base44.entities.Beneficiario.list(),
   });
 
+  const { data: pagos = [] } = useQuery({
+    queryKey: ['pagos'],
+    queryFn: () => base44.entities.Pago.list('-created_date', 500),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: id => base44.entities.Campamento.delete(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['campamentos'] }); toast.success('Campamento eliminado'); },
@@ -43,10 +47,35 @@ export default function Campamentos() {
   const filtered = useMemo(() => campamentos.filter(c => {
     const matchSearch = !search || c.nombre?.toLowerCase().includes(search.toLowerCase()) || c.ubicacion?.toLowerCase().includes(search.toLowerCase());
     const matchRama = filterRama === 'todas' || c.ramas_participantes?.includes(filterRama);
-    const matchMin = !montoMin || (c.costo_por_persona || 0) >= parseFloat(montoMin);
-    const matchMax = !montoMax || (c.costo_por_persona || 0) <= parseFloat(montoMax);
-    return matchSearch && matchRama && matchMin && matchMax;
-  }), [campamentos, search, filterRama, montoMin, montoMax]);
+    return matchSearch && matchRama;
+  }), [campamentos, search, filterRama]);
+
+  // Si estamos viendo un detalle, refrescamos el campamento desde la lista actualizada
+  const campamentoActualizado = viewingCamp
+    ? campamentos.find(c => c.id === viewingCamp.id) || viewingCamp
+    : null;
+
+  if (campamentoActualizado && !editingCamp) {
+    return (
+      <div>
+        <CampamentoDetalle
+          campamento={campamentoActualizado}
+          beneficiarios={beneficiarios}
+          pagos={pagos}
+          onBack={() => setViewingCamp(null)}
+          onEdit={() => { setEditingCamp(campamentoActualizado); }}
+        />
+        {editingCamp && (
+          <CampamentoForm
+            open
+            onClose={() => setEditingCamp(null)}
+            beneficiarios={beneficiarios}
+            campamento={editingCamp}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -67,8 +96,6 @@ export default function Campamentos() {
               {RAMAS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Input placeholder="Costo mín." type="number" value={montoMin} onChange={e => setMontoMin(e.target.value)} className="w-full sm:w-32" />
-          <Input placeholder="Costo máx." type="number" value={montoMax} onChange={e => setMontoMax(e.target.value)} className="w-full sm:w-32" />
         </div>
       </Card>
 
@@ -80,62 +107,72 @@ export default function Campamentos() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {filtered.map(c => (
-            <Card key={c.id} className="p-5 hover:shadow-md transition-shadow">
-              <div className="flex justify-between items-start mb-3">
-                <h3 className="font-bold text-lg">{c.nombre}</h3>
-                <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(c.id)}>
-                  <Trash2 className="w-4 h-4 text-muted-foreground" />
+          {filtered.map(c => {
+            const totalPersonas = (c.beneficiarios_ids?.length || 0) + (c.adultos_ids?.length || 0);
+            return (
+              <Card key={c.id} className="p-5 hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="font-bold text-lg">{c.nombre}</h3>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setViewingCamp(c)}>
+                      <Eye className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => { setEditingCamp(c); }}>
+                      <Pencil className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(c.id)}>
+                      <Trash2 className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  {c.fecha_inicio && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="w-4 h-4" />
+                      {c.fecha_inicio}{c.fecha_fin ? ` — ${c.fecha_fin}` : ''}
+                    </div>
+                  )}
+                  {c.ubicacion && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="w-4 h-4" />{c.ubicacion}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-semibold">{formatMoney(c.costo_por_persona)}</span>
+                    <span className="text-muted-foreground">por niño</span>
+                    {c.adultos_pagan && <Badge variant="outline" className="text-xs">Adultos abonan</Badge>}
+                  </div>
+                  {totalPersonas > 0 && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Users className="w-4 h-4" />
+                      <span>{c.beneficiarios_ids?.length || 0} niños · {c.adultos_ids?.length || 0} adultos</span>
+                    </div>
+                  )}
+                </div>
+
+                {c.ramas_participantes?.length > 0 && (
+                  <div className="flex gap-2 mt-3 flex-wrap">
+                    {c.ramas_participantes.map(r => <RamaBadge key={r} rama={r} />)}
+                  </div>
+                )}
+
+                <Button variant="outline" size="sm" className="w-full mt-3" onClick={() => setViewingCamp(c)}>
+                  <Eye className="w-3.5 h-3.5 mr-2" />Ver detalle y listado
                 </Button>
-              </div>
-
-              <div className="space-y-2 text-sm">
-                {c.fecha_inicio && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar className="w-4 h-4" />
-                    {c.fecha_inicio}{c.fecha_fin ? ` — ${c.fecha_fin}` : ''}
-                  </div>
-                )}
-                {c.ubicacion && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="w-4 h-4" />{c.ubicacion}
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-semibold">{formatMoney(c.costo_por_persona)}</span>
-                  <span className="text-muted-foreground">por persona</span>
-                </div>
-              </div>
-
-              {c.ramas_participantes?.length > 0 && (
-                <div className="flex gap-2 mt-3 flex-wrap">
-                  {c.ramas_participantes.map(r => <RamaBadge key={r} rama={r} />)}
-                </div>
-              )}
-
-              {c.beneficiarios_ids?.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Users className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">{c.beneficiarios_ids.length} asistentes</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {c.beneficiarios_ids.slice(0, 8).map(id => (
-                      <Badge key={id} variant="secondary" className="text-xs">{getBenName(id)}</Badge>
-                    ))}
-                    {c.beneficiarios_ids.length > 8 && (
-                      <Badge variant="secondary" className="text-xs">+{c.beneficiarios_ids.length - 8} más</Badge>
-                    )}
-                  </div>
-                </div>
-              )}
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
 
-      {showForm && <CampamentoForm open onClose={() => setShowForm(false)} beneficiarios={beneficiarios} />}
+      {showForm && (
+        <CampamentoForm open onClose={() => setShowForm(false)} beneficiarios={beneficiarios} />
+      )}
+      {editingCamp && !viewingCamp && (
+        <CampamentoForm open onClose={() => setEditingCamp(null)} beneficiarios={beneficiarios} campamento={editingCamp} />
+      )}
     </div>
   );
 }

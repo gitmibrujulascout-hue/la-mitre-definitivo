@@ -47,13 +47,19 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     [beneficiarios]
   );
 
-  // Para campamentos: todos los activos (incluyendo voluntarios)
-  const beneficiariosParaCampamento = useMemo(() =>
-    beneficiarios
+  // Para campamentos: filtrar según si el campamento permite adultos pagantes
+  const beneficiariosParaCampamento = useMemo(() => {
+    const selectedCampObj = campamentos.find(c => c.id === campamentoId);
+    if (selectedCampObj && !selectedCampObj.adultos_pagan) {
+      // Solo niños (beneficiarios que abonan)
+      return beneficiarios
+        .filter(b => b.activo !== false && b.tipo !== 'Voluntario' && !['Voluntario', 'Educador'].includes(b.rama))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    }
+    return beneficiarios
       .filter(b => b.activo !== false)
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
-    [beneficiarios]
-  );
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  }, [beneficiarios, campamentos, campamentoId]);
 
   const beneficiariosLista = tipoPago === 'Cuota' ? beneficiariosParaCuota : beneficiariosParaCampamento;
   const selectedBen = beneficiarios.find(b => b.id === beneficiarioId);

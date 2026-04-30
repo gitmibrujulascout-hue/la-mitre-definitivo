@@ -18,7 +18,16 @@
     },
     "costo_por_persona": {
       "type": "number",
-      "description": "Costo por persona del campamento"
+      "description": "Costo por persona del campamento (ni\u00f1os)"
+    },
+    "costo_adultos": {
+      "type": "number",
+      "description": "Costo por persona adulta (si adultos_pagan es true)"
+    },
+    "adultos_pagan": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si los adultos/voluntarios deben abonar el campamento"
     },
     "ramas_participantes": {
       "type": "array",
@@ -32,7 +41,14 @@
       "items": {
         "type": "string"
       },
-      "description": "IDs de beneficiarios que asisten"
+      "description": "IDs de beneficiarios (ni\u00f1os) que asisten"
+    },
+    "adultos_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs de adultos/voluntarios que asisten"
     },
     "ubicacion": {
       "type": "string",
