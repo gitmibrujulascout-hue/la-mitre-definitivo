@@ -64,7 +64,11 @@ export default function Pagos() {
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.beneficiario_nombre}</TableCell>
                     <TableCell>{ben && <RamaBadge rama={ben.rama} />}</TableCell>
-                    <TableCell>{p.mes} {p.anio}</TableCell>
+                    <TableCell>
+                      {p.tipo_pago === 'Campamento'
+                        ? `Camp: ${p.campamento_nombre || '—'}`
+                        : `${(p.meses?.length ? p.meses.join(', ') : (p.mes || '—'))} ${p.anio}`}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline">{p.forma_pago}</Badge>
                     </TableCell>
