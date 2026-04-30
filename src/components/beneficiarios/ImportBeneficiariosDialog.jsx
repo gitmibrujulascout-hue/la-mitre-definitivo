@@ -74,11 +74,24 @@ Devolvé un JSON con el array "personas" con todos los campos de cada persona.`,
   const handleImport = async () => {
     if (!extractedData?.length) return;
     setLoading(true);
-    await base44.entities.Beneficiario.bulkCreate(extractedData);
+
+    // Obtener beneficiarios existentes para detectar duplicados por DNI
+    const existentes = await base44.entities.Beneficiario.list();
+    const dnisExistentes = new Set(existentes.map(b => b.dni?.toString().trim()).filter(Boolean));
+
+    const nuevos = extractedData.filter(p => !p.dni || !dnisExistentes.has(p.dni?.toString().trim()));
+    const duplicados = extractedData.filter(p => p.dni && dnisExistentes.has(p.dni?.toString().trim()));
+
+    if (nuevos.length > 0) {
+      await base44.entities.Beneficiario.bulkCreate(nuevos);
+    }
     queryClient.invalidateQueries({ queryKey: ['beneficiarios'] });
-    const benefs = extractedData.filter(p => p.tipo === 'Beneficiario').length;
-    const vols = extractedData.filter(p => p.tipo === 'Voluntario').length;
-    toast.success(`Importados: ${benefs} beneficiarios y ${vols} voluntarios`);
+    const benefs = nuevos.filter(p => p.tipo === 'Beneficiario').length;
+    const vols = nuevos.filter(p => p.tipo === 'Voluntario').length;
+    const msg = duplicados.length > 0
+      ? `Importados: ${benefs} benef. y ${vols} vol. | Omitidos ${duplicados.length} duplicados por DNI`
+      : `Importados: ${benefs} beneficiarios y ${vols} voluntarios`;
+    toast.success(msg);
     setLoading(false);
     onClose();
   };

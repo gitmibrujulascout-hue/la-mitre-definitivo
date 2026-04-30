@@ -18,7 +18,7 @@ export default function Pagos() {
 
   const { data: pagos = [], isLoading } = useQuery({
     queryKey: ['pagos'],
-    queryFn: () => base44.entities.Pago.list('-created_date', 100),
+    queryFn: () => base44.entities.Pago.list('-fecha_pago', 200),
   });
 
   const { data: beneficiarios = [] } = useQuery({

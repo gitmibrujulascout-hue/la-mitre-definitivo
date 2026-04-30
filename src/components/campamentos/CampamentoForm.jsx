@@ -43,6 +43,7 @@ export default function CampamentoForm({ open, onClose, beneficiarios }) {
     update('beneficiarios_ids', current.includes(id) ? current.filter(i => i !== id) : [...current, id]);
   };
 
+  // Incluir todos (beneficiarios Y voluntarios) para saber cuánta gente asiste
   const activeBeneficiarios = beneficiarios.filter(b => b.activo !== false);
 
   const handleSave = () => {

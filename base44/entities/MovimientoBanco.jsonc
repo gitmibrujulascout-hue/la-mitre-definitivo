@@ -1,0 +1,55 @@
+{
+  "name": "MovimientoBanco",
+  "type": "object",
+  "properties": {
+    "fecha": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha del movimiento"
+    },
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "Ingreso",
+        "Egreso"
+      ],
+      "description": "Tipo de movimiento"
+    },
+    "concepto": {
+      "type": "string",
+      "description": "Descripci\u00f3n del movimiento"
+    },
+    "monto": {
+      "type": "number",
+      "description": "Monto del movimiento"
+    },
+    "origen": {
+      "type": "string",
+      "enum": [
+        "Manual",
+        "Pago cuota",
+        "Pago campamento",
+        "Gasto"
+      ],
+      "description": "Origen del movimiento"
+    },
+    "referencia_id": {
+      "type": "string",
+      "description": "ID de referencia (pago, gasto, etc.)"
+    },
+    "saldo_resultante": {
+      "type": "number",
+      "description": "Saldo en banco despu\u00e9s del movimiento"
+    },
+    "observaciones": {
+      "type": "string",
+      "description": "Notas adicionales"
+    }
+  },
+  "required": [
+    "fecha",
+    "tipo",
+    "concepto",
+    "monto"
+  ]
+}

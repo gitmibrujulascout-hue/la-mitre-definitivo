@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog } from 'lucide-react';
+import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import BeneficiarioForm from '@/components/beneficiarios/BeneficiarioForm';
@@ -60,6 +60,26 @@ export default function Beneficiarios() {
     return matchSearch && matchDni && matchRama && matchTipo && matchFuncion;
   });
 
+  const exportarCSV = () => {
+    const cols = ['Nombre', 'DNI', 'Fecha Nac.', 'Rama', 'Tipo', 'Función', 'Teléfono', 'Email', 'Becado'];
+    const rows = filtered.map(b => [
+      b.nombre || '',
+      b.dni || '',
+      b.fecha_nacimiento || '',
+      b.rama || '',
+      b.tipo || '',
+      b.funcion || '',
+      b.telefono_contacto || '',
+      b.email_contacto || '',
+      b.becado ? 'Sí' : 'No',
+    ]);
+    const csv = [cols, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'beneficiarios.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const allFilteredIds = filtered.map(b => b.id);
   const allSelected = allFilteredIds.length > 0 && allFilteredIds.every(id => selected.includes(id));
   const someSelected = selected.length > 0;
@@ -86,6 +106,9 @@ export default function Beneficiarios() {
   return (
     <div>
       <PageHeader title="Beneficiarios" description="Gestión de miembros del grupo scout">
+        <Button variant="outline" onClick={exportarCSV}>
+          <Download className="w-4 h-4 mr-2" />Exportar
+        </Button>
         <Button variant="outline" onClick={() => setShowImport(true)}>
           <Upload className="w-4 h-4 mr-2" />Importar
         </Button>

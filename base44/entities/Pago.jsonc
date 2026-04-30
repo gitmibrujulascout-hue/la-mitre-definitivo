@@ -10,6 +10,22 @@
       "type": "string",
       "description": "Nombre del beneficiario (para f\u00e1cil visualizaci\u00f3n)"
     },
+    "tipo_pago": {
+      "type": "string",
+      "enum": [
+        "Cuota",
+        "Campamento"
+      ],
+      "default": "Cuota",
+      "description": "Tipo de pago: cuota mensual o campamento"
+    },
+    "meses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Meses abonados (para pagos de cuota, puede ser m\u00faltiple)"
+    },
     "mes": {
       "type": "string",
       "enum": [
@@ -26,11 +42,19 @@
         "Noviembre",
         "Diciembre"
       ],
-      "description": "Mes al que corresponde el pago"
+      "description": "Mes principal (compatibilidad)"
     },
     "anio": {
       "type": "number",
       "description": "A\u00f1o al que corresponde el pago"
+    },
+    "campamento_id": {
+      "type": "string",
+      "description": "ID del campamento (si tipo_pago es Campamento)"
+    },
+    "campamento_nombre": {
+      "type": "string",
+      "description": "Nombre del campamento"
     },
     "forma_pago": {
       "type": "string",
@@ -39,6 +63,15 @@
         "Transferencia"
       ],
       "description": "Forma de pago"
+    },
+    "destino": {
+      "type": "string",
+      "enum": [
+        "Caja",
+        "Banco"
+      ],
+      "default": "Caja",
+      "description": "Destino del dinero: Caja (efectivo) o Banco (transferencia)"
     },
     "monto": {
       "type": "number",
@@ -56,7 +89,6 @@
   },
   "required": [
     "beneficiario_id",
-    "mes",
     "anio",
     "forma_pago",
     "monto"

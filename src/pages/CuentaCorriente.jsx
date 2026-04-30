@@ -6,12 +6,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, CheckCircle2, AlertCircle, Award, User } from 'lucide-react';
+import { Search, CheckCircle2, AlertCircle, Award, User, Plus } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
+import PagoForm from '@/components/pagos/PagoForm';
 import { RAMAS, MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS, CUOTA_EFECTIVO, formatMoney, esBeneficiarioConCuota } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 export default function CuentaCorriente() {
   const [search, setSearch] = useState('');
@@ -20,6 +22,8 @@ export default function CuentaCorriente() {
   const [filterEstado, setFilterEstado] = useState('todos');
   const [selectedBen, setSelectedBen] = useState(null);
   const [anio, setAnio] = useState(new Date().getFullYear());
+  const [showPagoForm, setShowPagoForm] = useState(false);
+  const [pagoPreselected, setPagoPreselected] = useState(null);
 
   const { data: beneficiarios = [] } = useQuery({
     queryKey: ['beneficiarios'],
@@ -37,26 +41,33 @@ export default function CuentaCorriente() {
   });
 
   // Solo mostrar en Cuenta Corriente a los que abonen cuota (excluir voluntarios)
+  // Solo calcular deudas desde 2026 en adelante
+  const AÑO_INICIO = 2026;
   const activos = beneficiarios.filter(b => b.activo !== false && b.tipo !== 'Voluntario' && !['Voluntario', 'Educador'].includes(b.rama));
 
   const cuentas = useMemo(() => {
     return activos.map(b => {
       const pagosDelBen = pagos.filter(p => p.beneficiario_id === b.id && p.anio === anio);
-      const mesesPagados = pagosDelBen.map(p => p.mes);
+      const mesesPagados = pagosDelBen
+        .filter(p => p.tipo_pago !== 'Campamento')
+        .flatMap(p => p.meses || (p.mes ? [p.mes] : []));
       const totalPagado = pagosDelBen.reduce((s, p) => s + (p.monto || 0), 0);
 
-      // Campamentos donde participó
+      // Campamentos donde participó (solo deuda si el año es >= AÑO_INICIO)
       const campBen = campamentos.filter(c => c.beneficiarios_ids?.includes(b.id));
-      const totalCampamentos = campBen.reduce((s, c) => s + (c.costo_por_persona || 0), 0);
+      const totalCampamentos = anio >= AÑO_INICIO ? campBen.reduce((s, c) => s + (c.costo_por_persona || 0), 0) : 0;
+      // Restar lo pagado de campamentos
+      const pagadoCamp = pagosDelBen.filter(p => p.tipo_pago === 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
 
-      // Deuda: solo los meses que generan cuota (excluir Enero, Febrero y Marzo que es bonificado)
-      const mesActual = new Date().getMonth(); // 0-indexed
+      // Deuda cuotas: solo desde AÑO_INICIO
+      const mesActual = new Date().getMonth();
       const mesesTranscurridos = anio < new Date().getFullYear() ? 12 : anio > new Date().getFullYear() ? 0 : mesActual + 1;
-      const mesesQueGeneranDeuda = MESES.slice(0, mesesTranscurridos).filter(
+      const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter(
         m => !MESES_SIN_CUOTA.includes(m) && !MESES_BONIFICADOS.includes(m)
       );
       const deudaCuotas = (!esBeneficiarioConCuota(b)) ? 0 : mesesQueGeneranDeuda.length * CUOTA_EFECTIVO;
-      const saldo = totalPagado - deudaCuotas - totalCampamentos;
+      const pagadoCuotas = pagosDelBen.filter(p => p.tipo_pago !== 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
+      const saldo = pagadoCuotas - deudaCuotas + pagadoCamp - totalCampamentos;
 
       return {
         ...b,
@@ -91,7 +102,11 @@ export default function CuentaCorriente() {
 
   return (
     <div>
-      <PageHeader title="Cuenta Corriente" description={`${alDiaCount}/${filtered.length} al día`} />
+      <PageHeader title="Cuenta Corriente" description={`${alDiaCount}/${filtered.length} al día`}>
+        <Button onClick={() => { setPagoPreselected(null); setShowPagoForm(true); }}>
+          <Plus className="w-4 h-4 mr-2" />Registrar pago
+        </Button>
+      </PageHeader>
 
       <Card className="p-4 mb-6">
         <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
@@ -119,7 +134,7 @@ export default function CuentaCorriente() {
           <Select value={anio.toString()} onValueChange={v => setAnio(parseInt(v))}>
             <SelectTrigger className="w-full sm:w-28"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {[2024, 2025, 2026, 2027].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
+              {[2026, 2027, 2028].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -134,6 +149,7 @@ export default function CuentaCorriente() {
               <TableHead>Estado</TableHead>
               <TableHead className="hidden sm:table-cell">Pagado</TableHead>
               <TableHead>Saldo</TableHead>
+              <TableHead className="w-24"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -144,11 +160,10 @@ export default function CuentaCorriente() {
                 <TableRow 
                   key={c.id} 
                   className="cursor-pointer hover:bg-muted/30"
-                  onClick={() => setSelectedBen(c)}
                 >
-                  <TableCell className="font-medium">{c.nombre}</TableCell>
-                  <TableCell><RamaBadge rama={c.rama} /></TableCell>
-                  <TableCell>
+                  <TableCell className="font-medium" onClick={() => setSelectedBen(c)}>{c.nombre}</TableCell>
+                  <TableCell onClick={() => setSelectedBen(c)}><RamaBadge rama={c.rama} /></TableCell>
+                  <TableCell onClick={() => setSelectedBen(c)}>
                     {c.becado ? (
                       <Badge className="bg-amber-100 text-amber-700 border-amber-300 border"><Award className="w-3 h-3 mr-1" />Becado</Badge>
                     ) : c.alDia ? (
@@ -157,9 +172,18 @@ export default function CuentaCorriente() {
                       <Badge className="bg-red-100 text-red-700 border-red-300 border"><AlertCircle className="w-3 h-3 mr-1" />Debe</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">{formatMoney(c.totalPagado)}</TableCell>
-                  <TableCell className={cn('font-semibold', c.saldo >= 0 ? 'text-green-600' : 'text-red-500')}>
+                  <TableCell className="hidden sm:table-cell" onClick={() => setSelectedBen(c)}>{formatMoney(c.totalPagado)}</TableCell>
+                  <TableCell className={cn('font-semibold', c.saldo >= 0 ? 'text-green-600' : 'text-red-500')} onClick={() => setSelectedBen(c)}>
                     {formatMoney(c.saldo)}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={e => { e.stopPropagation(); setPagoPreselected(c.id); setShowPagoForm(true); }}
+                    >
+                      <Plus className="w-3 h-3 mr-1" />Pago
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -167,6 +191,14 @@ export default function CuentaCorriente() {
           </TableBody>
         </Table>
       </Card>
+      {showPagoForm && (
+        <PagoForm
+          open
+          onClose={() => { setShowPagoForm(false); setPagoPreselected(null); }}
+          beneficiarios={beneficiarios}
+          preselectedBenId={pagoPreselected}
+        />
+      )}
     </div>
   );
 }

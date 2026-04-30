@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Search, FileText } from 'lucide-react';
+import { Plus, Trash2, Search, FileText, Upload } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import GastoForm from '@/components/gastos/GastoForm';
+import ImportMasivaGastosDialog from '@/components/gastos/ImportMasivaGastosDialog';
 import { formatMoney } from '@/lib/ramaUtils';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -17,6 +18,7 @@ const CATEGORIAS = ['Materiales', 'Alimentos', 'Transporte', 'Servicios', 'Mante
 
 export default function Gastos() {
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [search, setSearch] = useState('');
   const [filterCategoria, setFilterCategoria] = useState('todas');
   const [montoMin, setMontoMin] = useState('');
@@ -25,7 +27,7 @@ export default function Gastos() {
 
   const { data: gastos = [], isLoading } = useQuery({
     queryKey: ['gastos'],
-    queryFn: () => base44.entities.Gasto.list('-created_date', 100),
+    queryFn: () => base44.entities.Gasto.list('-fecha', 200),
   });
 
   const deleteMutation = useMutation({
@@ -46,6 +48,7 @@ export default function Gastos() {
   return (
     <div>
       <PageHeader title="Gastos" description={`Mostrando ${filtered.length} gastos — ${formatMoney(totalFiltrado)}`}>
+        <Button variant="outline" onClick={() => setShowImport(true)}><Upload className="w-4 h-4 mr-2" />Carga masiva</Button>
         <Button onClick={() => setShowForm(true)}><Plus className="w-4 h-4 mr-2" />Nuevo Gasto</Button>
       </PageHeader>
 
@@ -113,6 +116,7 @@ export default function Gastos() {
       </Card>
 
       {showForm && <GastoForm open onClose={() => setShowForm(false)} />}
+      {showImport && <ImportMasivaGastosDialog open onClose={() => setShowImport(false)} />}
     </div>
   );
 }

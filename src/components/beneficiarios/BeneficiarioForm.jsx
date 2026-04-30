@@ -6,7 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TODOS_LOS_ROLES, ramaDesdeEdad } from '@/lib/ramaUtils';
+import { Badge } from '@/components/ui/badge';
+import { TODOS_LOS_ROLES, ramaDesdeEdad, RAMA_CONFIG } from '@/lib/ramaUtils';
+import { AlertTriangle, ArrowRight } from 'lucide-react';
 
 export default function BeneficiarioForm({ open, onClose, onSave, initialData }) {
   const [form, setForm] = useState(initialData || {
@@ -20,13 +22,15 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData })
     if (initialData) setForm(initialData);
   }, [initialData]);
 
-  // Auto-detectar rama según edad
+  // Auto-detectar rama según edad (solo si es nuevo registro)
   useEffect(() => {
     if (form.fecha_nacimiento && !initialData?.rama) {
       const ramaAuto = ramaDesdeEdad(form.fecha_nacimiento);
       if (ramaAuto) {
         const tipo = ramaAuto === 'Voluntario' ? 'Voluntario' : 'Beneficiario';
-        setForm(prev => ({ ...prev, rama: ramaAuto, tipo }));
+        // Rovers => becado automático (solo abonan campamentos)
+        const becado = ramaAuto === 'Rovers' ? true : false;
+        setForm(prev => ({ ...prev, rama: ramaAuto, tipo, becado }));
       }
     }
   }, [form.fecha_nacimiento]);
@@ -37,6 +41,19 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData })
   };
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+
+  // Detectar si la rama actual no coincide con la edad → sugerir promoción
+  const ramaSegunEdad = form.fecha_nacimiento ? ramaDesdeEdad(form.fecha_nacimiento) : null;
+  const sugiereCambioRama = ramaSegunEdad && form.rama && ramaSegunEdad !== form.rama && form.rama !== 'Educador';
+
+  const handlePromoverRama = () => {
+    if (!ramaSegunEdad) return;
+    const becado = ramaSegunEdad === 'Rovers' ? true : form.becado;
+    const tipo = ramaSegunEdad === 'Voluntario' ? 'Voluntario' : 'Beneficiario';
+    update('rama', ramaSegunEdad);
+    update('tipo', tipo);
+    update('becado', becado);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -92,15 +109,47 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData })
             </div>
             <div>
               <Label>Rama / Rol</Label>
-              <Select value={form.rama} onValueChange={v => update('rama', v)}>
+              <Select value={form.rama} onValueChange={v => {
+                // Si se cambia a Rovers, marcar becado automáticamente
+                const becado = v === 'Rovers' ? true : form.becado;
+                update('rama', v);
+                update('becado', becado);
+              }}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar rama" /></SelectTrigger>
                 <SelectContent>
                   {TODOS_LOS_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                 </SelectContent>
               </Select>
+
+              {/* Alerta de promoción de rama */}
+              {sugiereCambioRama && (
+                <div className="mt-2 p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-amber-800">Posible cambio de rama</p>
+                      <p className="text-xs text-amber-700">
+                        Por edad debería estar en <strong>{ramaSegunEdad}</strong> (actualmente en {form.rama}).
+                        El pase debe realizarse en el grupo.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-400 text-amber-700 hover:bg-amber-100 flex-shrink-0 text-xs"
+                    onClick={handlePromoverRama}
+                  >
+                    <ArrowRight className="w-3 h-3 mr-1" />
+                    Promover
+                  </Button>
+                </div>
+              )}
+
               {form.fecha_nacimiento && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Auto-detectado: {ramaDesdeEdad(form.fecha_nacimiento) || '—'}
+                  Rama por edad: <span className="font-medium">{ramaSegunEdad || '—'}</span>
                 </p>
               )}
             </div>
@@ -108,9 +157,16 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData })
               <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
                 <div>
                   <p className="text-sm font-medium">Becado</p>
-                  <p className="text-xs text-muted-foreground">No abona cuota mensual</p>
+                  <p className="text-xs text-muted-foreground">
+                    No abona cuota mensual
+                    {form.rama === 'Rovers' && <span className="ml-1 text-amber-600">(Rovers siempre becados)</span>}
+                  </p>
                 </div>
-                <Switch checked={form.becado} onCheckedChange={v => update('becado', v)} />
+                <Switch
+                  checked={form.becado}
+                  onCheckedChange={v => update('becado', v)}
+                  disabled={form.rama === 'Rovers'}
+                />
               </div>
             )}
           </TabsContent>
