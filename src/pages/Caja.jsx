@@ -146,7 +146,14 @@ export default function Caja() {
       .filter(m => m.cuenta === 'Caja' && m.fecha?.startsWith(anio));
 
     return [...ingresos, ...egresos, ...extras]
-      .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+      .sort((a, b) => {
+        const fechaDiff = (a.fecha || '').localeCompare(b.fecha || '');
+        if (fechaDiff !== 0) return fechaDiff;
+        // Mismo día: ingresos primero
+        if (a.tipo === 'Ingreso' && b.tipo !== 'Ingreso') return -1;
+        if (a.tipo !== 'Ingreso' && b.tipo === 'Ingreso') return 1;
+        return 0;
+      });
   }, [pagos, gastos, movimientosExtra, anio]);
 
   // Movimientos de BANCO = pagos por transferencia + movimientos manuales de banco
@@ -166,10 +173,25 @@ export default function Caja() {
       .filter(m => m.cuenta === 'Banco' && m.fecha?.startsWith(anio));
 
     return [...ingresos, ...extras]
-      .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+      .sort((a, b) => {
+        const fechaDiff = (a.fecha || '').localeCompare(b.fecha || '');
+        if (fechaDiff !== 0) return fechaDiff;
+        if (a.tipo === 'Ingreso' && b.tipo !== 'Ingreso') return -1;
+        if (a.tipo !== 'Ingreso' && b.tipo === 'Ingreso') return 1;
+        return 0;
+      });
   }, [pagos, movimientosExtra, anio]);
 
   const movimientos = tab === 'caja' ? movimientosCaja : movimientosBanco;
+
+  // Saldo acumulado por fila (orden cronológico asc, ingresos primero en mismo día)
+  const movimientosConSaldo = useMemo(() => {
+    let acum = 0;
+    return movimientos.map(m => {
+      acum += m.tipo === 'Ingreso' ? (m.monto || 0) : -(m.monto || 0);
+      return { ...m, saldoAcumulado: acum };
+    });
+  }, [movimientos]);
 
   const totalIngresos = movimientos.filter(m => m.tipo === 'Ingreso').reduce((s, m) => s + (m.monto || 0), 0);
   const totalEgresos = movimientos.filter(m => m.tipo === 'Egreso').reduce((s, m) => s + (m.monto || 0), 0);
@@ -248,14 +270,15 @@ export default function Caja() {
               <TableHead>Concepto</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Monto</TableHead>
+              <TableHead>Saldo</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {movimientos.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No hay movimientos</TableCell></TableRow>
+            {movimientosConSaldo.length === 0 ? (
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No hay movimientos</TableCell></TableRow>
             ) : (
-              movimientos.map((m, i) => (
+              movimientosConSaldo.map((m, i) => (
                 <TableRow key={`${m.id}-${i}`}>
                   <TableCell className="text-muted-foreground text-sm">{m.fecha || '—'}</TableCell>
                   <TableCell className="font-medium text-sm">{m.concepto}</TableCell>
@@ -271,8 +294,11 @@ export default function Caja() {
                   <TableCell className={cn('font-semibold', m.tipo === 'Ingreso' ? 'text-green-600' : 'text-red-500')}>
                     {m.tipo === 'Egreso' ? '−' : '+'}{formatMoney(m.monto)}
                   </TableCell>
+                  <TableCell className={cn('font-semibold text-sm', m.saldoAcumulado >= 0 ? 'text-foreground' : 'text-red-500')}>
+                    {formatMoney(m.saldoAcumulado)}
+                  </TableCell>
                   <TableCell>
-                    {m.origen === undefined || movimientosExtra.find(x => x.id === m.id) ? (
+                    {movimientosExtra.find(x => x.id === m.id) ? (
                       <Button variant="ghost" size="icon" onClick={() => deleteMov.mutate(m.id)}>
                         <Trash2 className="w-4 h-4 text-muted-foreground" />
                       </Button>
