@@ -48,11 +48,15 @@ export default function CampamentoForm({ open, onClose, beneficiarios, campament
     const updated = form.ramas_participantes.includes(rama)
       ? form.ramas_participantes.filter(r => r !== rama)
       : [...form.ramas_participantes, rama];
-    // Auto-select beneficiarios de ramas seleccionadas (solo niños)
+    // Auto-select niños de ramas seleccionadas
     const benIds = beneficiarios
       .filter(b => b.activo !== false && b.tipo !== 'Voluntario' && !['Voluntario', 'Educador'].includes(b.rama) && updated.includes(b.rama))
       .map(b => b.id);
-    setForm(prev => ({ ...prev, ramas_participantes: updated, beneficiarios_ids: benIds }));
+    // Auto-select adultos educadores asignados a las ramas seleccionadas
+    const adultosIds = beneficiarios
+      .filter(b => b.activo !== false && (b.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(b.rama)) && b.rama_educador && updated.includes(b.rama_educador))
+      .map(b => b.id);
+    setForm(prev => ({ ...prev, ramas_participantes: updated, beneficiarios_ids: benIds, adultos_ids: adultosIds }));
   };
 
   const toggleBen = (id) => {

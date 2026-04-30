@@ -182,6 +182,21 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData })
                 <Input value={form.categoria} onChange={e => update('categoria', e.target.value)} placeholder="Ej: Scout" />
               </div>
             </div>
+            {(form.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(form.rama)) && (
+              <div>
+                <Label>Rama a cargo (educador)</Label>
+                <Select value={form.rama_educador || ''} onValueChange={v => update('rama_educador', v || null)}>
+                  <SelectTrigger><SelectValue placeholder="Sin asignación de rama" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={null}>Sin asignación</SelectItem>
+                    {['Lobatos', 'Tropa', 'KM', 'Rovers'].map(r => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Se usará para auto-seleccionar este adulto al crear campamentos de esa rama</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Zona</Label>

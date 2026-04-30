@@ -63,6 +63,16 @@
       ],
       "description": "Rama scout seg\u00fan edad o rol"
     },
+    "rama_educador": {
+      "type": "string",
+      "enum": [
+        "Lobatos",
+        "Tropa",
+        "KM",
+        "Rovers"
+      ],
+      "description": "Rama en la que el adulto/educador trabaja como responsable. Permite asignaci\u00f3n autom\u00e1tica en campamentos."
+    },
     "tipo": {
       "type": "string",
       "enum": [

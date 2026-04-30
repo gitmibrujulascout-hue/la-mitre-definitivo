@@ -2,16 +2,19 @@ import React, { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Pencil, Printer, MapPin, Calendar, DollarSign, Users } from 'lucide-react';
+import { ArrowLeft, Pencil, Printer, MapPin, Calendar, Users } from 'lucide-react';
 import RamaBadge from '@/components/shared/RamaBadge';
-import { formatMoney, RAMA_CONFIG } from '@/lib/ramaUtils';
+import { formatMoney, RAMA_CONFIG, RAMAS } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
+
+// Orden canónico de ramas
+const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 
 export default function CampamentoDetalle({ campamento, beneficiarios, pagos, onBack, onEdit }) {
   const getBen = (id) => beneficiarios.find(b => b.id === id);
 
   const ninos = useMemo(() =>
-    (campamento.beneficiarios_ids || []).map(getBen).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    (campamento.beneficiarios_ids || []).map(getBen).filter(Boolean),
     [campamento, beneficiarios]
   );
   const adultos = useMemo(() =>
@@ -19,33 +22,66 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, on
     [campamento, beneficiarios]
   );
 
-  // Resumen por rama
-  const resumenRamas = useMemo(() => {
+  // Niños agrupados por rama, en orden canónico, y dentro de cada rama alfabéticamente
+  const ninosPorRama = useMemo(() => {
     const map = {};
     for (const b of ninos) {
-      if (!b.rama) continue;
-      map[b.rama] = (map[b.rama] || 0) + 1;
+      const r = b.rama || 'Sin rama';
+      if (!map[r]) map[r] = [];
+      map[r].push(b);
     }
-    return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
+    // Ordenar dentro de cada rama alfabéticamente
+    for (const r of Object.keys(map)) {
+      map[r].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    }
+    // Devolver en orden canónico, luego cualquier otra
+    const ordenadas = ORDEN_RAMAS.filter(r => map[r]).map(r => [r, map[r]]);
+    const otras = Object.entries(map).filter(([r]) => !ORDEN_RAMAS.includes(r));
+    return [...ordenadas, ...otras];
   }, [ninos]);
 
+  const resumenRamas = ninosPorRama.map(([rama, lista]) => [rama, lista.length]);
   const total = ninos.length + adultos.length;
 
   const handlePrint = () => {
-    const ramasResumen = resumenRamas.map(([rama, cant]) => `${rama}: ${cant}`).join(' | ');
-    const ninosRows = ninos.map((b, i) => `<tr><td>${i + 1}</td><td>${b.nombre}</td><td>${b.rama || ''}</td><td>${b.dni || ''}</td><td></td></tr>`).join('');
-    const adultosRows = adultos.map((b, i) => `<tr><td>${ninos.length + i + 1}</td><td>${b.nombre}</td><td>Adulto${b.funcion ? ` / ${b.funcion}` : ''}</td><td>${b.dni || ''}</td><td>${campamento.adultos_pagan ? '' : 'No abona'}</td></tr>`).join('');
+    let contador = 0;
+    const ramasHtml = ninosPorRama.map(([rama, lista]) => {
+      const rows = lista.map(b => {
+        contador++;
+        return `<tr><td>${contador}</td><td>${b.nombre}</td><td>${b.dni || ''}</td><td></td></tr>`;
+      }).join('');
+      const config = RAMA_CONFIG[rama];
+      return `
+        <div class="rama-titulo" style="background:${rama === 'Lobatos' ? '#fef9c3' : rama === 'Tropa' ? '#dcfce7' : rama === 'KM' ? '#dbeafe' : rama === 'Rovers' ? '#fee2e2' : '#f1f5f9'}">
+          ${rama} (${lista.length})
+        </div>
+        <table>
+          <thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th>Firma / Pago</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }).join('<div style="margin-top:16px"></div>');
+
+    const adultosRows = adultos.map((b, i) =>
+      `<tr><td>${i + 1}</td><td>${b.nombre}</td><td>${b.funcion || b.rama_educador || b.rama || ''}</td><td>${b.dni || ''}</td><td>${campamento.adultos_pagan ? '' : 'No abona'}</td></tr>`
+    ).join('');
+
+    const resumenTexto = resumenRamas.map(([r, c]) => `${r}: ${c}`).join(' | ');
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Listado ${campamento.nombre}</title>
-    <style>body{font-family:Arial,sans-serif;padding:20px;font-size:13px}h1{margin-bottom:4px}
-    .meta{color:#666;margin-bottom:16px;font-size:12px}
-    table{width:100%;border-collapse:collapse;margin-top:12px}
-    th,td{border:1px solid #ccc;padding:6px 10px;text-align:left}
-    th{background:#f0f0f0;font-weight:bold}
-    .resumen{margin-top:20px;padding:12px;background:#f9f9f9;border:1px solid #ddd;border-radius:4px}
-    .resumen h3{margin:0 0 6px 0;font-size:13px}
-    .seccion{margin-top:20px;font-weight:bold;color:#333;font-size:14px;border-bottom:2px solid #333;padding-bottom:4px}
-    @media print{button{display:none}}</style></head><body>
+    <style>
+      body{font-family:Arial,sans-serif;padding:20px;font-size:13px}
+      h1{margin-bottom:4px;font-size:18px}
+      .meta{color:#555;margin-bottom:16px;font-size:11px}
+      table{width:100%;border-collapse:collapse;margin-top:6px;margin-bottom:4px}
+      th,td{border:1px solid #ccc;padding:5px 8px;text-align:left}
+      th{background:#f0f0f0;font-weight:bold;font-size:12px}
+      td{font-size:12px}
+      .rama-titulo{font-weight:bold;font-size:13px;padding:6px 10px;border-radius:4px;margin-top:16px;border:1px solid #ccc}
+      .seccion{margin-top:20px;font-weight:bold;font-size:14px;border-bottom:2px solid #333;padding-bottom:4px}
+      .resumen{margin-top:20px;padding:10px;background:#f9f9f9;border:1px solid #ddd;border-radius:4px;font-size:12px}
+      @media print{button{display:none}}
+    </style></head><body>
     <h1>${campamento.nombre}</h1>
     <div class="meta">
       ${campamento.ubicacion ? `📍 ${campamento.ubicacion} &nbsp;` : ''}
@@ -53,15 +89,13 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, on
       &nbsp;|&nbsp; Costo niños: ${formatMoney(campamento.costo_por_persona)}
       ${campamento.adultos_pagan && campamento.costo_adultos ? ` | Costo adultos: ${formatMoney(campamento.costo_adultos)}` : ''}
     </div>
-    ${ninos.length > 0 ? `<div class="seccion">Niños / Beneficiarios (${ninos.length})</div>
-    <table><thead><tr><th>#</th><th>Nombre</th><th>Rama</th><th>DNI</th><th>Pago</th></tr></thead>
-    <tbody>${ninosRows}</tbody></table>` : ''}
-    ${adultos.length > 0 ? `<div class="seccion">Adultos / Voluntarios (${adultos.length})</div>
-    <table><thead><tr><th>#</th><th>Nombre</th><th>Rol</th><th>DNI</th><th>Pago</th></tr></thead>
-    <tbody>${adultosRows}</tbody></table>` : ''}
+    ${ninos.length > 0 ? `<div class="seccion">Niños / Beneficiarios (${ninos.length})</div>${ramasHtml}` : ''}
+    ${adultos.length > 0 ? `
+      <div class="seccion" style="margin-top:24px">Adultos / Voluntarios (${adultos.length})</div>
+      <table><thead><tr><th>#</th><th>Nombre</th><th>Rol / Rama</th><th>DNI</th><th>Pago</th></tr></thead>
+      <tbody>${adultosRows}</tbody></table>` : ''}
     <div class="resumen">
-      <h3>Resumen de asistencia</h3>
-      <p>${ramasResumen} ${adultos.length > 0 ? `| Adultos: ${adultos.length}` : ''} | <strong>TOTAL: ${total} personas</strong></p>
+      <strong>Resumen:</strong> ${resumenTexto}${adultos.length > 0 ? ` | Adultos: ${adultos.length}` : ''} | <strong>TOTAL: ${total} personas</strong>
     </div>
     </body></html>`;
 
@@ -74,7 +108,7 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, on
   return (
     <div>
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="w-4 h-4" /></Button>
           <div>
@@ -111,7 +145,7 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, on
         </Card>
       </div>
 
-      {/* Ramas */}
+      {/* Ramas badges */}
       {campamento.ramas_participantes?.length > 0 && (
         <div className="flex gap-2 mb-4 flex-wrap">
           {campamento.ramas_participantes.map(r => <RamaBadge key={r} rama={r} />)}
@@ -122,17 +156,15 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, on
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Niños */}
+        {/* Niños agrupados por rama */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Users className="w-4 h-4" />Niños / Beneficiarios ({ninos.length})
             </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
             {/* Resumen por rama */}
             {resumenRamas.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
+              <div className="flex flex-wrap gap-1.5 mt-1">
                 {resumenRamas.map(([rama, cant]) => {
                   const config = RAMA_CONFIG[rama];
                   return (
@@ -143,19 +175,27 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, on
                 })}
               </div>
             )}
+          </CardHeader>
+          <CardContent className="pt-0 max-h-96 overflow-y-auto">
             {ninos.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">Sin niños asignados</p>
-            ) : (
-              <div className="space-y-1 max-h-72 overflow-y-auto">
-                {ninos.map((b, i) => (
-                  <div key={b.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
-                    <span className="text-muted-foreground w-5">{i + 1}.</span>
-                    <span className="flex-1">{b.nombre}</span>
-                    <RamaBadge rama={b.rama} />
+            ) : ninosPorRama.map(([rama, lista]) => {
+              const config = RAMA_CONFIG[rama];
+              return (
+                <div key={rama} className="mb-4 last:mb-0">
+                  <div className={cn('flex items-center gap-2 px-2 py-1 rounded-md mb-1', config?.badge || 'bg-muted')}>
+                    <span className={cn('w-2 h-2 rounded-full', config?.dot || 'bg-muted-foreground')} />
+                    <span className="text-xs font-bold uppercase tracking-wide">{rama} ({lista.length})</span>
                   </div>
-                ))}
-              </div>
-            )}
+                  {lista.map((b, i) => (
+                    <div key={b.id} className="flex items-center gap-2 py-1 px-3 text-sm hover:bg-muted/40 rounded">
+                      <span className="text-muted-foreground w-5 text-xs">{i + 1}.</span>
+                      <span className="flex-1">{b.nombre}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
 
@@ -167,24 +207,23 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, on
               {campamento.adultos_pagan && <Badge className="ml-1 text-xs">Abonan</Badge>}
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 max-h-96 overflow-y-auto">
             {adultos.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">Sin adultos asignados</p>
-            ) : (
-              <div className="space-y-1 max-h-72 overflow-y-auto">
-                {adultos.map((b, i) => (
-                  <div key={b.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
-                    <span className="text-muted-foreground w-5">{i + 1}.</span>
-                    <span className="flex-1">{b.nombre}</span>
-                    <span className="text-xs text-muted-foreground">{b.funcion || b.rama || ''}</span>
-                    {campamento.adultos_pagan
-                      ? <Badge variant="outline" className="text-xs ml-2">{formatMoney(campamento.costo_adultos || campamento.costo_por_persona)}</Badge>
-                      : <Badge variant="secondary" className="text-xs ml-2">No abona</Badge>
-                    }
-                  </div>
-                ))}
+            ) : adultos.map((b, i) => (
+              <div key={b.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
+                <span className="text-muted-foreground w-5">{i + 1}.</span>
+                <span className="flex-1">{b.nombre}</span>
+                <div className="flex items-center gap-1.5">
+                  {b.rama_educador && <Badge variant="outline" className="text-xs">{b.rama_educador}</Badge>}
+                  <span className="text-xs text-muted-foreground">{b.funcion || ''}</span>
+                  {campamento.adultos_pagan
+                    ? <Badge variant="outline" className="text-xs">{formatMoney(campamento.costo_adultos || campamento.costo_por_persona)}</Badge>
+                    : <Badge variant="secondary" className="text-xs">No abona</Badge>
+                  }
+                </div>
               </div>
-            )}
+            ))}
           </CardContent>
         </Card>
       </div>
