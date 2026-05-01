@@ -60,7 +60,8 @@
       "type": "string",
       "enum": [
         "Efectivo",
-        "Transferencia"
+        "Transferencia",
+        "Cr\u00e9dito actividad"
       ],
       "description": "Forma de pago"
     },

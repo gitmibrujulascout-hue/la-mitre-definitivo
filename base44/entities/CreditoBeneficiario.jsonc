@@ -1,0 +1,43 @@
+{
+  "name": "CreditoBeneficiario",
+  "type": "object",
+  "properties": {
+    "beneficiario_id": {
+      "type": "string",
+      "description": "ID del beneficiario"
+    },
+    "beneficiario_nombre": {
+      "type": "string",
+      "description": "Nombre del beneficiario"
+    },
+    "actividad_id": {
+      "type": "string",
+      "description": "ID de la actividad econ\u00f3mica origen"
+    },
+    "actividad_nombre": {
+      "type": "string",
+      "description": "Nombre de la actividad"
+    },
+    "monto_original": {
+      "type": "number",
+      "description": "Monto total del cr\u00e9dito acreditado"
+    },
+    "monto_disponible": {
+      "type": "number",
+      "description": "Monto a\u00fan no aplicado"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de acreditaci\u00f3n"
+    },
+    "observaciones": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "beneficiario_id",
+    "monto_original",
+    "fecha"
+  ]
+}

@@ -15,38 +15,35 @@ import { RAMA_CONFIG } from '@/lib/ramaUtils';
 const RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 
 const DEFAULT = {
-  nombre: '', descripcion: '', fecha: new Date().toISOString().split('T')[0],
-  estado: 'Planificada', tipo_producto: '',
-  precio_venta_unitario: '', cantidad_total: '', ingreso_total: '',
-  costo_total: '', ganancia_neta: '',
-  porcentaje_grupo: 50, porcentaje_beneficiario: 50,
-  ramas_participantes: [], adultos_ids: [], observaciones: '',
+  nombre: '',
+  descripcion: '',
+  fecha: new Date().toISOString().split('T')[0],
+  estado: 'Planificada',
+  tipo_producto: '',
+  porcentaje_grupo: 50,
+  porcentaje_beneficiario: 50,
+  ramas_participantes: [],
+  adultos_ids: [],
+  observaciones: '',
 };
 
 export default function ActividadForm({ open, onClose, onSaved, initialData, beneficiarios = [] }) {
   const isEditing = !!initialData;
   const [form, setForm] = useState(initialData ? { ...DEFAULT, ...initialData } : { ...DEFAULT });
 
-  const adultos = beneficiarios.filter(b => b.activo !== false && (b.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(b.rama)));
+  const adultos = beneficiarios.filter(b =>
+    b.activo !== false && (b.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(b.rama))
+  );
 
-  const update = (k, v) => setForm(prev => {
-    const next = { ...prev, [k]: v };
-    // Recalcular ganancia neta automáticamente
-    if (k === 'ingreso_total' || k === 'costo_total') {
-      const ing = parseFloat(k === 'ingreso_total' ? v : next.ingreso_total) || 0;
-      const cos = parseFloat(k === 'costo_total' ? v : next.costo_total) || 0;
-      next.ganancia_neta = ing - cos;
-    }
-    return next;
-  });
+  const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
   const toggleRama = (rama) => {
     const updated = form.ramas_participantes.includes(rama)
       ? form.ramas_participantes.filter(r => r !== rama)
       : [...form.ramas_participantes, rama];
-    // Auto-seleccionar adultos con rama_educador en las ramas seleccionadas
-    const adultosAuto = adultos.filter(b => b.rama_educador && updated.includes(b.rama_educador)).map(b => b.id);
-    update('ramas_participantes', updated);
+    const adultosAuto = adultos
+      .filter(b => b.rama_educador && updated.includes(b.rama_educador))
+      .map(b => b.id);
     setForm(prev => ({ ...prev, ramas_participantes: updated, adultos_ids: adultosAuto }));
   };
 
@@ -68,28 +65,21 @@ export default function ActividadForm({ open, onClose, onSaved, initialData, ben
 
   const handleSave = () => {
     if (!form.nombre || !form.fecha) return;
-    const data = {
+    mutation.mutate({
       ...form,
-      precio_venta_unitario: parseFloat(form.precio_venta_unitario) || 0,
-      cantidad_total: parseFloat(form.cantidad_total) || 0,
-      ingreso_total: parseFloat(form.ingreso_total) || 0,
-      costo_total: parseFloat(form.costo_total) || 0,
-      ganancia_neta: parseFloat(form.ganancia_neta) || 0,
       porcentaje_grupo: parseFloat(form.porcentaje_grupo) || 50,
       porcentaje_beneficiario: parseFloat(form.porcentaje_beneficiario) || 50,
-    };
-    mutation.mutate(data);
+    });
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Editar Actividad' : 'Nueva Actividad Económica'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Datos básicos */}
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <Label>Nombre *</Label>
@@ -114,51 +104,43 @@ export default function ActividadForm({ open, onClose, onSaved, initialData, ben
               <Label>Producto / Tipo de actividad</Label>
               <Input value={form.tipo_producto} onChange={e => update('tipo_producto', e.target.value)} placeholder="Ej: Empanadas, Rifa, Reventa de chocolates" />
             </div>
-            <div>
-              <Label>Descripción</Label>
+            <div className="col-span-2">
+              <Label>Descripción / Observaciones</Label>
               <Textarea value={form.descripcion} onChange={e => update('descripcion', e.target.value)} className="h-16" placeholder="Opcional" />
-            </div>
-            <div>
-              <Label>Observaciones</Label>
-              <Textarea value={form.observaciones} onChange={e => update('observaciones', e.target.value)} className="h-16" placeholder="Opcional" />
             </div>
           </div>
 
-          {/* Datos económicos */}
+          {/* Porcentaje de distribución */}
           <div className="border rounded-lg p-4 space-y-3">
-            <p className="font-medium text-sm">Datos económicos</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div>
-                <Label className="text-xs">Precio unitario</Label>
-                <Input type="number" value={form.precio_venta_unitario} onChange={e => update('precio_venta_unitario', e.target.value)} placeholder="0" />
-              </div>
-              <div>
-                <Label className="text-xs">Cantidad vendida</Label>
-                <Input type="number" value={form.cantidad_total} onChange={e => update('cantidad_total', e.target.value)} placeholder="0" />
-              </div>
-              <div>
-                <Label className="text-xs">Ingreso total</Label>
-                <Input type="number" value={form.ingreso_total} onChange={e => update('ingreso_total', e.target.value)} placeholder="0" />
-              </div>
-              <div>
-                <Label className="text-xs">Costo total</Label>
-                <Input type="number" value={form.costo_total} onChange={e => update('costo_total', e.target.value)} placeholder="0" />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3 items-end">
-              <div>
-                <Label className="text-xs">% para el grupo</Label>
-                <Input type="number" min="0" max="100" value={form.porcentaje_grupo}
-                  onChange={e => { update('porcentaje_grupo', e.target.value); update('porcentaje_beneficiario', 100 - parseFloat(e.target.value || 0)); }} />
-              </div>
+            <p className="font-medium text-sm">Distribución de la ganancia</p>
+            <p className="text-xs text-muted-foreground">
+              Al finalizar, la ganancia neta se distribuye entre los participantes según cuánto vendió cada uno.
+              Aquí definís qué porcentaje corresponde al beneficiario vs. al grupo.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">% para el beneficiario</Label>
-                <Input type="number" min="0" max="100" value={form.porcentaje_beneficiario}
-                  onChange={e => { update('porcentaje_beneficiario', e.target.value); update('porcentaje_grupo', 100 - parseFloat(e.target.value || 0)); }} />
+                <Input
+                  type="number" min="0" max="100"
+                  value={form.porcentaje_beneficiario}
+                  onChange={e => setForm(prev => ({
+                    ...prev,
+                    porcentaje_beneficiario: e.target.value,
+                    porcentaje_grupo: Math.max(0, 100 - parseFloat(e.target.value || 0)),
+                  }))}
+                />
               </div>
-              <div className="bg-green-50 border border-green-200 rounded p-2 text-center">
-                <p className="text-xs text-green-600">Ganancia neta</p>
-                <p className="font-bold text-green-700">${parseFloat(form.ganancia_neta || 0).toLocaleString('es-AR')}</p>
+              <div>
+                <Label className="text-xs">% para el grupo</Label>
+                <Input
+                  type="number" min="0" max="100"
+                  value={form.porcentaje_grupo}
+                  onChange={e => setForm(prev => ({
+                    ...prev,
+                    porcentaje_grupo: e.target.value,
+                    porcentaje_beneficiario: Math.max(0, 100 - parseFloat(e.target.value || 0)),
+                  }))}
+                />
               </div>
             </div>
           </div>
@@ -177,7 +159,7 @@ export default function ActividadForm({ open, onClose, onSaved, initialData, ben
                     onClick={() => toggleRama(rama)}
                     className={cn(
                       'px-3 py-1.5 rounded-full text-sm font-medium border transition-all',
-                      active ? config?.badge || 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground border-border'
+                      active ? config?.badge || 'bg-primary text-primary-foreground border-transparent' : 'bg-muted text-muted-foreground border-border'
                     )}
                   >
                     {rama}
