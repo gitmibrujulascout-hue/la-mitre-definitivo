@@ -1,0 +1,51 @@
+{
+  "name": "VentaActividad",
+  "type": "object",
+  "properties": {
+    "actividad_id": {
+      "type": "string",
+      "description": "ID de la actividad econ\u00f3mica"
+    },
+    "actividad_nombre": {
+      "type": "string",
+      "description": "Nombre de la actividad"
+    },
+    "beneficiario_id": {
+      "type": "string",
+      "description": "ID del beneficiario vendedor"
+    },
+    "beneficiario_nombre": {
+      "type": "string",
+      "description": "Nombre del beneficiario"
+    },
+    "cantidad_vendida": {
+      "type": "number",
+      "description": "Cantidad de unidades vendidas por este beneficiario"
+    },
+    "monto_recaudado": {
+      "type": "number",
+      "description": "Monto total recaudado por este beneficiario"
+    },
+    "credito_beneficiario": {
+      "type": "number",
+      "description": "Cr\u00e9dito que se acredita al beneficiario (monto_recaudado * porcentaje_beneficiario / 100)"
+    },
+    "credito_grupo": {
+      "type": "number",
+      "description": "Monto que va al grupo"
+    },
+    "acreditado": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si ya se acredit\u00f3 el cr\u00e9dito al beneficiario"
+    },
+    "observaciones": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "actividad_id",
+    "beneficiario_id",
+    "cantidad_vendida"
+  ]
+}

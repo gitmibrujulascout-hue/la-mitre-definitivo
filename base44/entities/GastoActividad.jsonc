@@ -1,0 +1,46 @@
+{
+  "name": "GastoActividad",
+  "type": "object",
+  "properties": {
+    "actividad_id": {
+      "type": "string",
+      "description": "ID de la actividad econ\u00f3mica"
+    },
+    "actividad_nombre": {
+      "type": "string",
+      "description": "Nombre de la actividad"
+    },
+    "descripcion": {
+      "type": "string",
+      "description": "Descripci\u00f3n del gasto"
+    },
+    "monto": {
+      "type": "number",
+      "description": "Monto del gasto"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date"
+    },
+    "categoria": {
+      "type": "string",
+      "enum": [
+        "Materiales",
+        "Insumos",
+        "Transporte",
+        "Packaging",
+        "Servicios",
+        "Otro"
+      ],
+      "description": "Categor\u00eda del gasto"
+    },
+    "observaciones": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "actividad_id",
+    "descripcion",
+    "monto"
+  ]
+}

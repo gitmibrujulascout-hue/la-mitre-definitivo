@@ -51,14 +51,23 @@ export default function Beneficiarios() {
 
   const funciones = [...new Set(beneficiarios.map(b => b.funcion).filter(Boolean))].sort();
 
-  const filtered = beneficiarios.filter(b => {
-    const matchSearch = !search || b.nombre?.toLowerCase().includes(search.toLowerCase());
-    const matchDni = !filterDni || b.dni?.includes(filterDni);
-    const matchRama = filterRama === 'todas' || b.rama === filterRama;
-    const matchTipo = filterTipo === 'todos' || b.tipo === filterTipo || (!b.tipo && filterTipo === 'Beneficiario');
-    const matchFuncion = filterFuncion === 'todas' || b.funcion === filterFuncion;
-    return matchSearch && matchDni && matchRama && matchTipo && matchFuncion;
-  });
+  const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers', 'Voluntario', 'Educador'];
+
+  const filtered = beneficiarios
+    .filter(b => {
+      const matchSearch = !search || b.nombre?.toLowerCase().includes(search.toLowerCase());
+      const matchDni = !filterDni || b.dni?.includes(filterDni);
+      const matchRama = filterRama === 'todas' || b.rama === filterRama;
+      const matchTipo = filterTipo === 'todos' || b.tipo === filterTipo || (!b.tipo && filterTipo === 'Beneficiario');
+      const matchFuncion = filterFuncion === 'todas' || b.funcion === filterFuncion;
+      return matchSearch && matchDni && matchRama && matchTipo && matchFuncion;
+    })
+    .sort((a, b) => {
+      const ra = ORDEN_RAMAS.indexOf(a.rama) === -1 ? 99 : ORDEN_RAMAS.indexOf(a.rama);
+      const rb = ORDEN_RAMAS.indexOf(b.rama) === -1 ? 99 : ORDEN_RAMAS.indexOf(b.rama);
+      if (ra !== rb) return ra - rb;
+      return (a.nombre || '').localeCompare(b.nombre || '', 'es');
+    });
 
   const exportarCSV = () => {
     const cols = ['Nombre', 'DNI', 'Fecha Nac.', 'Rama', 'Tipo', 'Función', 'Teléfono', 'Email', 'Becado'];
@@ -202,7 +211,10 @@ export default function Beneficiarios() {
                   <TableCell className="hidden sm:table-cell text-muted-foreground">{b.dni || '—'}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{b.funcion || '—'}</TableCell>
                   <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
-                    {b.fecha_nacimiento ? new Date(b.fecha_nacimiento).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                    {b.fecha_nacimiento ? (() => {
+                      const [y, m, d] = b.fecha_nacimiento.split('-');
+                      return `${d}/${m}/${y}`;
+                    })() : '—'}
                   </TableCell>
                   <TableCell>
                     {b.tipo === 'Voluntario' ? (

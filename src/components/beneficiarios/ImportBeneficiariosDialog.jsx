@@ -3,28 +3,44 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileSpreadsheet, Loader2, CheckCircle2, Users, UserCog } from 'lucide-react';
+import { FileSpreadsheet, Loader2, CheckCircle2, Users, UserCog, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { ramaDesdeEdad } from '@/lib/ramaUtils';
 import { Badge } from '@/components/ui/badge';
+
+// Corrige el problema de timezone: convierte "YYYY-MM-DD" a fecha local sin restar un día
+function parseFechaNacimiento(str) {
+  if (!str) return '';
+  // Si ya tiene formato YYYY-MM-DD, devolver tal cual (no usar new Date() que convierte a UTC)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  // Intentar parsear formatos comunes
+  const d = new Date(str);
+  if (isNaN(d)) return str;
+  // Usar UTC para evitar corrimiento de día
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 export default function ImportBeneficiariosDialog({ open, onClose }) {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [extractedData, setExtractedData] = useState(null);
+  const [duplicados, setDuplicados] = useState([]); // [{nuevo, existente}]
+  const [resolucionesDup, setResolucionesDup] = useState({}); // {dni: 'mantener'|'actualizar'}
+  const [step, setStep] = useState('upload'); // 'upload' | 'preview' | 'duplicados'
   const queryClient = useQueryClient();
 
   const handleUpload = async () => {
     if (!file) return;
     setLoading(true);
-
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Tenés un archivo Excel de un grupo scout con las columnas: DNI, Nombre, Teléfono, Función, Categoría, Zona, Distrito, Código, Organismo, Fecha de Nacimiento, Religión, Religion Descripcion.
 Extraé TODAS las filas de datos (ignorá la fila de encabezados).
-Para la fecha de nacimiento, convertila al formato YYYY-MM-DD.
+Para la fecha de nacimiento, convertila EXACTAMENTE al formato YYYY-MM-DD, sin alterar el día. No le restes ni sumes días. Si la fecha original es 15/03/2010, devolvé 2010-03-15.
 Devolvé un JSON con el array "personas" con todos los campos de cada persona.`,
         file_urls: [file_url],
         response_json_schema: {
@@ -35,17 +51,17 @@ Devolvé un JSON con el array "personas" con todos los campos de cada persona.`,
               items: {
                 type: "object",
                 properties: {
-                  nombre:               { type: "string" },
-                  dni:                  { type: "string" },
-                  telefono_contacto:    { type: "string" },
-                  funcion:              { type: "string" },
-                  categoria:            { type: "string" },
-                  zona:                 { type: "string" },
-                  distrito:             { type: "string" },
-                  codigo:               { type: "string" },
-                  organismo:            { type: "string" },
-                  fecha_nacimiento:     { type: "string" },
-                  religion:             { type: "string" },
+                  nombre: { type: "string" },
+                  dni: { type: "string" },
+                  telefono_contacto: { type: "string" },
+                  funcion: { type: "string" },
+                  categoria: { type: "string" },
+                  zona: { type: "string" },
+                  distrito: { type: "string" },
+                  codigo: { type: "string" },
+                  organismo: { type: "string" },
+                  fecha_nacimiento: { type: "string" },
+                  religion: { type: "string" },
                   religion_descripcion: { type: "string" }
                 }
               }
@@ -56,57 +72,87 @@ Devolvé un JSON con el array "personas" con todos los campos de cada persona.`,
 
       if (result?.personas?.length > 0) {
         const enriched = result.personas.map(p => {
-          const rama = ramaDesdeEdad(p.fecha_nacimiento);
+          const fecha = parseFechaNacimiento(p.fecha_nacimiento);
+          const rama = ramaDesdeEdad(fecha);
           const tipo = rama === 'Voluntario' ? 'Voluntario' : 'Beneficiario';
-          return { ...p, rama, tipo, activo: true, becado: false };
+          return { ...p, fecha_nacimiento: fecha, rama, tipo, activo: true, becado: false };
         });
-        setExtractedData(enriched);
+
+        // Detectar duplicados
+        const existentes = await base44.entities.Beneficiario.list();
+        const mapDni = {};
+        existentes.forEach(b => { if (b.dni) mapDni[b.dni.toString().trim()] = b; });
+
+        const dups = [];
+        const nuevos = [];
+        enriched.forEach(p => {
+          const dniKey = p.dni?.toString().trim();
+          if (dniKey && mapDni[dniKey]) {
+            dups.push({ nuevo: p, existente: mapDni[dniKey] });
+          } else {
+            nuevos.push(p);
+          }
+        });
+
+        setExtractedData(nuevos);
+        setDuplicados(dups);
+
+        // Inicializar resoluciones: por defecto mantener el existente
+        const res = {};
+        dups.forEach(d => { res[d.nuevo.dni] = 'mantener'; });
+        setResolucionesDup(res);
+
+        setStep(dups.length > 0 ? 'duplicados' : 'preview');
       } else {
         toast.error('No se pudieron extraer los datos. Verificá el formato del archivo.');
       }
     } catch (e) {
       toast.error('Error al procesar el archivo: ' + (e?.message || 'desconocido'));
     }
-
     setLoading(false);
   };
 
   const handleImport = async () => {
-    if (!extractedData?.length) return;
+    if (!extractedData) return;
     setLoading(true);
 
-    // Obtener beneficiarios existentes para detectar duplicados por DNI
-    const existentes = await base44.entities.Beneficiario.list();
-    const dnisExistentes = new Set(existentes.map(b => b.dni?.toString().trim()).filter(Boolean));
-
-    const nuevos = extractedData.filter(p => !p.dni || !dnisExistentes.has(p.dni?.toString().trim()));
-    const duplicados = extractedData.filter(p => p.dni && dnisExistentes.has(p.dni?.toString().trim()));
-
-    if (nuevos.length > 0) {
-      await base44.entities.Beneficiario.bulkCreate(nuevos);
+    // Importar nuevos
+    if (extractedData.length > 0) {
+      await base44.entities.Beneficiario.bulkCreate(extractedData);
     }
+
+    // Procesar duplicados según resolución
+    for (const dup of duplicados) {
+      const res = resolucionesDup[dup.nuevo.dni];
+      if (res === 'actualizar') {
+        await base44.entities.Beneficiario.update(dup.existente.id, dup.nuevo);
+      }
+    }
+
     queryClient.invalidateQueries({ queryKey: ['beneficiarios'] });
-    const benefs = nuevos.filter(p => p.tipo === 'Beneficiario').length;
-    const vols = nuevos.filter(p => p.tipo === 'Voluntario').length;
-    const msg = duplicados.length > 0
-      ? `Importados: ${benefs} benef. y ${vols} vol. | Omitidos ${duplicados.length} duplicados por DNI`
-      : `Importados: ${benefs} beneficiarios y ${vols} voluntarios`;
+    const actualizados = duplicados.filter(d => resolucionesDup[d.nuevo.dni] === 'actualizar').length;
+    const mantenidos = duplicados.filter(d => resolucionesDup[d.nuevo.dni] === 'mantener').length;
+    let msg = `Importados: ${extractedData.length} nuevos`;
+    if (actualizados > 0) msg += ` | ${actualizados} actualizados`;
+    if (mantenidos > 0) msg += ` | ${mantenidos} omitidos (duplicado)`;
     toast.success(msg);
     setLoading(false);
     onClose();
   };
 
-  const beneficiarios = extractedData?.filter(p => p.tipo === 'Beneficiario') || [];
-  const voluntarios = extractedData?.filter(p => p.tipo === 'Voluntario') || [];
+  const beneficiariosList = extractedData?.filter(p => p.tipo === 'Beneficiario') || [];
+  const voluntariosList = extractedData?.filter(p => p.tipo === 'Voluntario') || [];
+  const totalNuevos = (extractedData?.length || 0);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Importar desde Excel</DialogTitle>
         </DialogHeader>
         <div className="py-4">
-          {!extractedData ? (
+
+          {step === 'upload' && (
             <div className="space-y-4">
               <div className="p-3 rounded-lg bg-muted text-sm space-y-1">
                 <p className="font-medium">Columnas esperadas en el archivo:</p>
@@ -130,31 +176,81 @@ Devolvé un JSON con el array "personas" con todos los campos de cada persona.`,
                 {file && <p className="text-sm mt-3 font-medium text-foreground">{file.name}</p>}
               </div>
             </div>
-          ) : (
+          )}
+
+          {step === 'duplicados' && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                <p className="text-sm text-amber-800">Se encontraron <strong>{duplicados.length}</strong> personas que ya existen en el sistema (mismo DNI). Indicá qué hacer con cada una:</p>
+              </div>
+              <div className="max-h-72 overflow-y-auto space-y-2 border rounded-lg p-2">
+                {duplicados.map((dup, i) => {
+                  const res = resolucionesDup[dup.nuevo.dni] || 'mantener';
+                  return (
+                    <div key={i} className="p-3 rounded-lg border bg-muted/30 text-sm space-y-2">
+                      <div className="font-medium">{dup.nuevo.nombre} <span className="text-muted-foreground font-normal">DNI: {dup.nuevo.dni}</span></div>
+                      {dup.existente.fecha_nacimiento !== dup.nuevo.fecha_nacimiento && (
+                        <div className="text-xs text-muted-foreground">
+                          Fecha nacimiento: <span className="text-red-500 line-through">{dup.existente.fecha_nacimiento}</span> → <span className="text-green-600">{dup.nuevo.fecha_nacimiento}</span>
+                        </div>
+                      )}
+                      {dup.existente.nombre !== dup.nuevo.nombre && (
+                        <div className="text-xs text-muted-foreground">
+                          Nombre: <span className="text-red-500 line-through">{dup.existente.nombre}</span> → <span className="text-green-600">{dup.nuevo.nombre}</span>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          className={`flex-1 text-xs py-1.5 rounded border font-medium transition-colors ${res === 'mantener' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border text-muted-foreground'}`}
+                          onClick={() => setResolucionesDup(prev => ({ ...prev, [dup.nuevo.dni]: 'mantener' }))}
+                        >
+                          Mantener existente
+                        </button>
+                        <button
+                          className={`flex-1 text-xs py-1.5 rounded border font-medium transition-colors ${res === 'actualizar' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border text-muted-foreground'}`}
+                          onClick={() => setResolucionesDup(prev => ({ ...prev, [dup.nuevo.dni]: 'actualizar' }))}
+                        >
+                          Actualizar con nuevo
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <Button variant="outline" size="sm" className="w-full" onClick={() => {
+                const all = {};
+                duplicados.forEach(d => { all[d.nuevo.dni] = 'actualizar'; });
+                setResolucionesDup(all);
+              }}>Actualizar todos</Button>
+            </div>
+          )}
+
+          {step === 'preview' && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-center">
                   <Users className="w-6 h-6 text-blue-600 mx-auto mb-1" />
-                  <p className="text-xl font-bold text-blue-700">{beneficiarios.length}</p>
-                  <p className="text-xs text-blue-600">Beneficiarios</p>
+                  <p className="text-xl font-bold text-blue-700">{beneficiariosList.length}</p>
+                  <p className="text-xs text-blue-600">Nuevos beneficiarios</p>
                 </div>
                 <div className="p-3 rounded-lg bg-purple-50 border border-purple-200 text-center">
                   <UserCog className="w-6 h-6 text-purple-600 mx-auto mb-1" />
-                  <p className="text-xl font-bold text-purple-700">{voluntarios.length}</p>
-                  <p className="text-xs text-purple-600">Voluntarios/Educadores</p>
+                  <p className="text-xl font-bold text-purple-700">{voluntariosList.length}</p>
+                  <p className="text-xs text-purple-600">Nuevos voluntarios</p>
                 </div>
               </div>
-
-              <div className="max-h-64 overflow-y-auto space-y-1 border rounded-lg p-2">
+              {duplicados.length > 0 && (
+                <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
+                  <strong>{duplicados.length}</strong> duplicados resueltos: {duplicados.filter(d => resolucionesDup[d.nuevo.dni] === 'actualizar').length} se actualizarán, {duplicados.filter(d => resolucionesDup[d.nuevo.dni] === 'mantener').length} se omitirán.
+                </div>
+              )}
+              <div className="max-h-52 overflow-y-auto space-y-1 border rounded-lg p-2">
                 {extractedData.map((p, i) => (
                   <div key={i} className="flex items-center justify-between p-2 rounded hover:bg-muted text-sm">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-medium truncate">{p.nombre}</span>
-                    </div>
+                    <span className="font-medium truncate">{p.nombre}</span>
                     <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                      {p.rama && (
-                        <Badge variant="secondary" className="text-xs">{p.rama}</Badge>
-                      )}
+                      {p.rama && <Badge variant="secondary" className="text-xs">{p.rama}</Badge>}
                       <Badge className={p.tipo === 'Voluntario' ? 'bg-purple-100 text-purple-700 border-purple-200 border text-xs' : 'bg-blue-100 text-blue-700 border-blue-200 border text-xs'}>
                         {p.tipo}
                       </Badge>
@@ -162,23 +258,30 @@ Devolvé un JSON con el array "personas" con todos los campos de cada persona.`,
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                ✓ La rama y el tipo se asignaron automáticamente según la fecha de nacimiento. Podés editarlos después individualmente.
-              </p>
             </div>
           )}
         </div>
-        <DialogFooter>
+
+        <DialogFooter className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          {!extractedData ? (
+          {step === 'upload' && (
             <Button onClick={handleUpload} disabled={!file || loading}>
-              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analizando (puede tardar ~30s)...</> : 'Analizar archivo'}
+              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analizando...</> : 'Analizar archivo'}
             </Button>
-          ) : (
-            <Button onClick={handleImport} disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-              Importar {extractedData.length} personas
+          )}
+          {step === 'duplicados' && (
+            <Button onClick={() => setStep('preview')}>
+              Continuar →
             </Button>
+          )}
+          {step === 'preview' && (
+            <>
+              {duplicados.length > 0 && <Button variant="outline" onClick={() => setStep('duplicados')}>← Revisar duplicados</Button>}
+              <Button onClick={handleImport} disabled={loading}>
+                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                Importar {totalNuevos + duplicados.filter(d => resolucionesDup[d.nuevo.dni] === 'actualizar').length} personas
+              </Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>

@@ -13,11 +13,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const CATEGORIAS = ['Materiales', 'Alimentos', 'Transporte', 'Servicios', 'Mantenimiento', 'Campamento', 'Otro'];
 
-export default function GastoForm({ open, onClose }) {
+export default function GastoForm({ open, onClose, initialData }) {
+  const isEditing = !!initialData;
   const [tab, setTab] = useState('manual');
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(initialData ? {
+    descripcion: initialData.descripcion || '',
+    monto: initialData.monto || '',
+    fecha: initialData.fecha || new Date().toISOString().split('T')[0],
+    categoria: initialData.categoria || '',
+    proveedor: initialData.proveedor || '',
+    numero_factura: initialData.numero_factura || '',
+    archivo_url: initialData.archivo_url || '',
+    observaciones: initialData.observaciones || '',
+    forma_pago: initialData.forma_pago || '',
+    destino: initialData.destino || '',
+  } : {
     descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0],
-    categoria: '', proveedor: '', numero_factura: '', archivo_url: '', observaciones: ''
+    categoria: '', proveedor: '', numero_factura: '', archivo_url: '', observaciones: '',
+    forma_pago: '', destino: '',
   });
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -27,6 +40,10 @@ export default function GastoForm({ open, onClose }) {
   const createMutation = useMutation({
     mutationFn: data => base44.entities.Gasto.create(data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['gastos'] }); onClose(); toast.success('Gasto registrado'); },
+  });
+  const updateMutation = useMutation({
+    mutationFn: data => base44.entities.Gasto.update(initialData.id, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['gastos'] }); onClose(); toast.success('Gasto actualizado'); },
   });
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
@@ -87,14 +104,16 @@ export default function GastoForm({ open, onClose }) {
 
   const handleSave = () => {
     if (!form.descripcion || !form.monto) return;
-    createMutation.mutate({ ...form, monto: parseFloat(form.monto) });
+    const data = { ...form, monto: parseFloat(form.monto) };
+    if (isEditing) updateMutation.mutate(data);
+    else createMutation.mutate(data);
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Registrar Gasto</DialogTitle>
+          <DialogTitle>{isEditing ? 'Editar Gasto' : 'Registrar Gasto'}</DialogTitle>
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={setTab}>
@@ -156,6 +175,28 @@ export default function GastoForm({ open, onClose }) {
             <Label>Nro. Factura/Recibo</Label>
             <Input value={form.numero_factura} onChange={e => update('numero_factura', e.target.value)} placeholder="Opcional" />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Forma de pago</Label>
+              <Select value={form.forma_pago} onValueChange={v => update('forma_pago', v)}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Efectivo">Efectivo</SelectItem>
+                  <SelectItem value="Transferencia">Transferencia</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Débito desde</Label>
+              <Select value={form.destino} onValueChange={v => update('destino', v)}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Caja">Caja (efectivo)</SelectItem>
+                  <SelectItem value="Banco">Banco</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <div>
             <Label>Observaciones</Label>
             <Textarea value={form.observaciones} onChange={e => update('observaciones', e.target.value)} placeholder="Opcional" className="h-20" />
@@ -178,7 +219,7 @@ export default function GastoForm({ open, onClose }) {
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={!form.descripcion || !form.monto}>Guardar</Button>
+          <Button onClick={handleSave} disabled={!form.descripcion || !form.monto}>{isEditing ? 'Actualizar' : 'Guardar'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,0 +1,85 @@
+{
+  "name": "ActividadEconomica",
+  "type": "object",
+  "properties": {
+    "nombre": {
+      "type": "string",
+      "description": "Nombre de la actividad"
+    },
+    "descripcion": {
+      "type": "string",
+      "description": "Descripci\u00f3n de la actividad"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de la actividad"
+    },
+    "estado": {
+      "type": "string",
+      "enum": [
+        "Planificada",
+        "En curso",
+        "Finalizada"
+      ],
+      "default": "Planificada",
+      "description": "Estado de la actividad"
+    },
+    "tipo_producto": {
+      "type": "string",
+      "description": "Qu\u00e9 se vende (ej: empanadas, rifa, reventa)"
+    },
+    "precio_venta_unitario": {
+      "type": "number",
+      "description": "Precio de venta por unidad"
+    },
+    "cantidad_total": {
+      "type": "number",
+      "description": "Cantidad total de unidades vendidas/producidas"
+    },
+    "ingreso_total": {
+      "type": "number",
+      "description": "Ingreso total recaudado"
+    },
+    "costo_total": {
+      "type": "number",
+      "description": "Costo total de producci\u00f3n/compra"
+    },
+    "ganancia_neta": {
+      "type": "number",
+      "description": "Ganancia neta (ingreso - costo)"
+    },
+    "porcentaje_grupo": {
+      "type": "number",
+      "description": "% de la ganancia que va al grupo",
+      "default": 50
+    },
+    "porcentaje_beneficiario": {
+      "type": "number",
+      "description": "% de la ganancia que va al beneficiario vendedor",
+      "default": 50
+    },
+    "ramas_participantes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ramas que participan"
+    },
+    "adultos_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs de adultos responsables"
+    },
+    "observaciones": {
+      "type": "string",
+      "description": "Notas adicionales"
+    }
+  },
+  "required": [
+    "nombre",
+    "fecha"
+  ]
+}

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Search, FileText, Upload } from 'lucide-react';
+import { Plus, Trash2, Search, FileText, Upload, Pencil } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import GastoForm from '@/components/gastos/GastoForm';
 import ImportMasivaGastosDialog from '@/components/gastos/ImportMasivaGastosDialog';
@@ -18,6 +18,7 @@ const CATEGORIAS = ['Materiales', 'Alimentos', 'Transporte', 'Servicios', 'Mante
 
 export default function Gastos() {
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [search, setSearch] = useState('');
   const [filterCategoria, setFilterCategoria] = useState('todas');
@@ -103,7 +104,10 @@ export default function Gastos() {
                       </a>
                     ) : '—'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="flex gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setEditing(g)}>
+                      <Pencil className="w-4 h-4 text-muted-foreground" />
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(g.id)}>
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </Button>
@@ -116,6 +120,7 @@ export default function Gastos() {
       </Card>
 
       {showForm && <GastoForm open onClose={() => setShowForm(false)} />}
+      {editing && <GastoForm open onClose={() => setEditing(null)} initialData={editing} />}
       {showImport && <ImportMasivaGastosDialog open onClose={() => setShowImport(false)} />}
     </div>
   );

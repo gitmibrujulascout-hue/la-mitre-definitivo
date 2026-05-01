@@ -87,6 +87,8 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
       numero_factura: p.numero_factura,
       categoria: p.categoria,
       archivo_url: p.archivo_url || '',
+      forma_pago: p.forma_pago || '',
+      destino: p.destino || '',
     }));
     await base44.entities.Gasto.bulkCreate(gastos);
     queryClient.invalidateQueries({ queryKey: ['gastos'] });
@@ -177,6 +179,30 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
                       onChange={e => actualizarCampo(i, 'categoria', e.target.value)}
                     >
                       {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Forma de pago</Label>
+                    <select
+                      className="w-full h-7 text-xs border border-input rounded-md px-2 bg-background"
+                      value={p.forma_pago || ''}
+                      onChange={e => actualizarCampo(i, 'forma_pago', e.target.value)}
+                    >
+                      <option value="">Sin especificar</option>
+                      <option value="Efectivo">Efectivo</option>
+                      <option value="Transferencia">Transferencia</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Débito desde</Label>
+                    <select
+                      className="w-full h-7 text-xs border border-input rounded-md px-2 bg-background"
+                      value={p.destino || ''}
+                      onChange={e => actualizarCampo(i, 'destino', e.target.value)}
+                    >
+                      <option value="">Sin especificar</option>
+                      <option value="Caja">Caja</option>
+                      <option value="Banco">Banco</option>
                     </select>
                   </div>
                 </div>
