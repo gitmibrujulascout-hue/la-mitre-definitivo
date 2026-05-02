@@ -48,10 +48,9 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
   const ramaSegunEdad = form.fecha_nacimiento ? ramaDesdeEdad(form.fecha_nacimiento) : null;
   const sugiereCambioRama = ramaSegunEdad && form.rama && ramaSegunEdad !== form.rama && form.rama !== 'Educador';
 
-  // Lógica de hermanos: extraer apellido del nombre actual y buscar coincidencias
+  // Lógica de hermanos: buscar posibles hermanos por apellido (solo sugerencia, no automático)
   const apellidoActual = useMemo(() => {
     const nombre = form.nombre?.trim() || '';
-    // Asume formato "Apellido, Nombre" o "Nombre Apellido" — toma la primera palabra
     return nombre.split(/[,\s]/)[0].toLowerCase();
   }, [form.nombre]);
 
@@ -65,26 +64,30 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
     });
   }, [apellidoActual, todosBeneficiarios, initialData]);
 
-  // hermanos seleccionados = los que ya comparten grupo_familiar con el form actual
-  const hermanosMarcados = useMemo(() => {
-    if (!form.grupo_familiar) return [];
-    return posiblesHermanos.filter(b => b.grupo_familiar === form.grupo_familiar).map(b => b.id);
-  }, [posiblesHermanos, form.grupo_familiar]);
+  // Estado local de selección manual (inicializado desde grupo_familiar existente)
+  const [hermanosSeleccionados, setHermanosSeleccionados] = useState(() => {
+    if (!initialData?.grupo_familiar) return [];
+    return (todosBeneficiarios || [])
+      .filter(b => b.id !== initialData?.id && b.grupo_familiar === initialData.grupo_familiar)
+      .map(b => b.id);
+  });
 
   const toggleHermano = (b) => {
-    const yaSeleccionado = hermanosMarcados.includes(b.id);
-    if (yaSeleccionado) {
-      // Desmarcar: si ya no hay ninguno, limpiar grupo
-      const restantes = hermanosMarcados.filter(id => id !== b.id);
-      if (restantes.length === 0) {
+    setHermanosSeleccionados(prev => {
+      const nuevos = prev.includes(b.id)
+        ? prev.filter(id => id !== b.id)
+        : [...prev, b.id];
+      // Actualizar grupo_familiar: si hay seleccionados, usar el grupo del primero seleccionado o apellido; si no, limpiar
+      if (nuevos.length === 0) {
         update('grupo_familiar', '');
+      } else {
+        // Tomar el grupo_familiar del hermano si ya tiene uno, sino usar apellido como clave
+        const hermanoConGrupo = todosBeneficiarios.find(x => nuevos.includes(x.id) && x.grupo_familiar);
+        const grupo = hermanoConGrupo?.grupo_familiar || form.grupo_familiar || apellidoActual;
+        update('grupo_familiar', grupo);
       }
-      // Nota: no podemos actualizar el otro beneficiario desde acá, solo el propio
-    } else {
-      // Seleccionar: tomar el grupo_familiar del hermano si ya tiene, sino crear nuevo
-      const grupoExistente = b.grupo_familiar || form.grupo_familiar || apellidoActual;
-      update('grupo_familiar', grupoExistente);
-    }
+      return nuevos;
+    });
   };
 
   const handlePromoverRama = () => {
@@ -206,7 +209,7 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                     <div key={b.id} className="flex items-center gap-2">
                       <Checkbox
                         id={`hermano-${b.id}`}
-                        checked={hermanosMarcados.includes(b.id)}
+                        checked={hermanosSeleccionados.includes(b.id)}
                         onCheckedChange={() => toggleHermano(b)}
                       />
                       <label htmlFor={`hermano-${b.id}`} className="text-sm text-blue-900 cursor-pointer">
