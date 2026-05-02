@@ -239,8 +239,8 @@ export default function Beneficiarios() {
         </Table>
       </Card>
 
-      {showForm && <BeneficiarioForm open onClose={() => setShowForm(false)} onSave={handleSave} />}
-      {editing && <BeneficiarioForm open onClose={() => setEditing(null)} onSave={handleSave} initialData={editing} />}
+      {showForm && <BeneficiarioForm open onClose={() => setShowForm(false)} onSave={handleSave} todosBeneficiarios={beneficiarios} />}
+      {editing && <BeneficiarioForm open onClose={() => setEditing(null)} onSave={handleSave} initialData={editing} todosBeneficiarios={beneficiarios} />}
       {showImport && <ImportBeneficiariosDialog open onClose={() => setShowImport(false)} />}
     </div>
   );

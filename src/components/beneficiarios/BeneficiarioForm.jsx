@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,10 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { TODOS_LOS_ROLES, ramaDesdeEdad, RAMA_CONFIG } from '@/lib/ramaUtils';
-import { AlertTriangle, ArrowRight } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { TODOS_LOS_ROLES, ramaDesdeEdad, esBeneficiarioConCuota } from '@/lib/ramaUtils';
+import { AlertTriangle, ArrowRight, Users } from 'lucide-react';
 
-export default function BeneficiarioForm({ open, onClose, onSave, initialData }) {
+export default function BeneficiarioForm({ open, onClose, onSave, initialData, todosBeneficiarios = [] }) {
   const [form, setForm] = useState(initialData || {
     nombre: '', dni: '', telefono_contacto: '', fecha_nacimiento: '',
     funcion: '', categoria: '', zona: '', distrito: '', codigo: '', organismo: '',
@@ -46,6 +47,45 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData })
   // Detectar si la rama actual no coincide con la edad → sugerir promoción
   const ramaSegunEdad = form.fecha_nacimiento ? ramaDesdeEdad(form.fecha_nacimiento) : null;
   const sugiereCambioRama = ramaSegunEdad && form.rama && ramaSegunEdad !== form.rama && form.rama !== 'Educador';
+
+  // Lógica de hermanos: extraer apellido del nombre actual y buscar coincidencias
+  const apellidoActual = useMemo(() => {
+    const nombre = form.nombre?.trim() || '';
+    // Asume formato "Apellido, Nombre" o "Nombre Apellido" — toma la primera palabra
+    return nombre.split(/[,\s]/)[0].toLowerCase();
+  }, [form.nombre]);
+
+  const posiblesHermanos = useMemo(() => {
+    if (apellidoActual.length < 3) return [];
+    return todosBeneficiarios.filter(b => {
+      if (b.id === initialData?.id) return false;
+      if (!esBeneficiarioConCuota(b) || b.activo === false) return false;
+      const apellidoB = (b.nombre?.trim() || '').split(/[,\s]/)[0].toLowerCase();
+      return apellidoB === apellidoActual;
+    });
+  }, [apellidoActual, todosBeneficiarios, initialData]);
+
+  // hermanos seleccionados = los que ya comparten grupo_familiar con el form actual
+  const hermanosMarcados = useMemo(() => {
+    if (!form.grupo_familiar) return [];
+    return posiblesHermanos.filter(b => b.grupo_familiar === form.grupo_familiar).map(b => b.id);
+  }, [posiblesHermanos, form.grupo_familiar]);
+
+  const toggleHermano = (b) => {
+    const yaSeleccionado = hermanosMarcados.includes(b.id);
+    if (yaSeleccionado) {
+      // Desmarcar: si ya no hay ninguno, limpiar grupo
+      const restantes = hermanosMarcados.filter(id => id !== b.id);
+      if (restantes.length === 0) {
+        update('grupo_familiar', '');
+      }
+      // Nota: no podemos actualizar el otro beneficiario desde acá, solo el propio
+    } else {
+      // Seleccionar: tomar el grupo_familiar del hermano si ya tiene, sino crear nuevo
+      const grupoExistente = b.grupo_familiar || form.grupo_familiar || apellidoActual;
+      update('grupo_familiar', grupoExistente);
+    }
+  };
 
   const handlePromoverRama = () => {
     if (!ramaSegunEdad) return;
@@ -154,17 +194,35 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData })
                 </p>
               )}
             </div>
-            {form.tipo === 'Beneficiario' && !form.becado && (
-              <div>
-                <Label>Grupo familiar (hermanos)</Label>
-                <Input
-                  value={form.grupo_familiar || ''}
-                  onChange={e => update('grupo_familiar', e.target.value)}
-                  placeholder="Ej: garcia (mismo valor para todos los hermanos)"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Completá con el mismo identificador en todos los hermanos del grupo para aplicar el descuento automáticamente.
-                </p>
+            {form.tipo === 'Beneficiario' && !form.becado && posiblesHermanos.length > 0 && (
+              <div className="p-3 rounded-lg border border-blue-200 bg-blue-50 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <p className="text-sm font-medium text-blue-800">¿Tiene hermanos en el grupo?</p>
+                </div>
+                <p className="text-xs text-blue-600">Se detectaron estos miembros con el mismo apellido. Marcalos para aplicar el descuento familiar.</p>
+                <div className="space-y-2">
+                  {posiblesHermanos.map(b => (
+                    <div key={b.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`hermano-${b.id}`}
+                        checked={hermanosMarcados.includes(b.id)}
+                        onCheckedChange={() => toggleHermano(b)}
+                      />
+                      <label htmlFor={`hermano-${b.id}`} className="text-sm text-blue-900 cursor-pointer">
+                        {b.nombre} <span className="text-blue-500 text-xs">({b.rama})</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                {form.grupo_familiar && (
+                  <p className="text-xs text-blue-500">Grupo: <span className="font-mono">{form.grupo_familiar}</span></p>
+                )}
+              </div>
+            )}
+            {form.tipo === 'Beneficiario' && !form.becado && posiblesHermanos.length === 0 && apellidoActual.length >= 3 && form.grupo_familiar && (
+              <div className="text-xs text-muted-foreground">
+                Grupo familiar: <span className="font-mono">{form.grupo_familiar}</span>
               </div>
             )}
             {form.tipo === 'Beneficiario' && (
