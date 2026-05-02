@@ -15,7 +15,8 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData })
     nombre: '', dni: '', telefono_contacto: '', fecha_nacimiento: '',
     funcion: '', categoria: '', zona: '', distrito: '', codigo: '', organismo: '',
     religion: '', religion_descripcion: '',
-    rama: '', tipo: 'Beneficiario', becado: false, email_contacto: '', activo: true
+    rama: '', tipo: 'Beneficiario', becado: false, email_contacto: '', activo: true,
+    grupo_familiar: ''
   });
 
   useEffect(() => {
@@ -153,6 +154,19 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData })
                 </p>
               )}
             </div>
+            {form.tipo === 'Beneficiario' && !form.becado && (
+              <div>
+                <Label>Grupo familiar (hermanos)</Label>
+                <Input
+                  value={form.grupo_familiar || ''}
+                  onChange={e => update('grupo_familiar', e.target.value)}
+                  placeholder="Ej: garcia (mismo valor para todos los hermanos)"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Completá con el mismo identificador en todos los hermanos del grupo para aplicar el descuento automáticamente.
+                </p>
+              </div>
+            )}
             {form.tipo === 'Beneficiario' && (
               <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
                 <div>

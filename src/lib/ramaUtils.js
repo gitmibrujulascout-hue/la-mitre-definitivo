@@ -19,8 +19,42 @@ export const MESES_BONIFICADOS = ['Marzo']; // Bonificado por la asociación
 export const CUOTA_EFECTIVO = 25000;
 export const CUOTA_TRANSFERENCIA = 27000;
 
+// Descuentos por grupo familiar (hermanos que pagan cuota)
+// 2 hermanos: 50% de descuento c/u ($22.500 cada uno sobre base $45.000)
+// 4 hermanos: 25% de descuento c/u
+const DESCUENTO_HERMANOS = { 2: 0.10, 4: 0.25 }; // porcentaje de descuento sobre la cuota
+
 export function esBeneficiarioConCuota(b) {
   return b.tipo !== 'Voluntario' && !b.becado && !['Voluntario', 'Educador'].includes(b.rama);
+}
+
+/**
+ * Devuelve el valor de la cuota efectivo para un beneficiario,
+ * aplicando descuento si tiene hermanos en el mismo grupo_familiar.
+ * @param {object} b - beneficiario
+ * @param {array} todosBeneficiarios - lista completa de beneficiarios activos
+ */
+export function getCuotaBeneficiario(b, todosBeneficiarios = []) {
+  if (!esBeneficiarioConCuota(b)) return 0;
+  if (!b.grupo_familiar) return CUOTA_EFECTIVO;
+
+  // Contar hermanos que también pagan cuota (activos, mismo grupo_familiar)
+  const hermanos = todosBeneficiarios.filter(x =>
+    x.id !== b.id &&
+    x.activo !== false &&
+    x.grupo_familiar === b.grupo_familiar &&
+    esBeneficiarioConCuota(x)
+  );
+  const cantidadTotal = hermanos.length + 1; // incluye al propio beneficiario
+
+  // Buscar el descuento más cercano hacia abajo
+  const niveles = Object.keys(DESCUENTO_HERMANOS).map(Number).sort((a, z) => a - z);
+  let descuento = 0;
+  for (const nivel of niveles) {
+    if (cantidadTotal >= nivel) descuento = DESCUENTO_HERMANOS[nivel];
+  }
+
+  return Math.round(CUOTA_EFECTIVO * (1 - descuento));
 }
 
 export function getRamaBadge(rama) {

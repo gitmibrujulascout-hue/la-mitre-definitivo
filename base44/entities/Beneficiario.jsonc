@@ -71,7 +71,7 @@
         "KM",
         "Rovers"
       ],
-      "description": "Rama en la que el adulto/educador trabaja como responsable. Permite asignaci\u00f3n autom\u00e1tica en campamentos."
+      "description": "Rama en la que el adulto/educador trabaja como responsable."
     },
     "tipo": {
       "type": "string",
@@ -87,6 +87,10 @@
       "default": false,
       "description": "Si est\u00e1 becado (no paga cuota)"
     },
+    "grupo_familiar": {
+      "type": "string",
+      "description": "Identificador del grupo familiar (ej: 'familia-garcia'). Los hermanos comparten el mismo valor y reciben descuento en la cuota."
+    },
     "email_contacto": {
       "type": "string",
       "description": "Email de contacto"
@@ -99,5 +103,23 @@
   },
   "required": [
     "nombre"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
 }

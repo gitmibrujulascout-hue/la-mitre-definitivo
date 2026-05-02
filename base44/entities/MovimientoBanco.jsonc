@@ -23,6 +23,15 @@
       "type": "number",
       "description": "Monto del movimiento"
     },
+    "cuenta": {
+      "type": "string",
+      "enum": [
+        "Caja",
+        "Banco"
+      ],
+      "default": "Caja",
+      "description": "A qu\u00e9 fondo pertenece este movimiento"
+    },
     "origen": {
       "type": "string",
       "enum": [

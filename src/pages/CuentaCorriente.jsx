@@ -11,7 +11,9 @@ import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
 import PagoForm from '@/components/pagos/PagoForm';
-import { RAMAS, MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS, CUOTA_EFECTIVO, formatMoney, esBeneficiarioConCuota } from '@/lib/ramaUtils';
+import { RAMAS, MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS, CUOTA_EFECTIVO, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario } from '@/lib/ramaUtils';
+
+const CUOTA_EFECTIVO_REF = CUOTA_EFECTIVO;
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -65,7 +67,8 @@ export default function CuentaCorriente() {
       const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter(
         m => !MESES_SIN_CUOTA.includes(m) && !MESES_BONIFICADOS.includes(m)
       );
-      const deudaCuotas = (!esBeneficiarioConCuota(b)) ? 0 : mesesQueGeneranDeuda.length * CUOTA_EFECTIVO;
+      const cuotaIndividual = getCuotaBeneficiario(b, activos);
+      const deudaCuotas = (!esBeneficiarioConCuota(b)) ? 0 : mesesQueGeneranDeuda.length * cuotaIndividual;
       const pagadoCuotas = pagosDelBen.filter(p => p.tipo_pago !== 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
       const saldo = pagadoCuotas - deudaCuotas + pagadoCamp - totalCampamentos;
 
@@ -75,6 +78,8 @@ export default function CuentaCorriente() {
         totalPagado,
         totalCampamentos,
         saldo,
+        cuotaIndividual,
+        tieneDescuentoHermanos: cuotaIndividual < CUOTA_EFECTIVO_REF && esBeneficiarioConCuota(b),
         alDia: b.becado || saldo >= 0,
       };
     });
@@ -161,7 +166,12 @@ export default function CuentaCorriente() {
                   key={c.id} 
                   className="cursor-pointer hover:bg-muted/30"
                 >
-                  <TableCell className="font-medium" onClick={() => setSelectedBen(c)}>{c.nombre}</TableCell>
+                  <TableCell className="font-medium" onClick={() => setSelectedBen(c)}>
+                    <div>{c.nombre}</div>
+                    {c.tieneDescuentoHermanos && (
+                      <span className="text-xs text-blue-600 font-normal">Hermanos · {formatMoney(c.cuotaIndividual)}/mes</span>
+                    )}
+                  </TableCell>
                   <TableCell onClick={() => setSelectedBen(c)}><RamaBadge rama={c.rama} /></TableCell>
                   <TableCell onClick={() => setSelectedBen(c)}>
                     {c.becado ? (
