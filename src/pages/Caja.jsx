@@ -10,11 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownLeft, Trash2 } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownLeft, Trash2, Upload } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import ImportMovimientosBancoDialog from '@/components/caja/ImportMovimientosBancoDialog';
 
 function MovimientoManualDialog({ open, onClose, cuentaDestino }) {
   const [form, setForm] = useState({
@@ -97,6 +98,7 @@ function MovimientoManualDialog({ open, onClose, cuentaDestino }) {
 export default function Caja() {
   const [tab, setTab] = useState('caja');
   const [showNuevo, setShowNuevo] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [anio, setAnio] = useState(new Date().getFullYear().toString());
   const queryClient = useQueryClient();
 
@@ -206,6 +208,11 @@ export default function Caja() {
             {[2026, 2027, 2028].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
           </SelectContent>
         </Select>
+        {tab === 'banco' && (
+          <Button variant="outline" onClick={() => setShowImport(true)}>
+            <Upload className="w-4 h-4 mr-2" />Importar PDF banco
+          </Button>
+        )}
         <Button onClick={() => setShowNuevo(true)}>
           <Plus className="w-4 h-4 mr-2" />Movimiento manual
         </Button>
@@ -317,6 +324,9 @@ export default function Caja() {
           onClose={() => setShowNuevo(false)}
           cuentaDestino={tab === 'caja' ? 'Caja' : 'Banco'}
         />
+      )}
+      {showImport && (
+        <ImportMovimientosBancoDialog open onClose={() => setShowImport(false)} />
       )}
     </div>
   );
