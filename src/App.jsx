@@ -51,8 +51,8 @@ const AuthenticatedApp = () => {
         <Route path="/cuenta-corriente" element={<CuentaCorriente />} />
         <Route path="/caja" element={<Caja />} />
         <Route path="/actividades" element={<ActividadesEconomicas />} />
-        <Route path="/estado-cuenta" element={<EstadoCuenta />} />
       </Route>
+      <Route path="/estado-cuenta" element={<EstadoCuenta />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

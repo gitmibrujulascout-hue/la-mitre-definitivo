@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, CreditCard, Receipt, Tent, 
-  BookOpen, Menu, X, TreePine, Landmark, TrendingUp
+  BookOpen, Menu, X, TreePine, Landmark, TrendingUp, ExternalLink
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -82,6 +82,20 @@ export default function Sidebar() {
             );
           })}
         </nav>
+
+        {/* Estado de cuenta público */}
+        <div className="px-3 pb-2 border-t border-sidebar-border pt-3">
+          <p className="text-xs text-sidebar-foreground/30 px-2 mb-1 uppercase tracking-wider">Familias</p>
+          <Link
+            to="/estado-cuenta"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Estado de Cuenta
+          </Link>
+        </div>
 
         {/* Footer */}
         <div className="p-4 border-t border-sidebar-border">
