@@ -104,7 +104,8 @@ export default function GastoForm({ open, onClose, initialData }) {
 
   const handleSave = () => {
     if (!form.descripcion || !form.monto) return;
-    const data = { ...form, monto: parseFloat(form.monto) };
+    const destino = form.forma_pago === 'Transferencia' ? 'Banco' : 'Caja';
+    const data = { ...form, monto: parseFloat(form.monto), destino };
     if (isEditing) updateMutation.mutate(data);
     else createMutation.mutate(data);
   };
@@ -175,27 +176,15 @@ export default function GastoForm({ open, onClose, initialData }) {
             <Label>Nro. Factura/Recibo</Label>
             <Input value={form.numero_factura} onChange={e => update('numero_factura', e.target.value)} placeholder="Opcional" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Forma de pago</Label>
-              <Select value={form.forma_pago} onValueChange={v => update('forma_pago', v)}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Efectivo">Efectivo</SelectItem>
-                  <SelectItem value="Transferencia">Transferencia</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Débito desde</Label>
-              <Select value={form.destino} onValueChange={v => update('destino', v)}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Caja">Caja (efectivo)</SelectItem>
-                  <SelectItem value="Banco">Banco</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div>
+            <Label>Forma de pago</Label>
+            <Select value={form.forma_pago} onValueChange={v => update('forma_pago', v)}>
+              <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Efectivo">Efectivo (Caja)</SelectItem>
+                <SelectItem value="Transferencia">Transferencia (Banco)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label>Observaciones</Label>

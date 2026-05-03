@@ -138,6 +138,10 @@ export default function Caja() {
 
     const egresos = gastos
       .filter(g => g.fecha?.startsWith(anio))
+      .filter(g => {
+        const dest = g.destino || (g.forma_pago === 'Transferencia' ? 'Banco' : 'Caja');
+        return dest === 'Caja';
+      })
       .map(g => ({
         id: g.id, fecha: g.fecha, tipo: 'Egreso',
         concepto: `${g.descripcion}${g.proveedor ? ` (${g.proveedor})` : ''}`,
@@ -171,10 +175,22 @@ export default function Caja() {
         monto: p.monto, origen: 'Pago', forma_pago: p.forma_pago,
       }));
 
+    const egresosTransferencia = gastos
+      .filter(g => g.fecha?.startsWith(anio))
+      .filter(g => {
+        const dest = g.destino || (g.forma_pago === 'Transferencia' ? 'Banco' : 'Caja');
+        return dest === 'Banco';
+      })
+      .map(g => ({
+        id: g.id, fecha: g.fecha, tipo: 'Egreso',
+        concepto: `${g.descripcion}${g.proveedor ? ` (${g.proveedor})` : ''}`,
+        monto: g.monto, origen: 'Gasto',
+      }));
+
     const extras = movimientosExtra
       .filter(m => m.cuenta === 'Banco' && m.fecha?.startsWith(anio));
 
-    return [...ingresos, ...extras]
+    return [...ingresos, ...egresosTransferencia, ...extras]
       .sort((a, b) => {
         const fechaDiff = (a.fecha || '').localeCompare(b.fecha || '');
         if (fechaDiff !== 0) return fechaDiff;
@@ -182,7 +198,7 @@ export default function Caja() {
         if (a.tipo !== 'Ingreso' && b.tipo === 'Ingreso') return 1;
         return 0;
       });
-  }, [pagos, movimientosExtra, anio]);
+  }, [pagos, gastos, movimientosExtra, anio]);
 
   const movimientos = tab === 'caja' ? movimientosCaja : movimientosBanco;
 
