@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ export default function ImportMovimientosBancoDialog({ open, onClose }) {
   const [loading, setLoading] = useState(false);
   const [movimientos, setMovimientos] = useState([]);
   const queryClient = useQueryClient();
+  const fileInputRef = useRef(null);
 
   const handleFile = async (e) => {
     const file = e.target.files[0];
@@ -109,17 +110,20 @@ Incluí transferencias de clientes (TRANSF...), pagos de impuestos (IMP. AFIP), 
                 <p className="text-sm">Procesando el PDF con IA...</p>
               </div>
             ) : (
-              <label className="flex flex-col items-center gap-4 border-2 border-dashed border-border rounded-xl p-10 cursor-pointer hover:bg-muted/50 transition-colors">
+              <div
+                className="flex flex-col items-center gap-4 border-2 border-dashed border-border rounded-xl p-10 cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <FileText className="w-12 h-12 text-muted-foreground" />
                 <div className="text-center">
                   <p className="font-medium">Subir extracto bancario</p>
                   <p className="text-sm text-muted-foreground mt-1">PDF del banco (Macro u otro)</p>
                 </div>
-                <Button type="button" variant="outline" className="pointer-events-none">
+                <Button type="button" variant="outline">
                   <Upload className="w-4 h-4 mr-2" />Seleccionar PDF
                 </Button>
-                <input type="file" accept=".pdf" className="hidden" onChange={handleFile} />
-              </label>
+                <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleFile} />
+              </div>
             )}
           </div>
         )}
