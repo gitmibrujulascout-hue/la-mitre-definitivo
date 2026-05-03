@@ -14,6 +14,7 @@ import Campamentos from '@/pages/Campamentos';
 import CuentaCorriente from '@/pages/CuentaCorriente';
 import Caja from '@/pages/Caja';
 import ActividadesEconomicas from '@/pages/ActividadesEconomicas';
+import EstadoCuenta from '@/pages/EstadoCuenta';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -50,6 +51,7 @@ const AuthenticatedApp = () => {
         <Route path="/cuenta-corriente" element={<CuentaCorriente />} />
         <Route path="/caja" element={<Caja />} />
         <Route path="/actividades" element={<ActividadesEconomicas />} />
+        <Route path="/estado-cuenta" element={<EstadoCuenta />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
