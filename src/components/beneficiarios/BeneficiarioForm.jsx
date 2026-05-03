@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TODOS_LOS_ROLES, ramaDesdeEdad, esBeneficiarioConCuota } from '@/lib/ramaUtils';
-import { AlertTriangle, ArrowRight, Users } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Users, Search, X } from 'lucide-react';
 
 export default function BeneficiarioForm({ open, onClose, onSave, initialData, todosBeneficiarios = [] }) {
   const [form, setForm] = useState(initialData || {
@@ -55,7 +55,7 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
     return nombre.split(/[,\s]/)[0].toLowerCase();
   }, [form.nombre]);
 
-  const posiblesFamiliares = useMemo(() => {
+  const posiblesFamiliaresPorApellido = useMemo(() => {
     if (apellidoActual.length < 3) return [];
     return todosBeneficiarios.filter(b => {
       if (b.id === initialData?.id) return false;
@@ -73,6 +73,27 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
       .map(b => b.id);
   });
 
+  // Búsqueda manual para agregar cualquier miembro al grupo
+  const [busquedaFamiliar, setBusquedaFamiliar] = useState('');
+
+  const resultadosBusqueda = useMemo(() => {
+    if (busquedaFamiliar.trim().length < 2) return [];
+    const q = busquedaFamiliar.toLowerCase();
+    return todosBeneficiarios.filter(b => {
+      if (b.id === initialData?.id) return false;
+      if (b.activo === false) return false;
+      // Excluir los que ya aparecen por apellido
+      const apellidoB = (b.nombre?.trim() || '').split(/[,\s]/)[0].toLowerCase();
+      if (apellidoB === apellidoActual) return false;
+      return b.nombre?.toLowerCase().includes(q);
+    }).slice(0, 8);
+  }, [busquedaFamiliar, todosBeneficiarios, initialData, apellidoActual]);
+
+  // Todos los que están seleccionados (por apellido o manualmente)
+  const todosLosFamiliaresEnGrupo = useMemo(() => {
+    return todosBeneficiarios.filter(b => hermanosSeleccionados.includes(b.id));
+  }, [hermanosSeleccionados, todosBeneficiarios]);
+
   // Re-inicializar si cambia el initialData (al abrir otro beneficiario)
   useEffect(() => {
     if (!initialData?.grupo_familiar) {
@@ -84,6 +105,7 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
           .map(b => b.id)
       );
     }
+    setBusquedaFamiliar('');
   }, [initialData?.id]);
 
   const toggleFamiliar = (b) => {
@@ -95,7 +117,6 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
       if (nuevos.length === 0) {
         update('grupo_familiar', '');
       } else {
-        // Priorizar grupo_familiar ya existente en la DB (del familiar o del propio form)
         const conGrupo = todosBeneficiarios.find(x => nuevos.includes(x.id) && x.grupo_familiar);
         const grupo = conGrupo?.grupo_familiar || form.grupo_familiar || apellidoActual;
         update('grupo_familiar', grupo);
@@ -211,18 +232,17 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                 </p>
               )}
             </div>
-            {posiblesFamiliares.length > 0 && (
-              <div className="p-3 rounded-lg border border-blue-200 bg-blue-50 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-blue-600" />
-                  <p className="text-sm font-medium text-blue-800">Grupo familiar</p>
-                </div>
-                <p className="text-xs text-blue-600">
-                  Miembros con el mismo apellido. Marcá a los familiares para vincularlos.
-                  {form.tipo === 'Beneficiario' && ' Los hermanos que pagan cuota recibirán descuento automático.'}
-                </p>
-                <div className="space-y-2">
-                  {posiblesFamiliares.map(b => (
+            <div className="p-3 rounded-lg border border-blue-200 bg-blue-50 space-y-3">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-600" />
+                <p className="text-sm font-medium text-blue-800">Grupo familiar</p>
+              </div>
+
+              {/* Miembros detectados por apellido */}
+              {posiblesFamiliaresPorApellido.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-blue-600 font-medium">Mismo apellido:</p>
+                  {posiblesFamiliaresPorApellido.map(b => (
                     <div key={b.id} className="flex items-center gap-2">
                       <Checkbox
                         id={`familiar-${b.id}`}
@@ -232,23 +252,76 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                       <label htmlFor={`familiar-${b.id}`} className="text-sm text-blue-900 cursor-pointer flex items-center gap-1">
                         {b.nombre}
                         <span className="text-blue-500 text-xs">({b.rama}{b.tipo === 'Voluntario' ? ' – voluntario' : ''})</span>
-                        {b.grupo_familiar && b.grupo_familiar === form.grupo_familiar && (
-                          <span className="text-green-600 text-xs font-medium">✓ vinculado</span>
-                        )}
                       </label>
                     </div>
                   ))}
                 </div>
-                {form.grupo_familiar && (
-                  <p className="text-xs text-blue-500">ID de grupo: <span className="font-mono">{form.grupo_familiar}</span></p>
+              )}
+
+              {/* Miembros ya vinculados manualmente (no detectados por apellido) */}
+              {todosLosFamiliaresEnGrupo.filter(b => {
+                const apellidoB = (b.nombre?.trim() || '').split(/[,\s]/)[0].toLowerCase();
+                return apellidoB !== apellidoActual;
+              }).map(b => (
+                <div key={b.id} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`familiar-manual-${b.id}`}
+                    checked={true}
+                    onCheckedChange={() => toggleFamiliar(b)}
+                  />
+                  <label htmlFor={`familiar-manual-${b.id}`} className="text-sm text-blue-900 cursor-pointer flex items-center gap-1">
+                    {b.nombre}
+                    <span className="text-blue-500 text-xs">({b.rama}{b.tipo === 'Voluntario' ? ' – voluntario' : ''})</span>
+                    <span className="text-purple-600 text-xs">vinculado manualmente</span>
+                  </label>
+                </div>
+              ))}
+
+              {/* Búsqueda manual */}
+              <div className="space-y-1.5">
+                <p className="text-xs text-blue-600 font-medium">Agregar otro familiar (papá, mamá, tío...):</p>
+                <div className="relative">
+                  <Search className="absolute left-2 top-2 w-3.5 h-3.5 text-blue-400" />
+                  <Input
+                    value={busquedaFamiliar}
+                    onChange={e => setBusquedaFamiliar(e.target.value)}
+                    placeholder="Buscar por nombre..."
+                    className="pl-7 h-8 text-xs bg-white border-blue-200"
+                  />
+                  {busquedaFamiliar && (
+                    <button onClick={() => setBusquedaFamiliar('')} className="absolute right-2 top-2">
+                      <X className="w-3.5 h-3.5 text-blue-400" />
+                    </button>
+                  )}
+                </div>
+                {resultadosBusqueda.length > 0 && (
+                  <div className="bg-white border border-blue-200 rounded-md p-1.5 space-y-1 max-h-36 overflow-y-auto">
+                    {resultadosBusqueda.map(b => (
+                      <div key={b.id} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`busqueda-${b.id}`}
+                          checked={hermanosSeleccionados.includes(b.id)}
+                          onCheckedChange={() => toggleFamiliar(b)}
+                        />
+                        <label htmlFor={`busqueda-${b.id}`} className="text-xs text-blue-900 cursor-pointer">
+                          {b.nombre} <span className="text-blue-400">({b.rama}{b.tipo === 'Voluntario' ? ' – voluntario' : ''})</span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-            )}
-            {posiblesFamiliares.length === 0 && form.grupo_familiar && (
-              <div className="text-xs text-muted-foreground px-1">
-                Grupo familiar: <span className="font-mono">{form.grupo_familiar}</span>
-              </div>
-            )}
+
+              {hermanosSeleccionados.length > 0 && (
+                <p className="text-xs text-blue-500">
+                  {hermanosSeleccionados.length} miembro(s) vinculado(s) al grupo
+                  {form.grupo_familiar && <span className="font-mono ml-1 text-blue-400">({form.grupo_familiar})</span>}
+                </p>
+              )}
+              {hermanosSeleccionados.length === 0 && posiblesFamiliaresPorApellido.length === 0 && (
+                <p className="text-xs text-blue-500">Buscá familiares para vincular al grupo.</p>
+              )}
+            </div>
             {form.tipo === 'Beneficiario' && (
               <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
                 <div>

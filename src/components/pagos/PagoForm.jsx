@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney } from '@/lib/ramaUtils';
+import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, getCuotaBeneficiario } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { Tent, CreditCard } from 'lucide-react';
 
@@ -77,7 +77,13 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   const totalPagadoCamp = pagosDelCampamento.reduce((s, p) => s + (p.monto || 0), 0);
   const saldoCampamento = selectedCamp ? (selectedCamp.costo_por_persona || 0) - totalPagadoCamp : 0;
 
-  const cuotaUnitaria = formaPago === 'Efectivo' ? CUOTA_EFECTIVO : formaPago === 'Transferencia' ? CUOTA_TRANSFERENCIA : 0;
+  // Cuota con descuento familiar automático
+  const cuotaBaseEfectivo = selectedBen ? getCuotaBeneficiario(selectedBen, beneficiarios) : CUOTA_EFECTIVO;
+  // Mantener la proporción transferencia/efectivo
+  const ratio = CUOTA_TRANSFERENCIA / CUOTA_EFECTIVO;
+  const cuotaBaseTransferencia = Math.round(cuotaBaseEfectivo * ratio);
+  const cuotaUnitaria = formaPago === 'Efectivo' ? cuotaBaseEfectivo : formaPago === 'Transferencia' ? cuotaBaseTransferencia : 0;
+  const tieneDescuento = cuotaBaseEfectivo < CUOTA_EFECTIVO;
   const montoCuotas = tipoPago === 'Cuota' ? mesesSeleccionados.length * cuotaUnitaria : 0;
   const montoCampamento = tipoPago === 'Campamento' ? parseFloat(montoManual) || saldoCampamento : 0;
   const montoFinal = tipoPago === 'Cuota' ? montoCuotas : montoCampamento;
@@ -199,9 +205,16 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
                 })}
               </div>
               {mesesSeleccionados.length > 0 && formaPago && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  {mesesSeleccionados.length} mes(es) × {formatMoney(cuotaUnitaria)} = <span className="font-semibold text-foreground">{formatMoney(montoCuotas)}</span>
-                </p>
+                <div className="mt-2 space-y-0.5">
+                  <p className="text-xs text-muted-foreground">
+                    {mesesSeleccionados.length} mes(es) × {formatMoney(cuotaUnitaria)} = <span className="font-semibold text-foreground">{formatMoney(montoCuotas)}</span>
+                  </p>
+                  {tieneDescuento && (
+                    <p className="text-xs text-green-600 font-medium">
+                      ✓ Descuento familiar aplicado (cuota base: {formatMoney(formaPago === 'Efectivo' ? CUOTA_EFECTIVO : CUOTA_TRANSFERENCIA)})
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -259,8 +272,8 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
             <Select value={formaPago} onValueChange={setFormaPago}>
               <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Efectivo">Efectivo → Caja{tipoPago === 'Cuota' ? ` — ${formatMoney(CUOTA_EFECTIVO)}/mes` : ''}</SelectItem>
-                <SelectItem value="Transferencia">Transferencia → Banco{tipoPago === 'Cuota' ? ` — ${formatMoney(CUOTA_TRANSFERENCIA)}/mes` : ''}</SelectItem>
+                <SelectItem value="Efectivo">Efectivo → Caja{tipoPago === 'Cuota' ? ` — ${formatMoney(cuotaBaseEfectivo)}/mes` : ''}</SelectItem>
+                <SelectItem value="Transferencia">Transferencia → Banco{tipoPago === 'Cuota' ? ` — ${formatMoney(cuotaBaseTransferencia)}/mes` : ''}</SelectItem>
               </SelectContent>
             </Select>
             {formaPago && (
