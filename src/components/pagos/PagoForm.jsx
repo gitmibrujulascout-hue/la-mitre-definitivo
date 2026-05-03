@@ -9,7 +9,7 @@ import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, getCuotaBeneficiario } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
-import { Tent, CreditCard } from 'lucide-react';
+import { Tent, CreditCard, Users } from 'lucide-react';
 
 export default function PagoForm({ open, onClose, beneficiarios, preselectedBenId = null }) {
   const [tipoPago, setTipoPago] = useState('Cuota');
@@ -21,6 +21,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   const [formaPago, setFormaPago] = useState('');
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
   const [observaciones, setObservaciones] = useState('');
+  const [hermanosSeleccionados, setHermanosSeleccionados] = useState([]);
 
   const queryClient = useQueryClient();
 
@@ -35,8 +36,14 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   });
 
   const createMutation = useMutation({
-    mutationFn: data => base44.entities.Pago.create(data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['pagos'] }); onClose(); toast.success('Pago registrado'); },
+    mutationFn: async (pagos) => {
+      await Promise.all(pagos.map(p => base44.entities.Pago.create(p)));
+    },
+    onSuccess: (_, pagos) => {
+      queryClient.invalidateQueries({ queryKey: ['pagos'] });
+      onClose();
+      toast.success(pagos.length > 1 ? `${pagos.length} pagos registrados` : 'Pago registrado');
+    },
   });
 
   // Solo beneficiarios activos que abonen cuota (excluir voluntarios y becados), ordenados alfabéticamente
@@ -63,6 +70,31 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
 
   const beneficiariosLista = tipoPago === 'Cuota' ? beneficiariosParaCuota : beneficiariosParaCampamento;
   const selectedBen = beneficiarios.find(b => b.id === beneficiarioId);
+
+  // Hermanos: mismo grupo_familiar, excluyendo al principal
+  const hermanos = useMemo(() => {
+    if (!selectedBen?.grupo_familiar || tipoPago !== 'Cuota') return [];
+    return beneficiariosParaCuota.filter(
+      b => b.grupo_familiar === selectedBen.grupo_familiar && b.id !== selectedBen.id
+    );
+  }, [selectedBen, beneficiariosParaCuota, tipoPago]);
+
+  // Meses ya pagados por hermano seleccionado
+  const mesesYaPagadosPorHermano = useMemo(() => {
+    const mapa = {};
+    hermanosSeleccionados.forEach(hid => {
+      mapa[hid] = pagosExistentes
+        .filter(p => p.beneficiario_id === hid && p.anio === parseInt(anio) && p.tipo_pago === 'Cuota')
+        .flatMap(p => p.meses || (p.mes ? [p.mes] : []));
+    });
+    return mapa;
+  }, [hermanosSeleccionados, pagosExistentes, anio]);
+
+  const toggleHermano = (hid) => {
+    setHermanosSeleccionados(prev =>
+      prev.includes(hid) ? prev.filter(id => id !== hid) : [...prev, hid]
+    );
+  };
 
   // Calcular meses ya pagados por este beneficiario en el año seleccionado
   const mesesYaPagados = useMemo(() => {
@@ -103,27 +135,69 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     if (tipoPago === 'Cuota' && mesesSeleccionados.length === 0) return;
     if (tipoPago === 'Campamento' && !campamentoId) return;
 
-    const pagoData = {
-      beneficiario_id: beneficiarioId,
-      beneficiario_nombre: selectedBen?.nombre || '',
-      tipo_pago: tipoPago,
-      anio: parseInt(anio),
-      forma_pago: formaPago,
-      destino,
-      monto: montoFinal,
-      fecha_pago: fechaPago,
-      observaciones,
+    const buildPago = (ben, meses) => {
+      const cuotaBen = getCuotaBeneficiario(ben, beneficiarios);
+      const ratio = CUOTA_TRANSFERENCIA / CUOTA_EFECTIVO;
+      const cuotaUnitariaBen = formaPago === 'Efectivo' ? cuotaBen : Math.round(cuotaBen * ratio);
+      // Filtrar meses ya pagados por este hermano
+      const mesesValidos = meses.filter(m => !(mesesYaPagadosPorHermano[ben.id] || []).includes(m));
+      if (mesesValidos.length === 0) return null;
+      return {
+        beneficiario_id: ben.id,
+        beneficiario_nombre: ben.nombre,
+        tipo_pago: 'Cuota',
+        anio: parseInt(anio),
+        forma_pago: formaPago,
+        destino,
+        monto: mesesValidos.length * cuotaUnitariaBen,
+        meses: mesesValidos,
+        mes: mesesValidos[0],
+        fecha_pago: fechaPago,
+        observaciones,
+      };
     };
 
+    const pagos = [];
+
     if (tipoPago === 'Cuota') {
-      pagoData.meses = mesesSeleccionados;
-      pagoData.mes = mesesSeleccionados[0] || '';
+      pagos.push({
+        beneficiario_id: beneficiarioId,
+        beneficiario_nombre: selectedBen?.nombre || '',
+        tipo_pago: 'Cuota',
+        anio: parseInt(anio),
+        forma_pago: formaPago,
+        destino,
+        monto: montoFinal,
+        meses: mesesSeleccionados,
+        mes: mesesSeleccionados[0] || '',
+        fecha_pago: fechaPago,
+        observaciones,
+      });
+      // Agregar pagos de hermanos seleccionados con los mismos meses
+      hermanosSeleccionados.forEach(hid => {
+        const hermano = beneficiarios.find(b => b.id === hid);
+        if (hermano) {
+          const p = buildPago(hermano, mesesSeleccionados);
+          if (p) pagos.push(p);
+        }
+      });
     } else {
-      pagoData.campamento_id = campamentoId;
-      pagoData.campamento_nombre = selectedCamp?.nombre || '';
+      pagos.push({
+        beneficiario_id: beneficiarioId,
+        beneficiario_nombre: selectedBen?.nombre || '',
+        tipo_pago: 'Campamento',
+        anio: parseInt(anio),
+        forma_pago: formaPago,
+        destino,
+        monto: montoCampamento,
+        campamento_id: campamentoId,
+        campamento_nombre: selectedCamp?.nombre || '',
+        fecha_pago: fechaPago,
+        observaciones,
+      });
     }
 
-    createMutation.mutate(pagoData);
+    createMutation.mutate(pagos);
   };
 
   const canSave = beneficiarioId && formaPago &&
@@ -155,7 +229,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
           {/* Beneficiario */}
           <div>
             <Label>Beneficiario *</Label>
-            <Select value={beneficiarioId} onValueChange={setBeneficiarioId}>
+            <Select value={beneficiarioId} onValueChange={v => { setBeneficiarioId(v); setHermanosSeleccionados([]); }}>
               <SelectTrigger><SelectValue placeholder="Seleccionar beneficiario" /></SelectTrigger>
               <SelectContent>
                 {beneficiariosLista.map(b => (
@@ -175,6 +249,36 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
               </SelectContent>
             </Select>
           </div>
+
+          {/* Hermanos del grupo familiar */}
+          {tipoPago === 'Cuota' && hermanos.length > 0 && (
+            <div className="p-3 rounded-lg border border-blue-200 bg-blue-50/60 space-y-2">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-600" />
+                <p className="text-sm font-medium text-blue-800">¿Pagás también para los hermanos?</p>
+              </div>
+              <div className="space-y-1.5">
+                {hermanos.map(h => {
+                  const sel = hermanosSeleccionados.includes(h.id);
+                  return (
+                    <label key={h.id} className="flex items-center gap-2.5 cursor-pointer">
+                      <Checkbox
+                        checked={sel}
+                        onCheckedChange={() => toggleHermano(h.id)}
+                      />
+                      <span className="text-sm">{h.nombre}</span>
+                      {h.rama && <span className="text-xs text-muted-foreground">({h.rama})</span>}
+                    </label>
+                  );
+                })}
+              </div>
+              {hermanosSeleccionados.length > 0 && (
+                <p className="text-xs text-blue-600">
+                  Se registrarán pagos separados para cada hermano con los mismos meses y forma de pago.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Selección de meses (multi-selección) */}
           {tipoPago === 'Cuota' && (
@@ -286,8 +390,39 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
           {/* Monto final */}
           {montoFinal > 0 && (
             <div className="p-3 rounded-lg bg-green-50 text-green-700 text-center">
-              <p className="text-sm">Monto a registrar</p>
-              <p className="text-xl font-bold">{formatMoney(montoFinal)}</p>
+              {hermanosSeleccionados.length > 0 ? (
+                <>
+                  <p className="text-sm">Total a registrar ({1 + hermanosSeleccionados.length} pagos)</p>
+                  <p className="text-xl font-bold">
+                    {formatMoney(montoFinal + hermanosSeleccionados.reduce((sum, hid) => {
+                      const h = beneficiarios.find(b => b.id === hid);
+                      if (!h) return sum;
+                      const cuotaH = getCuotaBeneficiario(h, beneficiarios);
+                      const ratio = CUOTA_TRANSFERENCIA / CUOTA_EFECTIVO;
+                      const cuotaUH = formaPago === 'Efectivo' ? cuotaH : Math.round(cuotaH * ratio);
+                      const mesesValidos = mesesSeleccionados.filter(m => !(mesesYaPagadosPorHermano[hid] || []).includes(m));
+                      return sum + mesesValidos.length * cuotaUH;
+                    }, 0))}
+                  </p>
+                  <p className="text-xs opacity-75 mt-0.5">
+                    {selectedBen?.nombre}: {formatMoney(montoFinal)}
+                    {hermanosSeleccionados.map(hid => {
+                      const h = beneficiarios.find(b => b.id === hid);
+                      if (!h) return null;
+                      const cuotaH = getCuotaBeneficiario(h, beneficiarios);
+                      const ratio = CUOTA_TRANSFERENCIA / CUOTA_EFECTIVO;
+                      const cuotaUH = formaPago === 'Efectivo' ? cuotaH : Math.round(cuotaH * ratio);
+                      const mesesValidos = mesesSeleccionados.filter(m => !(mesesYaPagadosPorHermano[hid] || []).includes(m));
+                      return ` · ${h.nombre.split(' ')[0]}: ${formatMoney(mesesValidos.length * cuotaUH)}`;
+                    })}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm">Monto a registrar</p>
+                  <p className="text-xl font-bold">{formatMoney(montoFinal)}</p>
+                </>
+              )}
             </div>
           )}
 
