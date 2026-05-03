@@ -20,6 +20,8 @@ export default function ImportMovimientosBancoDialog({ open, onClose }) {
   const handleFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    // Reset input value so same file can be re-selected if needed
+    e.target.value = '';
     setLoading(true);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
@@ -29,14 +31,14 @@ export default function ImportMovimientosBancoDialog({ open, onClose }) {
 Para cada movimiento devolvé:
 - fecha: en formato YYYY-MM-DD
 - concepto: descripción del movimiento (campo Concepto del PDF)
-- importe: número (positivo si es ingreso, negativo si es egreso)
-- tipo: "Ingreso" si importe > 0, "Egreso" si importe < 0
-- monto: valor absoluto del importe (siempre positivo)
-- nro_referencia: número de referencia
+- tipo: "Ingreso" si el importe es positivo/acreditado, "Egreso" si es negativo/debitado
+- monto: valor absoluto del importe (siempre positivo, sin signo)
+- nro_referencia: número de referencia si existe
 
-Ignorá los movimientos de tasas bancarias (DBCR TASA GRAL), retenciones (RETENCION ING BRUTOS) y comisiones bancarias internas — esos son gastos bancarios que no corresponde importar.
-Incluí transferencias de clientes (TRANSF...), pagos de impuestos (IMP. AFIP), transferencias MacrOnline (Transf. MacrOnline), y cualquier otro movimiento relevante.`,
+Ignorá los movimientos de tasas bancarias (DBCR TASA GRAL), retenciones (RETENCION ING BRUTOS) y comisiones bancarias internas.
+Incluí transferencias, pagos de impuestos, y cualquier otro movimiento relevante.`,
         file_urls: [file_url],
+        model: 'claude_sonnet_4_6',
         response_json_schema: {
           type: 'object',
           properties: {
@@ -60,7 +62,8 @@ Incluí transferencias de clientes (TRANSF...), pagos de impuestos (IMP. AFIP), 
       setMovimientos(result.movimientos || []);
       setStep('preview');
     } catch (err) {
-      toast.error('Error al procesar el archivo');
+      console.error('Error importando PDF:', err);
+      toast.error(`Error al procesar: ${err?.message || 'Intentá de nuevo'}`);
     } finally {
       setLoading(false);
     }
