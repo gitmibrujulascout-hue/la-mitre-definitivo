@@ -39,7 +39,8 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
 
   const handleSave = () => {
     if (!form.nombre) return;
-    onSave(form);
+    // Pasar también los IDs de hermanos para que la página actualice su grupo_familiar
+    onSave(form, hermanosSeleccionados);
   };
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
@@ -48,23 +49,23 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
   const ramaSegunEdad = form.fecha_nacimiento ? ramaDesdeEdad(form.fecha_nacimiento) : null;
   const sugiereCambioRama = ramaSegunEdad && form.rama && ramaSegunEdad !== form.rama && form.rama !== 'Educador';
 
-  // Lógica de hermanos: buscar posibles hermanos por apellido (solo sugerencia, no automático)
+  // Posibles miembros del grupo familiar: mismo apellido, cualquier tipo/rama, activos
   const apellidoActual = useMemo(() => {
     const nombre = form.nombre?.trim() || '';
     return nombre.split(/[,\s]/)[0].toLowerCase();
   }, [form.nombre]);
 
-  const posiblesHermanos = useMemo(() => {
+  const posiblesFamiliares = useMemo(() => {
     if (apellidoActual.length < 3) return [];
     return todosBeneficiarios.filter(b => {
       if (b.id === initialData?.id) return false;
-      if (!esBeneficiarioConCuota(b) || b.activo === false) return false;
+      if (b.activo === false) return false;
       const apellidoB = (b.nombre?.trim() || '').split(/[,\s]/)[0].toLowerCase();
       return apellidoB === apellidoActual;
     });
   }, [apellidoActual, todosBeneficiarios, initialData]);
 
-  // Estado local de selección manual (inicializado desde grupo_familiar existente)
+  // Estado local: inicializado con quienes ya comparten el mismo grupo_familiar en la DB
   const [hermanosSeleccionados, setHermanosSeleccionados] = useState(() => {
     if (!initialData?.grupo_familiar) return [];
     return (todosBeneficiarios || [])
@@ -72,18 +73,31 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
       .map(b => b.id);
   });
 
-  const toggleHermano = (b) => {
+  // Re-inicializar si cambia el initialData (al abrir otro beneficiario)
+  useEffect(() => {
+    if (!initialData?.grupo_familiar) {
+      setHermanosSeleccionados([]);
+    } else {
+      setHermanosSeleccionados(
+        (todosBeneficiarios || [])
+          .filter(b => b.id !== initialData?.id && b.grupo_familiar === initialData.grupo_familiar)
+          .map(b => b.id)
+      );
+    }
+  }, [initialData?.id]);
+
+  const toggleFamiliar = (b) => {
     setHermanosSeleccionados(prev => {
       const nuevos = prev.includes(b.id)
         ? prev.filter(id => id !== b.id)
         : [...prev, b.id];
-      // Actualizar grupo_familiar: si hay seleccionados, usar el grupo del primero seleccionado o apellido; si no, limpiar
+
       if (nuevos.length === 0) {
         update('grupo_familiar', '');
       } else {
-        // Tomar el grupo_familiar del hermano si ya tiene uno, sino usar apellido como clave
-        const hermanoConGrupo = todosBeneficiarios.find(x => nuevos.includes(x.id) && x.grupo_familiar);
-        const grupo = hermanoConGrupo?.grupo_familiar || form.grupo_familiar || apellidoActual;
+        // Priorizar grupo_familiar ya existente en la DB (del familiar o del propio form)
+        const conGrupo = todosBeneficiarios.find(x => nuevos.includes(x.id) && x.grupo_familiar);
+        const grupo = conGrupo?.grupo_familiar || form.grupo_familiar || apellidoActual;
         update('grupo_familiar', grupo);
       }
       return nuevos;
@@ -197,34 +211,41 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                 </p>
               )}
             </div>
-            {form.tipo === 'Beneficiario' && !form.becado && posiblesHermanos.length > 0 && (
+            {posiblesFamiliares.length > 0 && (
               <div className="p-3 rounded-lg border border-blue-200 bg-blue-50 space-y-2">
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-blue-600" />
-                  <p className="text-sm font-medium text-blue-800">¿Tiene hermanos en el grupo?</p>
+                  <p className="text-sm font-medium text-blue-800">Grupo familiar</p>
                 </div>
-                <p className="text-xs text-blue-600">Se detectaron estos miembros con el mismo apellido. Marcalos para aplicar el descuento familiar.</p>
+                <p className="text-xs text-blue-600">
+                  Miembros con el mismo apellido. Marcá a los familiares para vincularlos.
+                  {form.tipo === 'Beneficiario' && ' Los hermanos que pagan cuota recibirán descuento automático.'}
+                </p>
                 <div className="space-y-2">
-                  {posiblesHermanos.map(b => (
+                  {posiblesFamiliares.map(b => (
                     <div key={b.id} className="flex items-center gap-2">
                       <Checkbox
-                        id={`hermano-${b.id}`}
+                        id={`familiar-${b.id}`}
                         checked={hermanosSeleccionados.includes(b.id)}
-                        onCheckedChange={() => toggleHermano(b)}
+                        onCheckedChange={() => toggleFamiliar(b)}
                       />
-                      <label htmlFor={`hermano-${b.id}`} className="text-sm text-blue-900 cursor-pointer">
-                        {b.nombre} <span className="text-blue-500 text-xs">({b.rama})</span>
+                      <label htmlFor={`familiar-${b.id}`} className="text-sm text-blue-900 cursor-pointer flex items-center gap-1">
+                        {b.nombre}
+                        <span className="text-blue-500 text-xs">({b.rama}{b.tipo === 'Voluntario' ? ' – voluntario' : ''})</span>
+                        {b.grupo_familiar && b.grupo_familiar === form.grupo_familiar && (
+                          <span className="text-green-600 text-xs font-medium">✓ vinculado</span>
+                        )}
                       </label>
                     </div>
                   ))}
                 </div>
                 {form.grupo_familiar && (
-                  <p className="text-xs text-blue-500">Grupo: <span className="font-mono">{form.grupo_familiar}</span></p>
+                  <p className="text-xs text-blue-500">ID de grupo: <span className="font-mono">{form.grupo_familiar}</span></p>
                 )}
               </div>
             )}
-            {form.tipo === 'Beneficiario' && !form.becado && posiblesHermanos.length === 0 && apellidoActual.length >= 3 && form.grupo_familiar && (
-              <div className="text-xs text-muted-foreground">
+            {posiblesFamiliares.length === 0 && form.grupo_familiar && (
+              <div className="text-xs text-muted-foreground px-1">
                 Grupo familiar: <span className="font-mono">{form.grupo_familiar}</span>
               </div>
             )}

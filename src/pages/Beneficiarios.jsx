@@ -104,12 +104,34 @@ export default function Beneficiarios() {
     toast.success(`${selected.length} beneficiarios eliminados`);
   };
 
-  const handleSave = (data) => {
+  const handleSave = async (data, hermanosIds = []) => {
     if (editing) {
-      updateMutation.mutate({ id: editing.id, data });
+      await base44.entities.Beneficiario.update(editing.id, data);
     } else {
-      createMutation.mutate(data);
+      await base44.entities.Beneficiario.create(data);
     }
+
+    // Actualizar grupo_familiar en los hermanos seleccionados
+    if (hermanosIds.length > 0 && data.grupo_familiar) {
+      await Promise.all(
+        hermanosIds.map(id => base44.entities.Beneficiario.update(id, { grupo_familiar: data.grupo_familiar }))
+      );
+    }
+    // Si se des-vincularon hermanos (tenían el mismo grupo y no están en la lista), limpiarles el grupo
+    if (editing && editing.grupo_familiar) {
+      const exHermanos = beneficiarios.filter(b =>
+        b.id !== editing.id &&
+        b.grupo_familiar === editing.grupo_familiar &&
+        !hermanosIds.includes(b.id)
+      );
+      if (exHermanos.length > 0 && data.grupo_familiar !== editing.grupo_familiar) {
+        await Promise.all(exHermanos.map(b => base44.entities.Beneficiario.update(b.id, { grupo_familiar: '' })));
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['beneficiarios'] });
+    if (editing) { setEditing(null); toast.success('Beneficiario actualizado'); }
+    else { setShowForm(false); toast.success('Beneficiario creado'); }
   };
 
   return (
