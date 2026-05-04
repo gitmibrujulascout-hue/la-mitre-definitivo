@@ -111,16 +111,9 @@
       }
     },
     "read": {
-      "$or": [
-        {
-          "data.email_contacto": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "update": {
       "user_condition": {
@@ -128,6 +121,11 @@
       }
     },
     "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "write": {
       "user_condition": {
         "role": "admin"
       }
