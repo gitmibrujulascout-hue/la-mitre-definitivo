@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Search, FileText, Upload, Pencil } from 'lucide-react';
+import { Plus, Trash2, Search, FileText, Upload, Pencil, Info } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import GastoForm from '@/components/gastos/GastoForm';
 import ImportMasivaGastosDialog from '@/components/gastos/ImportMasivaGastosDialog';
 import { formatMoney } from '@/lib/ramaUtils';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const CATEGORIAS = ['Materiales', 'Alimentos', 'Transporte', 'Servicios', 'Mantenimiento', 'Campamento', 'Otro'];
 
@@ -75,28 +76,45 @@ export default function Gastos() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>Descripción</TableHead>
+              <TableHead>Proveedor / Comercio</TableHead>
+              <TableHead>N° Ticket / Factura</TableHead>
               <TableHead>Categoría</TableHead>
               <TableHead>Monto</TableHead>
               <TableHead className="hidden sm:table-cell">Fecha</TableHead>
-              <TableHead className="hidden md:table-cell">Proveedor</TableHead>
+              <TableHead>Detalle</TableHead>
               <TableHead>Archivo</TableHead>
-              <TableHead className="w-12"></TableHead>
+              <TableHead className="w-20"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No hay gastos que coincidan con los filtros</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No hay gastos que coincidan con los filtros</TableCell></TableRow>
             ) : (
               filtered.map(g => (
                 <TableRow key={g.id}>
-                  <TableCell className="font-medium">{g.descripcion}</TableCell>
+                  <TableCell className="font-medium">{g.proveedor || <span className="text-muted-foreground italic">Sin proveedor</span>}</TableCell>
+                  <TableCell className="text-muted-foreground">{g.numero_factura || '—'}</TableCell>
                   <TableCell><Badge variant="secondary">{g.categoria || '—'}</Badge></TableCell>
                   <TableCell className="font-semibold text-red-500">{formatMoney(g.monto)}</TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground">{g.fecha}</TableCell>
-                  <TableCell className="hidden md:table-cell text-muted-foreground">{g.proveedor || '—'}</TableCell>
+                  <TableCell>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <Info className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 text-sm space-y-2">
+                        <p className="font-semibold text-foreground">Descripción</p>
+                        <p className="text-muted-foreground">{g.descripcion || '—'}</p>
+                        {g.forma_pago && <p className="text-xs text-muted-foreground">Forma de pago: <span className="font-medium">{g.forma_pago}</span></p>}
+                        {g.campamento_nombre && <p className="text-xs text-muted-foreground">Campamento: <span className="font-medium">{g.campamento_nombre}</span></p>}
+                        {g.observaciones && <p className="text-xs text-muted-foreground">Obs: {g.observaciones}</p>}
+                      </PopoverContent>
+                    </Popover>
+                  </TableCell>
                   <TableCell>
                     {g.archivo_url ? (
                       <a href={g.archivo_url} target="_blank" rel="noopener noreferrer">
