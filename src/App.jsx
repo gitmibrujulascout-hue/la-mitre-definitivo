@@ -39,7 +39,19 @@ const AuthenticatedApp = () => {
     }
   }
 
-  // Render the main app
+  const { user } = useAuth();
+
+  // Redirect non-admin users to estado-cuenta only
+  if (user && user.role !== 'admin') {
+    return (
+      <Routes>
+        <Route path="/estado-cuenta" element={<EstadoCuenta />} />
+        <Route path="*" element={<EstadoCuenta />} />
+      </Routes>
+    );
+  }
+
+  // Render the main app (admin only)
   return (
     <Routes>
       <Route element={<AppLayout />}>

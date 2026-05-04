@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { base44 } from '@/api/base44Client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Upload, Loader2, Sparkles, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,6 +16,12 @@ const CATEGORIAS = ['Materiales', 'Alimentos', 'Transporte', 'Servicios', 'Mante
 export default function GastoForm({ open, onClose, initialData }) {
   const isEditing = !!initialData;
   const [tab, setTab] = useState('manual');
+
+  const { data: campamentos = [] } = useQuery({
+    queryKey: ['campamentos'],
+    queryFn: () => base44.entities.Campamento.list(),
+    select: data => data.filter(c => c.nombre),
+  });
   const [form, setForm] = useState(initialData ? {
     descripcion: initialData.descripcion || '',
     monto: initialData.monto || '',
@@ -27,10 +33,12 @@ export default function GastoForm({ open, onClose, initialData }) {
     observaciones: initialData.observaciones || '',
     forma_pago: initialData.forma_pago || '',
     destino: initialData.destino || '',
+    campamento_id: initialData.campamento_id || '',
+    campamento_nombre: initialData.campamento_nombre || '',
   } : {
     descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0],
     categoria: '', proveedor: '', numero_factura: '', archivo_url: '', observaciones: '',
-    forma_pago: '', destino: '',
+    forma_pago: '', destino: '', campamento_id: '', campamento_nombre: '',
   });
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -105,7 +113,13 @@ export default function GastoForm({ open, onClose, initialData }) {
   const handleSave = () => {
     if (!form.descripcion || !form.monto) return;
     const destino = form.forma_pago === 'Transferencia' ? 'Banco' : 'Caja';
-    const data = { ...form, monto: parseFloat(form.monto), destino };
+    const camp = campamentos.find(c => c.id === form.campamento_id);
+    const data = {
+      ...form,
+      monto: parseFloat(form.monto),
+      destino,
+      campamento_nombre: camp?.nombre || '',
+    };
     if (isEditing) updateMutation.mutate(data);
     else createMutation.mutate(data);
   };
@@ -186,6 +200,23 @@ export default function GastoForm({ open, onClose, initialData }) {
               </SelectContent>
             </Select>
           </div>
+          {campamentos.length > 0 && (
+            <div>
+              <Label>Asociar a campamento (opcional)</Label>
+              <Select
+                value={form.campamento_id || 'ninguno'}
+                onValueChange={v => update('campamento_id', v === 'ninguno' ? '' : v)}
+              >
+                <SelectTrigger><SelectValue placeholder="Sin campamento" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ninguno">Sin campamento</SelectItem>
+                  {campamentos.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div>
             <Label>Observaciones</Label>
             <Textarea value={form.observaciones} onChange={e => update('observaciones', e.target.value)} placeholder="Opcional" className="h-20" />

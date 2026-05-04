@@ -62,7 +62,7 @@ export default function EstadoCuenta() {
     if (!b) return null;
     const activos = beneficiarios.filter(x => x.activo !== false);
     const pagosDelBen = pagos.filter(p => p.beneficiario_id === b.id);
-    const pagosAnio = pagosDelBen.filter(p => p.anio === anio);
+    const pagosAnio = pagosDelBen.filter(p => Number(p.anio) === Number(anio));
     const mesesPagados = pagosAnio
       .filter(p => p.tipo_pago !== 'Campamento')
       .flatMap(p => p.meses || (p.mes ? [p.mes] : []));
