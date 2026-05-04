@@ -100,6 +100,7 @@ export default function Caja() {
   const [showNuevo, setShowNuevo] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [anio, setAnio] = useState(new Date().getFullYear().toString());
+  const [mostrarTodos, setMostrarTodos] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: pagos = [] } = useQuery({
@@ -118,87 +119,63 @@ export default function Caja() {
   });
 
   const deleteMov = useMutation({
-    mutationFn: id => base44.entities.MovimientoBanco.delete(id),
+    mutationFn: refId => base44.entities.MovimientoBanco.delete(refId),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] }); toast.success('Eliminado'); }
   });
 
-  // Movimientos de CAJA = pagos en efectivo + gastos pagados en efectivo + movimientos manuales de caja
-  const movimientosCaja = useMemo(() => {
-    const anioNum = parseInt(anio);
-    const ingresos = pagos
-      .filter(p => p.destino === 'Caja' || (p.forma_pago === 'Efectivo' && !p.destino))
-      .filter(p => p.fecha_pago?.startsWith(anio))
+  // Helper: destino efectivo de un gasto
+  const destinoGasto = (g) => {
+    if (g.destino === 'Banco') return 'Banco';
+    if (g.destino === 'Caja') return 'Caja';
+    if (g.forma_pago === 'Transferencia') return 'Banco';
+    return 'Caja';
+  };
+
+  // Helper: destino efectivo de un pago
+  const destinoPago = (p) => {
+    if (p.destino === 'Banco') return 'Banco';
+    if (p.destino === 'Caja') return 'Caja';
+    if (p.forma_pago === 'Transferencia') return 'Banco';
+    return 'Caja';
+  };
+
+  const filtrarPorAnio = (fecha) => mostrarTodos || (fecha || '').startsWith(anio);
+
+  const buildMovimientos = (cuentaFiltro) => {
+    const ingresoPagos = pagos
+      .filter(p => filtrarPorAnio(p.fecha_pago) && destinoPago(p) === cuentaFiltro)
       .map(p => ({
-        id: p.id, fecha: p.fecha_pago, tipo: 'Ingreso',
+        id: `pago-${p.id}`, refId: p.id, fecha: p.fecha_pago, tipo: 'Ingreso',
         concepto: p.tipo_pago === 'Campamento'
           ? `Campamento: ${p.campamento_nombre || ''} — ${p.beneficiario_nombre}`
           : `Cuota ${(p.meses || [p.mes]).filter(Boolean).join(', ')} — ${p.beneficiario_nombre}`,
-        monto: p.monto, origen: 'Pago', forma_pago: p.forma_pago,
+        monto: p.monto, origen: 'Pago cuota', forma_pago: p.forma_pago,
       }));
 
-    const egresos = gastos
-      .filter(g => g.fecha?.startsWith(anio))
-      .filter(g => {
-        const dest = g.destino || (g.forma_pago === 'Transferencia' ? 'Banco' : 'Caja');
-        return dest === 'Caja';
-      })
+    const egresoGastos = gastos
+      .filter(g => filtrarPorAnio(g.fecha) && destinoGasto(g) === cuentaFiltro)
       .map(g => ({
-        id: g.id, fecha: g.fecha, tipo: 'Egreso',
+        id: `gasto-${g.id}`, refId: g.id, fecha: g.fecha, tipo: 'Egreso',
         concepto: `${g.descripcion}${g.proveedor ? ` (${g.proveedor})` : ''}`,
-        monto: g.monto, origen: 'Gasto',
+        monto: g.monto, origen: 'Gasto', categoria: g.categoria,
       }));
 
     const extras = movimientosExtra
-      .filter(m => m.cuenta === 'Caja' && m.fecha?.startsWith(anio));
+      .filter(m => m.cuenta === cuentaFiltro && filtrarPorAnio(m.fecha))
+      .map(m => ({ ...m, id: `extra-${m.id}`, refId: m.id, esManual: true }));
 
-    return [...ingresos, ...egresos, ...extras]
+    return [...ingresoPagos, ...egresoGastos, ...extras]
       .sort((a, b) => {
-        const fechaDiff = (a.fecha || '').localeCompare(b.fecha || '');
-        if (fechaDiff !== 0) return fechaDiff;
-        // Mismo día: ingresos primero
+        const diff = (a.fecha || '').localeCompare(b.fecha || '');
+        if (diff !== 0) return diff;
         if (a.tipo === 'Ingreso' && b.tipo !== 'Ingreso') return -1;
         if (a.tipo !== 'Ingreso' && b.tipo === 'Ingreso') return 1;
         return 0;
       });
-  }, [pagos, gastos, movimientosExtra, anio]);
+  };
 
-  // Movimientos de BANCO = pagos por transferencia + movimientos manuales de banco
-  const movimientosBanco = useMemo(() => {
-    const ingresos = pagos
-      .filter(p => p.destino === 'Banco' || (p.forma_pago === 'Transferencia' && !p.destino))
-      .filter(p => p.fecha_pago?.startsWith(anio))
-      .map(p => ({
-        id: p.id, fecha: p.fecha_pago, tipo: 'Ingreso',
-        concepto: p.tipo_pago === 'Campamento'
-          ? `Campamento: ${p.campamento_nombre || ''} — ${p.beneficiario_nombre}`
-          : `Cuota ${(p.meses || [p.mes]).filter(Boolean).join(', ')} — ${p.beneficiario_nombre}`,
-        monto: p.monto, origen: 'Pago', forma_pago: p.forma_pago,
-      }));
-
-    const egresosTransferencia = gastos
-      .filter(g => g.fecha?.startsWith(anio))
-      .filter(g => {
-        const dest = g.destino || (g.forma_pago === 'Transferencia' ? 'Banco' : 'Caja');
-        return dest === 'Banco';
-      })
-      .map(g => ({
-        id: g.id, fecha: g.fecha, tipo: 'Egreso',
-        concepto: `${g.descripcion}${g.proveedor ? ` (${g.proveedor})` : ''}`,
-        monto: g.monto, origen: 'Gasto',
-      }));
-
-    const extras = movimientosExtra
-      .filter(m => m.cuenta === 'Banco' && m.fecha?.startsWith(anio));
-
-    return [...ingresos, ...egresosTransferencia, ...extras]
-      .sort((a, b) => {
-        const fechaDiff = (a.fecha || '').localeCompare(b.fecha || '');
-        if (fechaDiff !== 0) return fechaDiff;
-        if (a.tipo === 'Ingreso' && b.tipo !== 'Ingreso') return -1;
-        if (a.tipo !== 'Ingreso' && b.tipo === 'Ingreso') return 1;
-        return 0;
-      });
-  }, [pagos, gastos, movimientosExtra, anio]);
+  const movimientosCaja = useMemo(() => buildMovimientos('Caja'), [pagos, gastos, movimientosExtra, anio, mostrarTodos]);
+  const movimientosBanco = useMemo(() => buildMovimientos('Banco'), [pagos, gastos, movimientosExtra, anio, mostrarTodos]);
 
   const movimientos = tab === 'caja' ? movimientosCaja : movimientosBanco;
 
@@ -218,12 +195,15 @@ export default function Caja() {
   return (
     <div>
       <PageHeader title="Caja y Banco" description="Saldo y movimientos de fondos">
-        <Select value={anio} onValueChange={setAnio}>
+        <Select value={anio} onValueChange={v => { setAnio(v); setMostrarTodos(false); }}>
           <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {[2026, 2027, 2028].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
+            {[2024, 2025, 2026, 2027, 2028].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Button variant={mostrarTodos ? 'default' : 'outline'} size="sm" onClick={() => setMostrarTodos(p => !p)}>
+          {mostrarTodos ? 'Filtrando: Todos' : 'Ver todos los años'}
+        </Button>
         {tab === 'banco' && (
           <Button variant="outline" onClick={() => setShowImport(true)}>
             <Upload className="w-4 h-4 mr-2" />Importar PDF banco
@@ -291,20 +271,26 @@ export default function Caja() {
             <TableRow className="bg-muted/50">
               <TableHead>Fecha</TableHead>
               <TableHead>Concepto</TableHead>
+              <TableHead>Origen</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Monto</TableHead>
-              <TableHead>Saldo</TableHead>
+              <TableHead>Saldo acum.</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {movimientosConSaldo.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No hay movimientos</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No hay movimientos</TableCell></TableRow>
             ) : (
               movimientosConSaldo.map((m, i) => (
                 <TableRow key={`${m.id}-${i}`}>
-                  <TableCell className="text-muted-foreground text-sm">{m.fecha || '—'}</TableCell>
-                  <TableCell className="font-medium text-sm">{m.concepto}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm whitespace-nowrap">{m.fecha || '—'}</TableCell>
+                  <TableCell className="font-medium text-sm max-w-xs truncate">{m.concepto}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs whitespace-nowrap">
+                      {m.esManual ? 'Manual' : m.origen || '—'}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <Badge className={m.tipo === 'Ingreso'
                       ? 'bg-green-100 text-green-700 border-green-300 border'
@@ -321,8 +307,8 @@ export default function Caja() {
                     {formatMoney(m.saldoAcumulado)}
                   </TableCell>
                   <TableCell>
-                    {movimientosExtra.find(x => x.id === m.id) ? (
-                      <Button variant="ghost" size="icon" onClick={() => deleteMov.mutate(m.id)}>
+                    {m.esManual ? (
+                      <Button variant="ghost" size="icon" onClick={() => deleteMov.mutate(m.refId)}>
                         <Trash2 className="w-4 h-4 text-muted-foreground" />
                       </Button>
                     ) : null}
