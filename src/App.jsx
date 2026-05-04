@@ -17,7 +17,7 @@ import ActividadesEconomicas from '@/pages/ActividadesEconomicas';
 import EstadoCuenta from '@/pages/EstadoCuenta';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, user } = useAuth();
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -33,13 +33,10 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
       navigateToLogin();
       return null;
     }
   }
-
-  const { user } = useAuth();
 
   // Redirect non-admin users to estado-cuenta only
   if (user && user.role !== 'admin') {

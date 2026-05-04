@@ -62,27 +62,41 @@ export default function EstadoCuenta() {
     if (!b) return null;
     const activos = beneficiarios.filter(x => x.activo !== false);
     const pagosDelBen = pagos.filter(p => p.beneficiario_id === b.id);
+    // Pagos de cuota del año (pueden registrarse en cualquier año pero con anio=actual)
     const pagosAnio = pagosDelBen.filter(p => Number(p.anio) === Number(anio));
     const mesesPagados = pagosAnio
       .filter(p => p.tipo_pago !== 'Campamento')
       .flatMap(p => p.meses || (p.mes ? [p.mes] : []));
 
-    const mesActual = new Date().getMonth();
+    const mesActual = new Date().getMonth(); // 0-indexed
     const mesesTranscurridos = anio < new Date().getFullYear() ? 12 : anio > new Date().getFullYear() ? 0 : mesActual + 1;
     const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter(
       m => !MESES_SIN_CUOTA.includes(m) && !MESES_BONIFICADOS.includes(m)
     );
 
     const cuotaIndividual = getCuotaBeneficiario(b, activos);
+    // Total que debería haber pagado en cuotas hasta hoy
     const deudaCuotas = !esBeneficiarioConCuota(b) ? 0 : mesesQueGeneranDeuda.length * cuotaIndividual;
-    const pagadoCuotas = pagosAnio.filter(p => p.tipo_pago !== 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
+    // Total pagado en cuotas (todos los pagos del año que no sean campamento)
+    const pagadoCuotas = pagosAnio
+      .filter(p => p.tipo_pago !== 'Campamento')
+      .reduce((s, p) => s + (p.monto || 0), 0);
 
+    // Campamentos asignados al beneficiario (sin filtro de año para mostrar todos los activos)
     const campBen = campamentos.filter(c => c.beneficiarios_ids?.includes(b.id));
-    const totalCampamentos = anio >= AÑO_INICIO ? campBen.reduce((s, c) => s + (c.costo_por_persona || 0), 0) : 0;
-    const pagadoCamp = pagosAnio.filter(p => p.tipo_pago === 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
-    const saldo = pagadoCuotas - deudaCuotas + pagadoCamp - totalCampamentos;
+    // Total de campamentos que debe pagar
+    const totalCampamentos = campBen.reduce((s, c) => s + (c.costo_por_persona || 0), 0);
+    // Total pagado en campamentos (todos los pagos, sin filtro de año)
+    const pagadoCamp = pagosDelBen
+      .filter(p => p.tipo_pago === 'Campamento')
+      .reduce((s, p) => s + (p.monto || 0), 0);
 
+    // Créditos disponibles
     const creditosDisp = creditos.filter(c => c.beneficiario_id === b.id && (c.monto_disponible || 0) > 0);
+    const totalCreditos = creditosDisp.reduce((s, c) => s + (c.monto_disponible || 0), 0);
+
+    // Saldo real: (pagado cuotas - deuda cuotas) + (pagado camp - costo camp) + créditos
+    const saldo = (pagadoCuotas - deudaCuotas) + (pagadoCamp - totalCampamentos) + totalCreditos;
 
     return {
       pagosAnio,
@@ -94,6 +108,7 @@ export default function EstadoCuenta() {
       deudaCuotas,
       pagadoCuotas,
       saldo,
+      totalCreditos,
       creditosDisp,
       tieneDescuento: cuotaIndividual < CUOTA_EFECTIVO && esBeneficiarioConCuota(b),
     };
@@ -280,8 +295,8 @@ export default function EstadoCuenta() {
                   <h3 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide">Campamentos</h3>
                   <div className="space-y-2">
                     {cuenta.campBen.map(c => {
-                      const pagadoEste = cuenta.pagosAnio
-                        .filter(p => p.tipo_pago === 'Campamento' && p.campamento_id === c.id)
+                      const pagadoEste = pagos
+                        .filter(p => p.beneficiario_id === b.id && p.tipo_pago === 'Campamento' && p.campamento_id === c.id)
                         .reduce((s, p) => s + (p.monto || 0), 0);
                       const saldoCamp = (c.costo_por_persona || 0) - pagadoEste;
                       return (

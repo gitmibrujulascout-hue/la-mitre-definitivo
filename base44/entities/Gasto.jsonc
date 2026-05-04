@@ -40,6 +40,30 @@
       "type": "string",
       "description": "URL del archivo adjunto (PDF o imagen)"
     },
+    "forma_pago": {
+      "type": "string",
+      "enum": [
+        "Efectivo",
+        "Transferencia"
+      ],
+      "description": "Forma de pago"
+    },
+    "destino": {
+      "type": "string",
+      "enum": [
+        "Caja",
+        "Banco"
+      ],
+      "description": "Destino del dinero (derivado de forma_pago)"
+    },
+    "campamento_id": {
+      "type": "string",
+      "description": "ID del campamento asociado (opcional)"
+    },
+    "campamento_nombre": {
+      "type": "string",
+      "description": "Nombre del campamento asociado"
+    },
     "observaciones": {
       "type": "string",
       "description": "Notas adicionales"
@@ -57,40 +81,19 @@
       }
     },
     "read": {
-      "$or": [
-        {
-          "created_by": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "update": {
-      "$or": [
-        {
-          "created_by": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "delete": {
-      "$or": [
-        {
-          "created_by": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     }
   }
 }
