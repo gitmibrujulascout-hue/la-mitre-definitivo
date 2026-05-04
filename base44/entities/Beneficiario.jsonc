@@ -107,7 +107,7 @@
   "rls": {
     "create": {
       "user_condition": {
-        "email": "admin"
+        "role": "admin"
       }
     },
     "read": {
@@ -128,11 +128,6 @@
       }
     },
     "delete": {
-      "user_condition": {
-        "role": "admin"
-      }
-    },
-    "write": {
       "user_condition": {
         "role": "admin"
       }
