@@ -8,11 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download } from 'lucide-react';
+import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import BeneficiarioForm from '@/components/beneficiarios/BeneficiarioForm';
 import ImportBeneficiariosDialog from '@/components/beneficiarios/ImportBeneficiariosDialog';
+import BeneficiarioFichaDialog from '@/components/beneficiarios/BeneficiarioFichaDialog';
 import { TODOS_LOS_ROLES } from '@/lib/ramaUtils';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -27,6 +28,7 @@ export default function Beneficiarios() {
   const [filterTipo, setFilterTipo] = useState('todos');
   const [filterFuncion, setFilterFuncion] = useState('todas');
   const [selected, setSelected] = useState([]);
+  const [fichaOpen, setFichaOpen] = useState(null);
 
   const queryClient = useQueryClient();
   const { data: beneficiarios = [], isLoading } = useQuery({
@@ -246,13 +248,18 @@ export default function Beneficiarios() {
                     ) : null}
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => { setEditing(b); }}><Pencil className="w-4 h-4 mr-2" />Editar</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(b.id)}><Trash2 className="w-4 h-4 mr-2" />Eliminar</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => setFichaOpen(b)}>
+                        <Eye className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => { setEditing(b); }}><Pencil className="w-4 h-4 mr-2" />Editar</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(b.id)}><Trash2 className="w-4 h-4 mr-2" />Eliminar</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               )})
@@ -264,6 +271,7 @@ export default function Beneficiarios() {
       {showForm && <BeneficiarioForm open onClose={() => setShowForm(false)} onSave={handleSave} todosBeneficiarios={beneficiarios} />}
       {editing && <BeneficiarioForm open onClose={() => setEditing(null)} onSave={handleSave} initialData={editing} todosBeneficiarios={beneficiarios} />}
       {showImport && <ImportBeneficiariosDialog open onClose={() => setShowImport(false)} />}
+      {fichaOpen && <BeneficiarioFichaDialog open onClose={() => setFichaOpen(null)} beneficiario={fichaOpen} />}
     </div>
   );
 }
