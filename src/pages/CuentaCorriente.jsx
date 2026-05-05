@@ -11,7 +11,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
 import PagoForm from '@/components/pagos/PagoForm';
-import { RAMAS, MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario } from '@/lib/ramaUtils';
+import { RAMAS, MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado } from '@/lib/ramaUtils';
 
 const CUOTA_EFECTIVO_REF = CUOTA_EFECTIVO;
 import { cn } from '@/lib/utils';
@@ -69,9 +69,14 @@ export default function CuentaCorriente() {
       // Deuda cuotas: solo desde AÑO_INICIO
       const mesActual = new Date().getMonth();
       const mesesTranscurridos = anio < new Date().getFullYear() ? 12 : anio > new Date().getFullYear() ? 0 : mesActual + 1;
-      const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter(
-        m => !MESES_SIN_CUOTA.includes(m) && !MESES_BONIFICADOS.includes(m)
-      );
+      const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
+      const esPrimeraVez = !b.fecha_primer_afiliacion;
+      const marzoGratis = marzoEsBonificado(afiliacionAnio, esPrimeraVez);
+      const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter(m => {
+        if (MESES_SIN_CUOTA.includes(m)) return false;
+        if (m === 'Marzo' && marzoGratis) return false;
+        return true;
+      });
       const cuotaIndividual = getCuotaBeneficiario(b, activos);
       const deudaCuotas = (!esBeneficiarioConCuota(b)) ? 0 : mesesQueGeneranDeuda.length * cuotaIndividual;
       // Para el saldo del beneficiario, los pagos por transferencia se computan a valor efectivo
@@ -85,9 +90,7 @@ export default function CuentaCorriente() {
           }
           return s + (p.monto || 0);
         }, 0);
-      // Afiliación del año
-      const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
-      const esPrimeraVez = !b.fecha_primer_afiliacion;
+      // Afiliación del año (ya calculado arriba)
       let saldoAfiliacion = 0;
       if (!esPrimeraVez && anio >= AÑO_INICIO) {
         // Debe pagar afiliación: si no tiene registro o tiene saldo pendiente

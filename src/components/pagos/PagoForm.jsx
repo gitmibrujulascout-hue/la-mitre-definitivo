@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, getCuotaBeneficiario } from '@/lib/ramaUtils';
+import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, marzoEsBonificado } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { Tent, CreditCard, Users } from 'lucide-react';
 
@@ -33,6 +33,11 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   const { data: pagosExistentes = [] } = useQuery({
     queryKey: ['pagos'],
     queryFn: () => base44.entities.Pago.list('-created_date', 500),
+  });
+
+  const { data: afiliaciones = [] } = useQuery({
+    queryKey: ['afiliaciones'],
+    queryFn: () => base44.entities.Afiliacion.list('-fecha_pago', 200),
   });
 
   const createMutation = useMutation({
@@ -123,19 +128,28 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   // Destino automático según forma de pago
   const destino = formaPago === 'Transferencia' ? 'Banco' : 'Caja';
 
+  // Meses que no generan cuota para este beneficiario en el año seleccionado
+  const mesesNoCobrar = useMemo(() => {
+    const no = [...MESES_SIN_CUOTA]; // Enero, Febrero siempre
+    const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === beneficiarioId && Number(a.anio) === Number(anio));
+    const esPrimeraVez = selectedBen ? !selectedBen.fecha_primer_afiliacion : false;
+    if (marzoEsBonificado(afiliacionAnio, esPrimeraVez)) no.push('Marzo');
+    return no;
+  }, [beneficiarioId, anio, afiliaciones, selectedBen]);
+
   // Auto-seleccionar el primer mes adeudado cuando cambia el beneficiario o el año
   useEffect(() => {
     if (tipoPago !== 'Cuota' || !beneficiarioId) return;
-    const primerMesAdeudado = MESES.find(m => !mesesYaPagados.includes(m));
+    const primerMesAdeudado = MESES.find(m => !mesesYaPagados.includes(m) && !mesesNoCobrar.includes(m));
     if (primerMesAdeudado) {
       setMesesSeleccionados([primerMesAdeudado]);
     } else {
       setMesesSeleccionados([]);
     }
-  }, [beneficiarioId, anio, tipoPago, mesesYaPagados.length]);
+  }, [beneficiarioId, anio, tipoPago, mesesYaPagados.length, mesesNoCobrar.length]);
 
   const toggleMes = (mes) => {
-    if (mesesYaPagados.includes(mes)) return; // No permitir re-pagar
+    if (mesesYaPagados.includes(mes) || mesesNoCobrar.includes(mes)) return;
     setMesesSeleccionados(prev =>
       prev.includes(mes) ? prev.filter(m => m !== mes) : [...prev, mes]
     );
@@ -300,21 +314,23 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
               <div className="grid grid-cols-3 gap-1.5">
                 {MESES.map(mes => {
                   const yaPagado = mesesYaPagados.includes(mes);
+                  const noCobra = mesesNoCobrar.includes(mes);
                   const seleccionado = mesesSeleccionados.includes(mes);
                   return (
                     <button
                       key={mes}
                       type="button"
-                      disabled={yaPagado}
+                      disabled={yaPagado || noCobra}
                       onClick={() => toggleMes(mes)}
                       className={`p-2 rounded-md text-xs font-medium border transition-all ${
+                        noCobra ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed' :
                         yaPagado ? 'bg-green-50 border-green-200 text-green-600 opacity-60 cursor-not-allowed' :
                         seleccionado ? 'bg-primary border-primary text-primary-foreground' :
                         'border-border hover:border-primary/50'
                       }`}
                     >
                       {mes.substring(0, 3)}
-                      {yaPagado && ' ✓'}
+                      {noCobra ? ' —' : yaPagado ? ' ✓' : ''}
                     </button>
                   );
                 })}

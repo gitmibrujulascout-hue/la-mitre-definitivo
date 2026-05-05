@@ -14,7 +14,26 @@ export const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Ju
 
 // Meses que NO generan deuda de cuota
 export const MESES_SIN_CUOTA = ['Enero', 'Febrero']; // No hay actividad
-export const MESES_BONIFICADOS = ['Marzo']; // Bonificado por la asociación
+
+// Marzo está bonificado si la afiliación fue pagada antes del 14 de Marzo
+// para beneficiarios que ya asistían años anteriores (renovación, no primera vez)
+export const MESES_BONIFICADOS = []; // Ya no es constante fija, se calcula dinámicamente
+
+/**
+ * Devuelve true si Marzo está bonificado (no genera deuda) para un beneficiario.
+ * Bonificado cuando: es renovación (no primera vez) Y la afiliación del año
+ * fue pagada en fecha <= 14 de Marzo de ese año.
+ */
+export function marzoEsBonificado(afiliacionAnio, esPrimeraVez) {
+  if (esPrimeraVez) return true; // Primera vez no paga cuota de marzo tampoco
+  if (!afiliacionAnio) return false; // Sin afiliación registrada → no bonificado
+  if (afiliacionAnio.es_primera_vez) return true;
+  if (!afiliacionAnio.fecha_pago) return false;
+  const fechaPago = new Date(afiliacionAnio.fecha_pago);
+  const anio = fechaPago.getFullYear();
+  const limiteMarzo = new Date(anio, 2, 14); // 14 de Marzo
+  return fechaPago <= limiteMarzo;
+}
 
 export const CUOTA_EFECTIVO = 25000;
 export const CUOTA_TRANSFERENCIA = 27000;
