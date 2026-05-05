@@ -95,16 +95,14 @@ export default function EstadoCuenta() {
         pagosCuotasAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []))
       );
       const mesesPendientes = mesesQueGeneranDeuda.filter(m => !mesesCubiertos.has(m));
-      const mesesAbonados = mesesQueGeneranDeuda.filter(m => mesesCubiertos.has(m));
-      // Deuda = meses no pagados × cuota base
+      // Deuda = meses no pagados × cuota base (sin importar si pagaron transferencia o efectivo)
       deudaCuotas = mesesPendientes.length * cuotaIndividual;
-      // Pagado = meses cubiertos × cuota base (neutraliza diferencia efectivo/transferencia)
-      pagadoCuotas = mesesAbonados.length * cuotaIndividual;
+      pagadoCuotas = pagosCuotasAnio.reduce((s, p) => s + (p.monto || 0), 0);
     } else {
       pagadoCuotas = pagosCuotasAnio.reduce((s, p) => s + (p.monto || 0), 0);
     }
-    // Saldo de cuotas: positivo = a favor, negativo = debe
-    const saldoCuotas = pagadoCuotas - deudaCuotas;
+    // Saldo = -(deuda pendiente). Lo pagado de más por transferencia no genera saldo a favor.
+    const saldoCuotas = -deudaCuotas;
 
     // Campamentos asignados al beneficiario
     const campBen = campamentos.filter(c => c.beneficiarios_ids?.includes(b.id));
