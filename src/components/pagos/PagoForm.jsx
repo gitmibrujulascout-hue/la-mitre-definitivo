@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -123,6 +123,17 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   // Destino automático según forma de pago
   const destino = formaPago === 'Transferencia' ? 'Banco' : 'Caja';
 
+  // Auto-seleccionar el primer mes adeudado cuando cambia el beneficiario o el año
+  useEffect(() => {
+    if (tipoPago !== 'Cuota' || !beneficiarioId) return;
+    const primerMesAdeudado = MESES.find(m => !mesesYaPagados.includes(m));
+    if (primerMesAdeudado) {
+      setMesesSeleccionados([primerMesAdeudado]);
+    } else {
+      setMesesSeleccionados([]);
+    }
+  }, [beneficiarioId, anio, tipoPago, mesesYaPagados.length]);
+
   const toggleMes = (mes) => {
     if (mesesYaPagados.includes(mes)) return; // No permitir re-pagar
     setMesesSeleccionados(prev =>
@@ -217,7 +228,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
               <button
                 key={t}
                 type="button"
-                onClick={() => { setTipoPago(t); setBeneficiarioId(preselectedBenId || ''); setMesesSeleccionados([]); setCampamentoId(''); setMontoManual(''); }}
+                onClick={() => { setTipoPago(t); setBeneficiarioId(preselectedBenId || ''); setMesesSeleccionados([]); setCampamentoId(''); setMontoManual(''); setHermanosSeleccionados([]); }}
                 className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all text-sm font-medium ${tipoPago === t ? 'border-primary bg-primary/5 text-primary' : 'border-border hover:border-muted-foreground/30'}`}
               >
                 {t === 'Cuota' ? <CreditCard className="w-4 h-4" /> : <Tent className="w-4 h-4" />}
