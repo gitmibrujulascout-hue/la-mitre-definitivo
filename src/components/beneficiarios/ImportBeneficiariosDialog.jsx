@@ -44,66 +44,88 @@ function parseFecha(str) {
   return `${y}-${m}-${day}`;
 }
 
-// Card de un duplicado: muestra los campos que difieren y permite elegir campo a campo o "todo el nuevo"
+// Card de un duplicado: muestra los campos que difieren campo a campo con toggle mantener/reemplazar
 function DuplicadoCard({ dup, camposSeleccionados, onToggleCampo, onSeleccionarTodo, onMantenerTodo }) {
-  const [expanded, setExpanded] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   const camposDiferentes = CAMPOS_COMPARACION.filter(c =>
     (dup.nuevo[c.key] || '') !== (dup.existente[c.key] || '')
     && (dup.nuevo[c.key] || '') !== ''
   );
-  const camposIguales = CAMPOS_COMPARACION.filter(c =>
-    (dup.nuevo[c.key] || '') === (dup.existente[c.key] || '')
-  );
+
+  const camposSelDni = camposSeleccionados[dup.nuevo.dni] || [];
+  const totalSeleccionados = camposSelDni.length;
 
   return (
     <div className="border rounded-lg bg-background overflow-hidden">
-      <div className="flex items-center justify-between p-3 bg-muted/30">
-        <div>
-          <span className="font-medium text-sm">{dup.nuevo.nombre}</span>
-          <span className="text-xs text-muted-foreground ml-2">DNI: {dup.nuevo.dni}</span>
-          {camposDiferentes.length === 0 ? (
-            <Badge className="ml-2 text-xs bg-green-100 text-green-700 border-green-300 border">Sin cambios</Badge>
-          ) : (
-            <Badge className="ml-2 text-xs bg-amber-100 text-amber-700 border-amber-300 border">{camposDiferentes.length} campo(s) diferente(s)</Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {camposDiferentes.length > 0 && (
-            <>
-              <button onClick={() => onSeleccionarTodo(dup.nuevo.dni, camposDiferentes)} className="text-xs text-primary hover:underline">Aplicar todo</button>
-              <button onClick={() => onMantenerTodo(dup.nuevo.dni)} className="text-xs text-muted-foreground hover:underline">Ignorar</button>
-            </>
-          )}
-          <button onClick={() => setExpanded(v => !v)}>
-            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+      {/* Cabecera */}
+      <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40 border-b">
+        <div className="flex items-center gap-2 min-w-0">
+          <button onClick={() => setCollapsed(v => !v)} className="flex-shrink-0">
+            {collapsed ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
           </button>
+          <span className="font-semibold text-sm truncate">{dup.nuevo.nombre}</span>
+          <span className="text-xs text-muted-foreground flex-shrink-0">DNI: {dup.nuevo.dni}</span>
+          {camposDiferentes.length === 0 ? (
+            <Badge className="text-xs bg-green-100 text-green-700 border-green-300 border flex-shrink-0">Sin cambios</Badge>
+          ) : (
+            <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-300 border flex-shrink-0">
+              {camposDiferentes.length} diferencia(s) · {totalSeleccionados} a actualizar
+            </Badge>
+          )}
         </div>
+        {camposDiferentes.length > 0 && (
+          <div className="flex gap-3 flex-shrink-0 ml-2">
+            <button onClick={() => onSeleccionarTodo(dup.nuevo.dni, camposDiferentes)} className="text-xs text-primary hover:underline font-medium">Usar todo nuevo</button>
+            <button onClick={() => onMantenerTodo(dup.nuevo.dni)} className="text-xs text-muted-foreground hover:underline">Mantener todo</button>
+          </div>
+        )}
       </div>
 
-      {expanded && (
-        <div className="p-3 space-y-1.5 text-xs">
+      {/* Detalle de campos */}
+      {!collapsed && (
+        <div className="divide-y">
           {camposDiferentes.length === 0 ? (
-            <p className="text-muted-foreground">Todos los campos son idénticos al existente.</p>
+            <p className="text-xs text-muted-foreground p-3">Todos los campos coinciden con el registro existente.</p>
           ) : (
-            <>
-              <p className="font-medium text-muted-foreground mb-1">Campos con diferencias — marcá los que querés actualizar:</p>
-              {camposDiferentes.map(c => {
-                const sel = (camposSeleccionados[dup.nuevo.dni] || []).includes(c.key);
-                return (
-                  <label key={c.key} className="flex items-center gap-2.5 p-2 rounded hover:bg-muted cursor-pointer">
-                    <Checkbox checked={sel} onCheckedChange={() => onToggleCampo(dup.nuevo.dni, c.key)} />
-                    <span className="font-medium w-28 flex-shrink-0">{c.label}:</span>
-                    <span className="text-red-400 line-through truncate max-w-[120px]">{dup.existente[c.key] || '—'}</span>
-                    <span className="text-muted-foreground mx-1">→</span>
-                    <span className="text-green-600 truncate max-w-[120px]">{dup.nuevo[c.key]}</span>
-                  </label>
-                );
-              })}
-              {camposIguales.length > 0 && (
-                <p className="text-muted-foreground mt-1">{camposIguales.length} campo(s) sin cambios.</p>
-              )}
-            </>
+            camposDiferentes.map(c => {
+              const usarNuevo = camposSelDni.includes(c.key);
+              return (
+                <div key={c.key} className="grid grid-cols-[120px_1fr_auto_1fr] items-center gap-2 px-3 py-2 text-xs hover:bg-muted/20">
+                  {/* Label */}
+                  <span className="font-medium text-muted-foreground">{c.label}</span>
+
+                  {/* Valor actual */}
+                  <div className={cn(
+                    'px-2 py-1 rounded truncate border text-center',
+                    !usarNuevo ? 'bg-blue-50 border-blue-300 text-blue-800 font-semibold ring-2 ring-blue-400' : 'bg-muted border-border text-muted-foreground line-through'
+                  )}>
+                    {dup.existente[c.key] || <span className="italic">vacío</span>}
+                  </div>
+
+                  {/* Toggle */}
+                  <button
+                    onClick={() => onToggleCampo(dup.nuevo.dni, c.key)}
+                    className={cn(
+                      'flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border transition-colors flex-shrink-0',
+                      usarNuevo
+                        ? 'bg-green-500 border-green-600 text-white'
+                        : 'bg-blue-500 border-blue-600 text-white'
+                    )}
+                  >
+                    {usarNuevo ? '← Actual' : 'Nuevo →'}
+                  </button>
+
+                  {/* Valor nuevo */}
+                  <div className={cn(
+                    'px-2 py-1 rounded truncate border text-center',
+                    usarNuevo ? 'bg-green-50 border-green-300 text-green-800 font-semibold ring-2 ring-green-400' : 'bg-muted border-border text-muted-foreground line-through'
+                  )}>
+                    {dup.nuevo[c.key] || <span className="italic">vacío</span>}
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       )}
@@ -287,9 +309,9 @@ Devolvé un JSON con el array "personas".`,
               </div>
               <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
                 <FileSpreadsheet className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <input type="file" accept=".csv,.xlsx,.xls" onChange={e => setFile(e.target.files[0])} className="hidden" id="import-file" />
+                <input type="file" accept=".csv,.xlsx,.xls,.pdf" onChange={e => setFile(e.target.files[0])} className="hidden" id="import-file" />
                 <label htmlFor="import-file" className="cursor-pointer">
-                  <p className="text-sm font-medium text-primary">Seleccionar archivo Excel o CSV</p>
+                  <p className="text-sm font-medium text-primary">Seleccionar archivo Excel, CSV o PDF</p>
                   <p className="text-xs text-muted-foreground mt-1">Se detectarán automáticamente duplicados por DNI</p>
                 </label>
                 {file && <p className="text-sm mt-3 font-medium">{file.name}</p>}
@@ -306,7 +328,14 @@ Devolvé un JSON con el array "personas".`,
                   <strong>{duplicados.length}</strong> personas ya existen (mismo DNI). Expandí cada una para elegir qué campos actualizar.
                 </p>
               </div>
-              <div className="flex gap-2">
+              {/* Leyenda de columnas */}
+              <div className="grid grid-cols-[120px_1fr_auto_1fr] gap-2 px-3 py-1.5 text-[10px] font-semibold text-muted-foreground bg-muted/50 rounded border">
+                <span>Campo</span>
+                <span className="text-center text-blue-600">◀ Valor actual (BD)</span>
+                <span></span>
+                <span className="text-center text-green-600">Valor nuevo (archivo) ▶</span>
+              </div>
+              <div className="flex gap-3 items-center">
                 <button
                   onClick={() => {
                     const todos = {};
@@ -317,8 +346,8 @@ Devolvé un JSON con el array "personas".`,
                     });
                     setCamposAActualizar(todos);
                   }}
-                  className="text-xs text-primary hover:underline"
-                >Actualizar todos los campos diferentes</button>
+                  className="text-xs text-primary hover:underline font-medium"
+                >Usar todos los nuevos</button>
                 <span className="text-muted-foreground text-xs">·</span>
                 <button
                   onClick={() => {
@@ -327,7 +356,7 @@ Devolvé un JSON con el array "personas".`,
                     setCamposAActualizar(ninguno);
                   }}
                   className="text-xs text-muted-foreground hover:underline"
-                >Ignorar todos</button>
+                >Mantener todos los actuales</button>
               </div>
               <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
                 {duplicados.map((dup, i) => (
