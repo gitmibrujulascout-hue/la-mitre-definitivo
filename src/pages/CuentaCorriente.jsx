@@ -42,6 +42,11 @@ export default function CuentaCorriente() {
     queryFn: () => base44.entities.Campamento.list(),
   });
 
+  const { data: afiliaciones = [] } = useQuery({
+    queryKey: ['afiliaciones'],
+    queryFn: () => base44.entities.Afiliacion.list('-fecha_pago', 500),
+  });
+
   // Solo mostrar en Cuenta Corriente a los que abonen cuota (excluir voluntarios)
   // Solo calcular deudas desde 2026 en adelante
   const AÑO_INICIO = 2026;
@@ -80,7 +85,19 @@ export default function CuentaCorriente() {
           }
           return s + (p.monto || 0);
         }, 0);
-      const saldo = pagadoCuotas - deudaCuotas + pagadoCamp - totalCampamentos;
+      // Afiliación del año
+      const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
+      const esPrimeraVez = !b.fecha_primer_afiliacion;
+      let saldoAfiliacion = 0;
+      if (!esPrimeraVez && anio >= AÑO_INICIO) {
+        // Debe pagar afiliación: si no tiene registro o tiene saldo pendiente
+        const MONTO_SEGURO = 14000;
+        const montoPagadoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto_pagado || afiliacionAnio.monto || 0) : 0;
+        const montoDebidoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto || MONTO_SEGURO) : MONTO_SEGURO;
+        saldoAfiliacion = montoPagadoAfiliacion - montoDebidoAfiliacion;
+      }
+
+      const saldo = pagadoCuotas - deudaCuotas + pagadoCamp - totalCampamentos + saldoAfiliacion;
 
       return {
         ...b,
@@ -88,12 +105,15 @@ export default function CuentaCorriente() {
         totalPagado,
         totalCampamentos,
         saldo,
+        saldoAfiliacion,
+        afiliacionAnio,
+        esPrimeraVezAfiliacion: esPrimeraVez,
         cuotaIndividual,
         tieneDescuentoHermanos: cuotaIndividual < CUOTA_EFECTIVO_REF && esBeneficiarioConCuota(b),
         alDia: b.becado || saldo >= 0,
       };
     });
-  }, [activos, pagos, campamentos, anio]);
+  }, [activos, pagos, campamentos, afiliaciones, anio]);
 
   const filtered = cuentas.filter(c => {
     const matchSearch = !search || c.nombre?.toLowerCase().includes(search.toLowerCase());
@@ -112,7 +132,7 @@ export default function CuentaCorriente() {
     const cuenta = cuentas.find(c => c.id === selectedBen.id);
     const pagosDelBen = pagos.filter(p => p.beneficiario_id === selectedBen.id);
     const campBen = campamentos.filter(c => c.beneficiarios_ids?.includes(selectedBen.id));
-    return <CuentaDetalle beneficiario={cuenta} pagos={pagosDelBen} campamentos={campBen} anio={anio} onBack={() => setSelectedBen(null)} />;
+    return <CuentaDetalle beneficiario={cuenta} pagos={pagosDelBen} campamentos={campBen} anio={anio} onBack={() => setSelectedBen(null)} afiliacion={cuenta?.afiliacionAnio} esPrimeraVezAfiliacion={cuenta?.esPrimeraVezAfiliacion} />;
   }
 
   return (
@@ -162,6 +182,7 @@ export default function CuentaCorriente() {
               <TableHead>Beneficiario</TableHead>
               <TableHead>Rama</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead className="hidden md:table-cell">Afiliación</TableHead>
               <TableHead className="hidden sm:table-cell">Pagado</TableHead>
               <TableHead>Saldo</TableHead>
               <TableHead className="w-24"></TableHead>
@@ -190,6 +211,21 @@ export default function CuentaCorriente() {
                       <Badge className="bg-green-100 text-green-700 border-green-300 border"><CheckCircle2 className="w-3 h-3 mr-1" />Al día</Badge>
                     ) : (
                       <Badge className="bg-red-100 text-red-700 border-red-300 border"><AlertCircle className="w-3 h-3 mr-1" />Debe</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell" onClick={() => setSelectedBen(c)}>
+                    {c.esPrimeraVezAfiliacion ? (
+                      <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">⭐ Sin costo</Badge>
+                    ) : c.afiliacionAnio ? (
+                      c.afiliacionAnio.es_primera_vez ? (
+                        <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">⭐ Sin costo</Badge>
+                      ) : (c.afiliacionAnio.monto_pagado || c.afiliacionAnio.monto || 0) >= (c.afiliacionAnio.monto || 14000) ? (
+                        <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">✓ Afiliado</Badge>
+                      ) : (
+                        <Badge className="bg-orange-100 text-orange-700 border-orange-300 border text-xs">Parcial</Badge>
+                      )
+                    ) : (
+                      <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs">Sin afiliar</Badge>
                     )}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell" onClick={() => setSelectedBen(c)}>{formatMoney(c.totalPagado)}</TableCell>

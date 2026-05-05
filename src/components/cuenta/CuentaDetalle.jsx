@@ -8,13 +8,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, CheckCircle2, XCircle, Award, Tent, Gift, Zap } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Award, Tent, Gift, Zap, ShieldCheck, AlertCircle } from 'lucide-react';
 import RamaBadge from '@/components/shared/RamaBadge';
 import { MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS, CUOTA_EFECTIVO, formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, onBack }) {
+export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, onBack, afiliacion, esPrimeraVezAfiliacion }) {
   const [showAplicar, setShowAplicar] = useState(false);
   const [creditoSeleccionado, setCreditoSeleccionado] = useState(null);
   const queryClient = useQueryClient();
@@ -47,6 +47,53 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
               {formatMoney(beneficiario.saldo)}
             </p>
           </div>
+        </div>
+      </Card>
+
+      {/* Estado de afiliación */}
+      <Card className="p-4 mb-6">
+        <div className="flex items-center gap-3">
+          <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold">Afiliación / Seguro {anio}</p>
+            {esPrimeraVezAfiliacion ? (
+              <p className="text-xs text-amber-700 mt-0.5">⭐ Primera afiliación — no abona seguro</p>
+            ) : afiliacion ? (
+              afiliacion.es_primera_vez ? (
+                <p className="text-xs text-amber-700 mt-0.5">⭐ Primera afiliación — no abona seguro</p>
+              ) : (
+                <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                  <span className="text-xs text-muted-foreground">
+                    Seguro: <strong>{formatMoney(afiliacion.monto || 0)}</strong>
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Pagado: <strong className={(afiliacion.monto_pagado || 0) >= (afiliacion.monto || 0) ? 'text-green-600' : 'text-orange-600'}>
+                      {formatMoney(afiliacion.monto_pagado || 0)}
+                    </strong>
+                  </span>
+                  {(afiliacion.monto_pagado || 0) >= (afiliacion.monto || 0) ? (
+                    <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">✓ Pagado</Badge>
+                  ) : (
+                    <Badge className="bg-orange-100 text-orange-700 border-orange-300 border text-xs">
+                      <AlertCircle className="w-3 h-3 mr-1" />Pendiente {formatMoney((afiliacion.monto || 0) - (afiliacion.monto_pagado || 0))}
+                    </Badge>
+                  )}
+                </div>
+              )
+            ) : (
+              <div className="flex items-center gap-2 mt-0.5">
+                <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs">
+                  <AlertCircle className="w-3 h-3 mr-1" />Sin afiliar — debe abonar seguro
+                </Badge>
+              </div>
+            )}
+          </div>
+          {beneficiario.saldoAfiliacion !== undefined && beneficiario.saldoAfiliacion < 0 && !esPrimeraVezAfiliacion && (
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Impacto en saldo</p>
+              <p className="font-semibold text-red-500">{formatMoney(beneficiario.saldoAfiliacion)}</p>
+            </div>
+          )}
         </div>
       </Card>
 
