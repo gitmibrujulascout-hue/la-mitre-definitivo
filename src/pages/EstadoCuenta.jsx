@@ -439,25 +439,7 @@ export default function EstadoCuenta() {
                 </div>
               )}
 
-              {/* Historial de pagos */}
-              {cuenta.pagosAnio.length > 0 && (
-                <div>
-                  <h3 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide">Historial de pagos {anio}</h3>
-                  <div className="space-y-2">
-                    {cuenta.pagosAnio.map(p => (
-                      <Card key={p.id} className="p-3 flex items-center justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-medium">
-                            {p.tipo_pago === 'Campamento' ? p.campamento_nombre : (p.meses?.join(', ') || p.mes)} {p.anio}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{p.forma_pago} · {p.fecha_pago}</p>
-                        </div>
-                        <p className="font-semibold text-green-600 flex-shrink-0">{formatMoney(p.monto)}</p>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
+
 
               {grupoFamiliar.length > 1 && !esPrincipal && (
                 <div className="border-t border-dashed pt-2" />
