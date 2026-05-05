@@ -20,7 +20,8 @@ import ImportMovimientosBancoDialog from '@/components/caja/ImportMovimientosBan
 function MovimientoManualDialog({ open, onClose, cuentaDestino }) {
   const [form, setForm] = useState({
     tipo: 'Ingreso', concepto: '', monto: '',
-    fecha: new Date().toISOString().split('T')[0], observaciones: ''
+    fecha: new Date().toISOString().split('T')[0], observaciones: '',
+    forma_pago: cuentaDestino === 'Caja' ? 'Efectivo' : 'Transferencia',
   });
   const queryClient = useQueryClient();
 
@@ -161,7 +162,7 @@ export default function Caja() {
       }));
 
     const extras = movimientosExtra
-      .filter(m => m.cuenta === cuentaFiltro && filtrarPorAnio(m.fecha))
+      .filter(m => (m.cuenta || 'Caja') === cuentaFiltro && filtrarPorAnio(m.fecha))
       .map(m => ({ ...m, id: `extra-${m.id}`, refId: m.id, esManual: true }));
 
     return [...ingresoPagos, ...egresoGastos, ...extras]
