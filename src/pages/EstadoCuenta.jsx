@@ -83,10 +83,26 @@ export default function EstadoCuenta() {
     );
 
     const cuotaIndividual = getCuotaBeneficiario(b, activos);
-    // Total que debería haber pagado en cuotas hasta hoy
-    const deudaCuotas = !esBeneficiarioConCuota(b) ? 0 : mesesQueGeneranDeuda.length * cuotaIndividual;
-    // Total pagado en cuotas del año
-    const pagadoCuotas = pagosCuotasAnio.reduce((s, p) => s + (p.monto || 0), 0);
+
+    // Calcular deuda mes por mes: si el mes ya está pagado no genera deuda,
+    // si no está pagado genera deuda por la cuota base (efectivo).
+    // Esto evita que pagar por transferencia (monto mayor) genere saldo a favor irreal.
+    let deudaCuotas = 0;
+    let pagadoCuotas = 0;
+    if (esBeneficiarioConCuota(b)) {
+      // Meses efectivamente cubiertos por algún pago
+      const mesesCubiertos = new Set(
+        pagosCuotasAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []))
+      );
+      const mesesPendientes = mesesQueGeneranDeuda.filter(m => !mesesCubiertos.has(m));
+      const mesesAbonados = mesesQueGeneranDeuda.filter(m => mesesCubiertos.has(m));
+      // Deuda = meses no pagados × cuota base
+      deudaCuotas = mesesPendientes.length * cuotaIndividual;
+      // Pagado = meses cubiertos × cuota base (neutraliza diferencia efectivo/transferencia)
+      pagadoCuotas = mesesAbonados.length * cuotaIndividual;
+    } else {
+      pagadoCuotas = pagosCuotasAnio.reduce((s, p) => s + (p.monto || 0), 0);
+    }
     // Saldo de cuotas: positivo = a favor, negativo = debe
     const saldoCuotas = pagadoCuotas - deudaCuotas;
 
