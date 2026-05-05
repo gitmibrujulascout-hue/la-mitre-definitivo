@@ -70,18 +70,6 @@
         "role": "admin"
       }
     },
-    "read": {
-      "$or": [
-        {
-          "created_by": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
     "update": {
       "$or": [
         {
@@ -95,6 +83,18 @@
       ]
     },
     "delete": {
+      "$or": [
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "write": {
       "$or": [
         {
           "created_by": "{{user.email}}"
