@@ -99,7 +99,7 @@ function EditarTipoAfiliacionDialog({ open, onClose, beneficiario }) {
 }
 
 const AÑOS = [2024, 2025, 2026, 2027, 2028];
-const MONTO_SEGURO_DEFAULT = 14000;
+const MONTO_SEGURO_DEFAULT = 42000;
 
 // ——— Formulario individual ———
 function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, anio }) {

@@ -91,7 +91,7 @@ export default function CuentaCorriente() {
       let saldoAfiliacion = 0;
       if (!esPrimeraVez && anio >= AÑO_INICIO) {
         // Debe pagar afiliación: si no tiene registro o tiene saldo pendiente
-        const MONTO_SEGURO = 14000;
+        const MONTO_SEGURO = 42000;
         const montoPagadoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto_pagado || afiliacionAnio.monto || 0) : 0;
         const montoDebidoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto || MONTO_SEGURO) : MONTO_SEGURO;
         saldoAfiliacion = montoPagadoAfiliacion - montoDebidoAfiliacion;
