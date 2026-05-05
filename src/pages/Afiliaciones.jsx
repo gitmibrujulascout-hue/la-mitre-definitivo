@@ -186,9 +186,9 @@ function AfiliacionMasivaDialog({ open, onClose, beneficiarios, afiliacionesExis
     [afiliacionesExistentes, anio]
   );
 
-  // Beneficiarios activos sin afiliar aún este año
+  // Todos los activos (chicos y adultos) sin afiliar aún este año
   const pendientes = useMemo(() =>
-    beneficiarios.filter(b => b.activo !== false && b.tipo !== 'Voluntario' && !yaAfiliadosIds.has(b.id)),
+    beneficiarios.filter(b => b.activo !== false && !yaAfiliadosIds.has(b.id)),
     [beneficiarios, yaAfiliadosIds]
   );
 
@@ -474,8 +474,9 @@ export default function Afiliaciones() {
     [afiliaciones, anio]
   );
 
+  // Todos los activos: chicos Y adultos/voluntarios pagan el seguro
   const beneficiariosActivos = useMemo(() =>
-    beneficiarios.filter(b => b.activo !== false && b.tipo !== 'Voluntario'),
+    beneficiarios.filter(b => b.activo !== false),
     [beneficiarios]
   );
 

@@ -329,39 +329,72 @@ export default function EstadoCuenta() {
                 </div>
               )}
 
-              {/* Afiliaciones */}
+              {/* Afiliaciones / Seguro anual */}
               {(() => {
-                const anioActual = new Date().getFullYear();
                 const afiliacionesDelBen = afiliaciones.filter(a => a.beneficiario_id === b.id);
-                if (afiliacionesDelBen.length === 0) return null;
+                const afiliacionAnio = afiliacionesDelBen.find(a => Number(a.anio) === anio);
+                const saldoPendienteAfil = afiliacionAnio && !afiliacionAnio.es_primera_vez
+                  ? (afiliacionAnio.monto || 0) - (afiliacionAnio.monto_pagado || afiliacionAnio.monto || 0)
+                  : 0;
                 return (
                   <div>
                     <h3 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-primary" /> Afiliaciones / Seguro
+                      <ShieldCheck className="w-4 h-4 text-primary" /> Seguro / Afiliación {anio}
                     </h3>
-                    <div className="space-y-2">
-                      {afiliacionesDelBen.map(a => (
-                        <Card key={a.id} className="p-4 flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
-                            <div>
-                              <p className="font-medium text-sm">Afiliación {a.anio}</p>
-                              {a.fecha_pago && <p className="text-xs text-muted-foreground">Pagado el {a.fecha_pago} · {a.forma_pago}</p>}
-                            </div>
+                    <Card className={cn(
+                      "p-4 flex items-center justify-between gap-3",
+                      !afiliacionAnio ? "border-red-200 bg-red-50/40" :
+                      saldoPendienteAfil > 0 ? "border-orange-200 bg-orange-50/40" :
+                      "border-green-200 bg-green-50/40"
+                    )}>
+                      <div className="flex items-center gap-3">
+                        <ShieldCheck className={cn("w-5 h-5 flex-shrink-0",
+                          !afiliacionAnio ? "text-red-400" :
+                          saldoPendienteAfil > 0 ? "text-orange-500" : "text-green-600"
+                        )} />
+                        <div>
+                          <p className="font-medium text-sm">Seguro anual {anio}</p>
+                          {afiliacionAnio?.fecha_pago && (
+                            <p className="text-xs text-muted-foreground">Registrado el {afiliacionAnio.fecha_pago} · {afiliacionAnio.forma_pago}</p>
+                          )}
+                          {!afiliacionAnio && (
+                            <p className="text-xs text-muted-foreground">Sin registro de pago este año</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        {!afiliacionAnio ? (
+                          <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs">✗ No pagado</Badge>
+                        ) : afiliacionAnio.es_primera_vez ? (
+                          <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">⭐ Primera vez — sin costo</Badge>
+                        ) : saldoPendienteAfil > 0 ? (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Seguro: {formatMoney(afiliacionAnio.monto)}</p>
+                            <p className="text-sm font-semibold text-orange-600">Debe: {formatMoney(saldoPendienteAfil)}</p>
                           </div>
-                          <div className="text-right flex-shrink-0">
+                        ) : (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Seguro: {formatMoney(afiliacionAnio.monto)}</p>
+                            <p className="text-sm font-semibold text-green-600">Pagado ✓</p>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                    {/* Años anteriores */}
+                    {afiliacionesDelBen.filter(a => Number(a.anio) !== anio).length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {afiliacionesDelBen.filter(a => Number(a.anio) !== anio).map(a => (
+                          <div key={a.id} className="flex items-center justify-between px-3 py-1.5 rounded bg-muted/40 text-xs">
+                            <span className="text-muted-foreground">Afiliación {a.anio}</span>
                             {a.es_primera_vez ? (
-                              <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">⭐ Primera vez — sin costo</Badge>
+                              <span className="text-amber-600">⭐ Sin costo</span>
                             ) : (
-                              <>
-                                <p className="text-xs text-muted-foreground">Seguro: {formatMoney(a.monto)}</p>
-                                <p className="text-sm font-semibold text-green-600">Pagado ✓</p>
-                              </>
+                              <span className="text-green-600 font-medium">Pagado {formatMoney(a.monto_pagado || a.monto)}</span>
                             )}
                           </div>
-                        </Card>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
