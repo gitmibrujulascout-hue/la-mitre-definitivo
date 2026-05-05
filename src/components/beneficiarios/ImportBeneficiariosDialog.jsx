@@ -38,9 +38,9 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `Tenés un archivo Excel de un grupo scout con las columnas: DNI, Nombre, Teléfono, Función, Categoría, Zona, Distrito, Código, Organismo, Fecha de Nacimiento, Religión, Religion Descripcion.
+        prompt: `Tenés un archivo Excel de un grupo scout con las siguientes columnas: Tipo Documento, Documento (DNI), Nombre, Sexo, Fecha Nacimiento, Provincia, Localidad, Calle, Codigo Postal, Estado Civil, Telefono, Email, Religion, Religion Descripcion, Estudios, Titulo, Empresa, Discapacidad, Detalle Discapacidad, Nacionalidad, Funcion, Categoria, Rama, Zona, Distrito, Código, Organismo, Fecha Primer Afiliacion.
 Extraé TODAS las filas de datos (ignorá la fila de encabezados).
-Para la fecha de nacimiento, convertila EXACTAMENTE al formato YYYY-MM-DD, sin alterar el día. No le restes ni sumes días. Si la fecha original es 15/03/2010, devolvé 2010-03-15.
+Para las fechas (Fecha Nacimiento y Fecha Primer Afiliacion), convertilas EXACTAMENTE al formato YYYY-MM-DD, sin alterar el día. No le restes ni sumes días. Si la fecha original es 15/03/2010, devolvé 2010-03-15. Si la celda está vacía, devolvé null o string vacío.
 Devolvé un JSON con el array "personas" con todos los campos de cada persona.`,
         file_urls: [file_url],
         response_json_schema: {
@@ -54,6 +54,7 @@ Devolvé un JSON con el array "personas" con todos los campos de cada persona.`,
                   nombre: { type: "string" },
                   dni: { type: "string" },
                   telefono_contacto: { type: "string" },
+                  email_contacto: { type: "string" },
                   funcion: { type: "string" },
                   categoria: { type: "string" },
                   zona: { type: "string" },
@@ -62,7 +63,9 @@ Devolvé un JSON con el array "personas" con todos los campos de cada persona.`,
                   organismo: { type: "string" },
                   fecha_nacimiento: { type: "string" },
                   religion: { type: "string" },
-                  religion_descripcion: { type: "string" }
+                  religion_descripcion: { type: "string" },
+                  rama: { type: "string" },
+                  fecha_primer_afiliacion: { type: "string" }
                 }
               }
             }
@@ -73,9 +76,20 @@ Devolvé un JSON con el array "personas" con todos los campos de cada persona.`,
       if (result?.personas?.length > 0) {
         const enriched = result.personas.map(p => {
           const fecha = parseFechaNacimiento(p.fecha_nacimiento);
-          const rama = ramaDesdeEdad(fecha);
-          const tipo = rama === 'Voluntario' ? 'Voluntario' : 'Beneficiario';
-          return { ...p, fecha_nacimiento: fecha, rama, tipo, activo: true, becado: false };
+          const fechaPrimeraAfiliacion = parseFechaNacimiento(p.fecha_primer_afiliacion);
+          // Usar rama del archivo si viene, sino calcular por edad
+          const ramaCalculada = p.rama || ramaDesdeEdad(fecha);
+          const tipo = ramaCalculada === 'Voluntario' ? 'Voluntario' : 'Beneficiario';
+          const obj = {
+            ...p,
+            fecha_nacimiento: fecha,
+            rama: ramaCalculada,
+            tipo,
+            activo: true,
+            becado: false,
+          };
+          if (fechaPrimeraAfiliacion) obj.fecha_primer_afiliacion = fechaPrimeraAfiliacion;
+          return obj;
         });
 
         // Detectar duplicados
@@ -157,7 +171,7 @@ Devolvé un JSON con el array "personas" con todos los campos de cada persona.`,
               <div className="p-3 rounded-lg bg-muted text-sm space-y-1">
                 <p className="font-medium">Columnas esperadas en el archivo:</p>
                 <p className="text-muted-foreground font-mono text-xs">
-                  DNI · Nombre · Teléfono · Función · Categoría · Zona · Distrito · Código · Organismo · Fecha de Nacimiento · Religión · Religion Descripcion
+                  Tipo Documento · Documento · Nombre · Sexo · Fecha Nacimiento · Provincia · Localidad · Calle · Codigo Postal · Estado Civil · Telefono · Email · Religion · Religion Descripcion · Estudios · Titulo · Empresa · Discapacidad · Detalle Discapacidad · Nacionalidad · Funcion · Categoria · Rama · Zona · Distrito · Código · Organismo · Fecha Primer Afiliacion
                 </p>
               </div>
               <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Search, CheckCircle2, XCircle, Award, Tent, Gift, AlertCircle,
-  User, Phone, Mail, Calendar, Hash
+  User, Phone, Mail, Calendar, Hash, ShieldCheck
 } from 'lucide-react';
 import RamaBadge from '@/components/shared/RamaBadge';
 import {
@@ -41,6 +41,11 @@ export default function EstadoCuenta() {
   const { data: creditos = [] } = useQuery({
     queryKey: ['creditos'],
     queryFn: () => base44.entities.CreditoBeneficiario.list(),
+  });
+
+  const { data: afiliaciones = [] } = useQuery({
+    queryKey: ['afiliaciones'],
+    queryFn: () => base44.entities.Afiliacion.list('-fecha_pago', 500),
   });
 
   // Buscar beneficiario por DNI
@@ -323,6 +328,43 @@ export default function EstadoCuenta() {
                   </div>
                 </div>
               )}
+
+              {/* Afiliaciones */}
+              {(() => {
+                const anioActual = new Date().getFullYear();
+                const afiliacionesDelBen = afiliaciones.filter(a => a.beneficiario_id === b.id);
+                if (afiliacionesDelBen.length === 0) return null;
+                return (
+                  <div>
+                    <h3 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-primary" /> Afiliaciones / Seguro
+                    </h3>
+                    <div className="space-y-2">
+                      {afiliacionesDelBen.map(a => (
+                        <Card key={a.id} className="p-4 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
+                            <div>
+                              <p className="font-medium text-sm">Afiliación {a.anio}</p>
+                              {a.fecha_pago && <p className="text-xs text-muted-foreground">Pagado el {a.fecha_pago} · {a.forma_pago}</p>}
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            {a.es_primera_vez ? (
+                              <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">⭐ Primera vez — sin costo</Badge>
+                            ) : (
+                              <>
+                                <p className="text-xs text-muted-foreground">Seguro: {formatMoney(a.monto)}</p>
+                                <p className="text-sm font-semibold text-green-600">Pagado ✓</p>
+                              </>
+                            )}
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Créditos */}
               {cuenta.creditosDisp.length > 0 && (

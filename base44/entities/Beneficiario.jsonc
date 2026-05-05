@@ -21,11 +21,11 @@
     },
     "funcion": {
       "type": "string",
-      "description": "Funci\u00f3n dentro del grupo (ej: Scout, Jefe de Secci\u00f3n, etc.)"
+      "description": "Funci\u00f3n dentro del grupo"
     },
     "categoria": {
       "type": "string",
-      "description": "Categor\u00eda seg\u00fan el sistema scout (ej: Lobato, Scout, Caminante, etc.)"
+      "description": "Categor\u00eda seg\u00fan el sistema scout"
     },
     "zona": {
       "type": "string",
@@ -89,7 +89,7 @@
     },
     "grupo_familiar": {
       "type": "string",
-      "description": "Identificador del grupo familiar (ej: 'familia-garcia'). Los hermanos comparten el mismo valor y reciben descuento en la cuota."
+      "description": "Identificador del grupo familiar"
     },
     "email_contacto": {
       "type": "string",
@@ -99,6 +99,11 @@
       "type": "boolean",
       "default": true,
       "description": "Si est\u00e1 activo"
+    },
+    "fecha_primer_afiliacion": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de primera afiliaci\u00f3n a Scouts. Si tiene valor, no es primera vez (ya fue afiliado antes)."
     }
   },
   "required": [
@@ -110,17 +115,17 @@
         "role": "admin"
       }
     },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
     "update": {
       "user_condition": {
         "role": "admin"
       }
     },
     "delete": {
-      "user_condition": {
-        "role": "admin"
-      }
-    },
-    "write": {
       "user_condition": {
         "role": "admin"
       }
