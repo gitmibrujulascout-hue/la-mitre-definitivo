@@ -305,7 +305,13 @@ Devolvé un JSON con el array "personas".`,
 
     queryClient.invalidateQueries({ queryKey: ['beneficiarios'] });
 
-    const actualizados = duplicados.filter(d => (camposAActualizar[d.nuevo.dni] || []).length > 0).length;
+    const actualizados = duplicados.filter(d => {
+      const conflicto = (camposAActualizar[d.nuevo.dni] || []).length;
+      const auto = CAMPOS_COMPARACION.filter(c =>
+        (d.nuevo[c.key] || '') !== '' && (d.existente[c.key] || '') === ''
+      ).length;
+      return conflicto > 0 || auto > 0;
+    }).length;
     let msg = `${nuevosAImportar.length} nuevos importados`;
     if (actualizados > 0) msg += ` · ${actualizados} actualizados`;
     toast.success(msg);
@@ -315,8 +321,23 @@ Devolvé un JSON con el array "personas".`,
 
   // Resumen para confirmar
   const totalNuevosImportar = selNuevos.size;
-  const totalActualizar = duplicados.filter(d => (camposAActualizar[d.nuevo.dni] || []).length > 0).length;
-  const totalCamposActualizar = duplicados.reduce((s, d) => s + (camposAActualizar[d.nuevo.dni] || []).length, 0);
+
+  // Campos de auto-relleno (vacíos en BD) por duplicado
+  const camposAutoRellenoPorDni = (dup) =>
+    CAMPOS_COMPARACION.filter(c =>
+      (dup.nuevo[c.key] || '') !== '' && (dup.existente[c.key] || '') === ''
+    ).map(c => c.key);
+
+  const totalActualizar = duplicados.filter(d => {
+    const conflicto = (camposAActualizar[d.nuevo.dni] || []).length;
+    const auto = camposAutoRellenoPorDni(d).length;
+    return conflicto > 0 || auto > 0;
+  }).length;
+  const totalCamposActualizar = duplicados.reduce((s, d) => {
+    const conflicto = (camposAActualizar[d.nuevo.dni] || []).length;
+    const auto = camposAutoRellenoPorDni(d).length;
+    return s + conflicto + auto;
+  }, 0);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
