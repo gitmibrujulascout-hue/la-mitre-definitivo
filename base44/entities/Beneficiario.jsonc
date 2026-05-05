@@ -104,6 +104,50 @@
       "type": "string",
       "format": "date",
       "description": "Fecha de primera afiliaci\u00f3n a Scouts. Si tiene valor, no es primera vez (ya fue afiliado antes)."
+    },
+    "provincia": {
+      "type": "string",
+      "description": "Provincia"
+    },
+    "localidad": {
+      "type": "string",
+      "description": "Localidad / ciudad"
+    },
+    "calle": {
+      "type": "string",
+      "description": "Direcci\u00f3n (calle y n\u00famero)"
+    },
+    "codigo_postal": {
+      "type": "string",
+      "description": "C\u00f3digo postal"
+    },
+    "nacionalidad": {
+      "type": "string",
+      "description": "Nacionalidad"
+    },
+    "sexo": {
+      "type": "string",
+      "description": "Sexo"
+    },
+    "estado_civil": {
+      "type": "string",
+      "description": "Estado civil"
+    },
+    "estudios": {
+      "type": "string",
+      "description": "Nivel de estudios"
+    },
+    "titulo": {
+      "type": "string",
+      "description": "T\u00edtulo obtenido"
+    },
+    "discapacidad": {
+      "type": "string",
+      "description": "Indicador de discapacidad"
+    },
+    "detalle_discapacidad": {
+      "type": "string",
+      "description": "Descripci\u00f3n de la discapacidad"
     }
   },
   "required": [

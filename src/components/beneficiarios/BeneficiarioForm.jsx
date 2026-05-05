@@ -17,7 +17,9 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
     funcion: '', categoria: '', zona: '', distrito: '', codigo: '', organismo: '',
     religion: '', religion_descripcion: '',
     rama: '', tipo: 'Beneficiario', becado: false, email_contacto: '', activo: true,
-    grupo_familiar: ''
+    grupo_familiar: '', fecha_primer_afiliacion: '',
+    provincia: '', localidad: '', calle: '', codigo_postal: '', nacionalidad: '',
+    sexo: '', estado_civil: '', estudios: '', titulo: '', discapacidad: '', detalle_discapacidad: '',
   });
 
   useEffect(() => {
@@ -143,8 +145,9 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
 
         <Tabs defaultValue="basico" className="mt-2">
           <TabsList className="w-full">
-            <TabsTrigger value="basico" className="flex-1">Datos básicos</TabsTrigger>
-            <TabsTrigger value="scout" className="flex-1">Info scout</TabsTrigger>
+            <TabsTrigger value="basico" className="flex-1">Básico</TabsTrigger>
+            <TabsTrigger value="scout" className="flex-1">Scout</TabsTrigger>
+            <TabsTrigger value="personal" className="flex-1">Personal</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basico" className="space-y-4 pt-4">
@@ -338,6 +341,68 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                 />
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="personal" className="space-y-4 pt-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Sexo</Label>
+                <Input value={form.sexo || ''} onChange={e => update('sexo', e.target.value)} placeholder="M / F / Otro" />
+              </div>
+              <div>
+                <Label>Estado civil</Label>
+                <Input value={form.estado_civil || ''} onChange={e => update('estado_civil', e.target.value)} placeholder="Soltero/a..." />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Nacionalidad</Label>
+                <Input value={form.nacionalidad || ''} onChange={e => update('nacionalidad', e.target.value)} placeholder="Argentina" />
+              </div>
+              <div>
+                <Label>Fecha primera afiliación</Label>
+                <Input type="date" value={form.fecha_primer_afiliacion || ''} onChange={e => update('fecha_primer_afiliacion', e.target.value)} />
+                <p className="text-xs text-muted-foreground mt-1">Si está vacío → es primera vez (no paga seguro)</p>
+              </div>
+            </div>
+            <div>
+              <Label>Dirección</Label>
+              <Input value={form.calle || ''} onChange={e => update('calle', e.target.value)} placeholder="Calle y número" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Localidad</Label>
+                <Input value={form.localidad || ''} onChange={e => update('localidad', e.target.value)} />
+              </div>
+              <div>
+                <Label>Provincia</Label>
+                <Input value={form.provincia || ''} onChange={e => update('provincia', e.target.value)} />
+              </div>
+              <div>
+                <Label>Cód. Postal</Label>
+                <Input value={form.codigo_postal || ''} onChange={e => update('codigo_postal', e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Estudios</Label>
+                <Input value={form.estudios || ''} onChange={e => update('estudios', e.target.value)} placeholder="Nivel educativo" />
+              </div>
+              <div>
+                <Label>Título</Label>
+                <Input value={form.titulo || ''} onChange={e => update('titulo', e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Discapacidad</Label>
+                <Input value={form.discapacidad || ''} onChange={e => update('discapacidad', e.target.value)} placeholder="Sí / No / Tipo" />
+              </div>
+              <div>
+                <Label>Detalle discapacidad</Label>
+                <Input value={form.detalle_discapacidad || ''} onChange={e => update('detalle_discapacidad', e.target.value)} />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="scout" className="space-y-4 pt-4">
