@@ -11,7 +11,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
 import PagoForm from '@/components/pagos/PagoForm';
-import { RAMAS, MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS, CUOTA_EFECTIVO, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario } from '@/lib/ramaUtils';
+import { RAMAS, MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario } from '@/lib/ramaUtils';
 
 const CUOTA_EFECTIVO_REF = CUOTA_EFECTIVO;
 import { cn } from '@/lib/utils';
@@ -69,7 +69,17 @@ export default function CuentaCorriente() {
       );
       const cuotaIndividual = getCuotaBeneficiario(b, activos);
       const deudaCuotas = (!esBeneficiarioConCuota(b)) ? 0 : mesesQueGeneranDeuda.length * cuotaIndividual;
-      const pagadoCuotas = pagosDelBen.filter(p => p.tipo_pago !== 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
+      // Para el saldo del beneficiario, los pagos por transferencia se computan a valor efectivo
+      // (los $2.000 extra son impuestos bancarios que no son deuda del beneficiario)
+      const pagadoCuotas = pagosDelBen
+        .filter(p => p.tipo_pago !== 'Campamento')
+        .reduce((s, p) => {
+          if (p.forma_pago === 'Transferencia' && p.meses?.length > 0) {
+            const cuotaBenEfectivo = getCuotaBeneficiario(b, activos);
+            return s + p.meses.length * cuotaBenEfectivo;
+          }
+          return s + (p.monto || 0);
+        }, 0);
       const saldo = pagadoCuotas - deudaCuotas + pagadoCamp - totalCampamentos;
 
       return {

@@ -8,19 +8,23 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, CheckCircle2, XCircle, Search, Users, DollarSign, ShieldCheck } from 'lucide-react';
+import { Plus, CheckCircle2, XCircle, Search, DollarSign, ShieldCheck, Users, AlertCircle } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 const AÑOS = [2024, 2025, 2026, 2027, 2028];
+const MONTO_SEGURO_DEFAULT = 14000;
 
+// ——— Formulario individual ———
 function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, anio }) {
   const [form, setForm] = useState({
     beneficiario_id: '',
-    monto: '',
+    monto: MONTO_SEGURO_DEFAULT.toString(),
+    monto_pagado: MONTO_SEGURO_DEFAULT.toString(),
     fecha_pago: new Date().toISOString().split('T')[0],
     forma_pago: 'Efectivo',
     observaciones: '',
@@ -40,12 +44,26 @@ function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, 
   const esPrimeraVez = beneficiarioSel && !beneficiarioSel.fecha_primer_afiliacion;
   const yaAfiliado = afiliacionesExistentes.some(a => a.beneficiario_id === form.beneficiario_id && Number(a.anio) === Number(anio));
 
+  const handleBeneficiarioChange = (v) => {
+    const ben = beneficiarios.find(b => b.id === v);
+    const primera = ben && !ben.fecha_primer_afiliacion;
+    setForm(p => ({
+      ...p,
+      beneficiario_id: v,
+      monto: primera ? '0' : MONTO_SEGURO_DEFAULT.toString(),
+      monto_pagado: primera ? '0' : MONTO_SEGURO_DEFAULT.toString(),
+    }));
+  };
+
   const handleSave = () => {
     if (!form.beneficiario_id) return;
+    const montoAfiliacion = esPrimeraVez ? 0 : parseFloat(form.monto) || 0;
+    const montoPagado = esPrimeraVez ? 0 : parseFloat(form.monto_pagado) || 0;
     createMutation.mutate({
       ...form,
       anio: Number(anio),
-      monto: esPrimeraVez ? 0 : parseFloat(form.monto) || 0,
+      monto: montoAfiliacion,
+      monto_pagado: montoPagado,
       beneficiario_nombre: beneficiarioSel?.nombre || '',
       beneficiario_dni: beneficiarioSel?.dni || '',
       rama: beneficiarioSel?.rama || '',
@@ -62,7 +80,7 @@ function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, 
         <div className="space-y-4 py-4">
           <div>
             <Label>Beneficiario *</Label>
-            <Select value={form.beneficiario_id} onValueChange={v => setForm(p => ({ ...p, beneficiario_id: v }))}>
+            <Select value={form.beneficiario_id} onValueChange={handleBeneficiarioChange}>
               <SelectTrigger><SelectValue placeholder="Seleccionar beneficiario..." /></SelectTrigger>
               <SelectContent>
                 {beneficiarios.filter(b => b.activo !== false).map(b => (
@@ -86,32 +104,51 @@ function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, 
             </div>
           )}
 
-          {!esPrimeraVez && (
+          {!esPrimeraVez && beneficiarioSel && (
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Monto seguro</Label>
-                  <Input type="number" value={form.monto} onChange={e => setForm(p => ({ ...p, monto: e.target.value }))} placeholder="0" />
+                  <Label>Monto seguro total</Label>
+                  <Input
+                    type="number"
+                    value={form.monto}
+                    onChange={e => setForm(p => ({ ...p, monto: e.target.value, monto_pagado: e.target.value }))}
+                    placeholder={MONTO_SEGURO_DEFAULT.toString()}
+                  />
                 </div>
+                <div>
+                  <Label>Monto pagado ahora</Label>
+                  <Input
+                    type="number"
+                    value={form.monto_pagado}
+                    onChange={e => setForm(p => ({ ...p, monto_pagado: e.target.value }))}
+                    placeholder={form.monto || MONTO_SEGURO_DEFAULT.toString()}
+                  />
+                  {parseFloat(form.monto_pagado) < parseFloat(form.monto) && parseFloat(form.monto) > 0 && (
+                    <p className="text-xs text-amber-600 mt-1">Pago parcial ({formatMoney(parseFloat(form.monto) - parseFloat(form.monto_pagado))} pendiente)</p>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Fecha de pago</Label>
                   <Input type="date" value={form.fecha_pago} onChange={e => setForm(p => ({ ...p, fecha_pago: e.target.value }))} />
                 </div>
-              </div>
-              <div>
-                <Label>Forma de pago</Label>
-                <Select value={form.forma_pago} onValueChange={v => setForm(p => ({ ...p, forma_pago: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Efectivo">Efectivo</SelectItem>
-                    <SelectItem value="Transferencia">Transferencia</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div>
+                  <Label>Forma de pago</Label>
+                  <Select value={form.forma_pago} onValueChange={v => setForm(p => ({ ...p, forma_pago: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Efectivo">Efectivo</SelectItem>
+                      <SelectItem value="Transferencia">Transferencia</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </>
           )}
 
-          {esPrimeraVez && (
+          {esPrimeraVez && beneficiarioSel && (
             <div>
               <Label>Fecha de registro</Label>
               <Input type="date" value={form.fecha_pago} onChange={e => setForm(p => ({ ...p, fecha_pago: e.target.value }))} />
@@ -125,18 +162,296 @@ function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={!form.beneficiario_id || yaAfiliado}>Guardar</Button>
+          <Button onClick={handleSave} disabled={!form.beneficiario_id || yaAfiliado || createMutation.isPending}>
+            {createMutation.isPending ? 'Guardando...' : 'Guardar'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
+// ——— Afiliación masiva ———
+function AfiliacionMasivaDialog({ open, onClose, beneficiarios, afiliacionesExistentes, anio }) {
+  const queryClient = useQueryClient();
+
+  // Separar quienes deben pagar y quienes no (primera vez)
+  const [montoGlobal, setMontoGlobal] = useState(MONTO_SEGURO_DEFAULT.toString());
+  const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
+  const [formaPago, setFormaPago] = useState('Efectivo');
+
+  // IDs ya afiliados este año
+  const yaAfiliadosIds = useMemo(() =>
+    new Set(afiliacionesExistentes.filter(a => Number(a.anio) === Number(anio)).map(a => a.beneficiario_id)),
+    [afiliacionesExistentes, anio]
+  );
+
+  // Beneficiarios activos sin afiliar aún este año
+  const pendientes = useMemo(() =>
+    beneficiarios.filter(b => b.activo !== false && b.tipo !== 'Voluntario' && !yaAfiliadosIds.has(b.id)),
+    [beneficiarios, yaAfiliadosIds]
+  );
+
+  const primeraVez = pendientes.filter(b => !b.fecha_primer_afiliacion);
+  const debenPagar = pendientes.filter(b => !!b.fecha_primer_afiliacion);
+
+  // Selección de los que deben pagar
+  const [seleccionados, setSeleccionados] = useState(() => new Set(debenPagar.map(b => b.id)));
+  // Selección de primera vez
+  const [selPrimeraVez, setSelPrimeraVez] = useState(() => new Set(primeraVez.map(b => b.id)));
+  // Montos individuales editables
+  const [montos, setMontos] = useState({});
+
+  const toggleTodos = () => {
+    if (seleccionados.size === debenPagar.length) setSeleccionados(new Set());
+    else setSeleccionados(new Set(debenPagar.map(b => b.id)));
+  };
+
+  const toggleTodosPrimeraVez = () => {
+    if (selPrimeraVez.size === primeraVez.length) setSelPrimeraVez(new Set());
+    else setSelPrimeraVez(new Set(primeraVez.map(b => b.id)));
+  };
+
+  const getMonto = (id) => montos[id] !== undefined ? montos[id] : montoGlobal;
+
+  const createMutation = useMutation({
+    mutationFn: async (data) => {
+      await Promise.all(data.map(d => base44.entities.Afiliacion.create(d)));
+    },
+    onSuccess: (_, data) => {
+      queryClient.invalidateQueries({ queryKey: ['afiliaciones'] });
+      toast.success(`${data.length} afiliaciones registradas`);
+      onClose();
+    }
+  });
+
+  const handleSave = () => {
+    const registros = [];
+
+    // Los que deben pagar
+    debenPagar.filter(b => seleccionados.has(b.id)).forEach(b => {
+      const m = parseFloat(getMonto(b.id)) || 0;
+      registros.push({
+        beneficiario_id: b.id,
+        beneficiario_nombre: b.nombre,
+        beneficiario_dni: b.dni || '',
+        rama: b.rama || '',
+        anio: Number(anio),
+        monto: parseFloat(montoGlobal) || 0,
+        monto_pagado: m,
+        fecha_pago: fechaPago,
+        forma_pago: formaPago,
+        es_primera_vez: false,
+      });
+    });
+
+    // Primera vez
+    primeraVez.filter(b => selPrimeraVez.has(b.id)).forEach(b => {
+      registros.push({
+        beneficiario_id: b.id,
+        beneficiario_nombre: b.nombre,
+        beneficiario_dni: b.dni || '',
+        rama: b.rama || '',
+        anio: Number(anio),
+        monto: 0,
+        monto_pagado: 0,
+        fecha_pago: fechaPago,
+        forma_pago: formaPago,
+        es_primera_vez: true,
+      });
+    });
+
+    if (registros.length === 0) return;
+    createMutation.mutate(registros);
+  };
+
+  const totalAPagar = debenPagar.filter(b => seleccionados.has(b.id)).reduce((s, b) => s + (parseFloat(getMonto(b.id)) || 0), 0);
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Afiliación Masiva — {anio}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-5 py-2">
+          {/* Config global */}
+          <div className="grid grid-cols-3 gap-3 p-4 rounded-lg border bg-muted/30">
+            <div>
+              <Label className="text-xs">Monto seguro (default)</Label>
+              <Input
+                type="number"
+                value={montoGlobal}
+                onChange={e => setMontoGlobal(e.target.value)}
+                placeholder={MONTO_SEGURO_DEFAULT.toString()}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Fecha de pago</Label>
+              <Input type="date" value={fechaPago} onChange={e => setFechaPago(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Forma de pago</Label>
+              <Select value={formaPago} onValueChange={setFormaPago}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Efectivo">Efectivo</SelectItem>
+                  <SelectItem value="Transferencia">Transferencia</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Sección: deben pagar */}
+          {debenPagar.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-blue-600" />
+                  Deben abonar el seguro ({debenPagar.length})
+                </h3>
+                <button onClick={toggleTodos} className="text-xs text-primary hover:underline">
+                  {seleccionados.size === debenPagar.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                </button>
+              </div>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="w-10"></TableHead>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Rama</TableHead>
+                      <TableHead className="w-36">Monto pagado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {debenPagar.map(b => {
+                      const sel = seleccionados.has(b.id);
+                      const m = getMonto(b.id);
+                      const montoTotal = parseFloat(montoGlobal) || 0;
+                      const montoPagado = parseFloat(m) || 0;
+                      const parcial = montoPagado < montoTotal && montoPagado > 0;
+                      return (
+                        <TableRow key={b.id} className={!sel ? 'opacity-40' : ''}>
+                          <TableCell>
+                            <Checkbox
+                              checked={sel}
+                              onCheckedChange={() => setSeleccionados(prev => {
+                                const next = new Set(prev);
+                                next.has(b.id) ? next.delete(b.id) : next.add(b.id);
+                                return next;
+                              })}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium text-sm">{b.nombre}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">{b.rama || '—'}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-0.5">
+                              <Input
+                                type="number"
+                                value={m}
+                                onChange={e => setMontos(prev => ({ ...prev, [b.id]: e.target.value }))}
+                                className="h-7 text-xs w-28"
+                                disabled={!sel}
+                              />
+                              {sel && parcial && (
+                                <span className="text-xs text-amber-600">Parcial</span>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              <p className="text-sm text-right mt-1 font-semibold text-blue-700">
+                Total a registrar: {formatMoney(totalAPagar)} ({seleccionados.size} personas)
+              </p>
+            </div>
+          )}
+
+          {/* Sección: primera vez (no pagan) */}
+          {primeraVez.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-amber-500" />
+                  Primera afiliación — No abonan ({primeraVez.length})
+                </h3>
+                <button onClick={toggleTodosPrimeraVez} className="text-xs text-primary hover:underline">
+                  {selPrimeraVez.size === primeraVez.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                </button>
+              </div>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="w-10"></TableHead>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Rama</TableHead>
+                      <TableHead>Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {primeraVez.map(b => (
+                      <TableRow key={b.id} className={!selPrimeraVez.has(b.id) ? 'opacity-40' : ''}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selPrimeraVez.has(b.id)}
+                            onCheckedChange={() => setSelPrimeraVez(prev => {
+                              const next = new Set(prev);
+                              next.has(b.id) ? next.delete(b.id) : next.add(b.id);
+                              return next;
+                            })}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium text-sm">{b.nombre}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">{b.rama || '—'}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">⭐ Sin costo</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+
+          {pendientes.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-green-500" />
+              Todos los beneficiarios ya están afiliados para {anio}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button
+            onClick={handleSave}
+            disabled={createMutation.isPending || (seleccionados.size === 0 && selPrimeraVez.size === 0)}
+          >
+            {createMutation.isPending ? 'Registrando...' : `Registrar ${seleccionados.size + selPrimeraVez.size} afiliaciones`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ——— Página principal ———
 export default function Afiliaciones() {
   const [anio, setAnio] = useState(new Date().getFullYear().toString());
   const [showForm, setShowForm] = useState(false);
-  const [search, setSearch] = useState(false);
+  const [showMasivo, setShowMasivo] = useState(false);
   const [busqueda, setBusqueda] = useState('');
+  const [filtroVista, setFiltroVista] = useState('todos'); // 'todos' | 'pagan' | 'no_pagan' | 'pendientes'
   const queryClient = useQueryClient();
 
   const { data: beneficiarios = [] } = useQuery({
@@ -159,7 +474,6 @@ export default function Afiliaciones() {
     [afiliaciones, anio]
   );
 
-  // Lista de beneficiarios activos con su estado de afiliación para el año
   const beneficiariosActivos = useMemo(() =>
     beneficiarios.filter(b => b.activo !== false && b.tipo !== 'Voluntario'),
     [beneficiarios]
@@ -179,17 +493,24 @@ export default function Afiliaciones() {
         afiliacion: mapAfiliados[b.id] || null,
         esPrimeraVez: !b.fecha_primer_afiliacion,
       }))
+      .filter(f => {
+        if (filtroVista === 'pagan') return !f.esPrimeraVez;
+        if (filtroVista === 'no_pagan') return f.esPrimeraVez;
+        if (filtroVista === 'pendientes') return !f.afiliacion;
+        return true;
+      })
       .sort((a, b) => {
-        // Primero los sin afiliar, luego por nombre
         if (!a.afiliacion && b.afiliacion) return -1;
         if (a.afiliacion && !b.afiliacion) return 1;
         return a.beneficiario.nombre?.localeCompare(b.beneficiario.nombre);
       });
-  }, [beneficiariosActivos, mapAfiliados, busqueda]);
+  }, [beneficiariosActivos, mapAfiliados, busqueda, filtroVista]);
 
   const totalAfiliados = afiliacionesAnio.length;
   const totalSinAfiliar = beneficiariosActivos.length - totalAfiliados;
-  const totalRecaudado = afiliacionesAnio.filter(a => !a.es_primera_vez).reduce((s, a) => s + (a.monto || 0), 0);
+  const totalRecaudado = afiliacionesAnio.filter(a => !a.es_primera_vez).reduce((s, a) => s + (a.monto_pagado || a.monto || 0), 0);
+  const countNoPagan = beneficiariosActivos.filter(b => !b.fecha_primer_afiliacion).length;
+  const countPagan = beneficiariosActivos.length - countNoPagan;
 
   return (
     <div>
@@ -200,13 +521,16 @@ export default function Afiliaciones() {
             {AÑOS.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Button variant="outline" onClick={() => setShowMasivo(true)}>
+          <Users className="w-4 h-4 mr-2" />Afiliación masiva
+        </Button>
         <Button onClick={() => setShowForm(true)}>
-          <Plus className="w-4 h-4 mr-2" />Registrar Afiliación
+          <Plus className="w-4 h-4 mr-2" />Registrar
         </Button>
       </PageHeader>
 
       {/* Resumen */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="pt-4 pb-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
@@ -231,11 +555,22 @@ export default function Afiliaciones() {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">No pagan seguro</p>
+              <p className="text-xl font-bold text-amber-600">{countNoPagan}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
               <DollarSign className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Recaudado (seguro)</p>
+              <p className="text-xs text-muted-foreground">Recaudado</p>
               <p className="text-xl font-bold text-blue-600">{formatMoney(totalRecaudado)}</p>
             </div>
           </CardContent>
@@ -246,13 +581,35 @@ export default function Afiliaciones() {
       <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800 flex items-center gap-2">
         <ShieldCheck className="w-4 h-4 flex-shrink-0" />
         El dinero de afiliaciones/seguros se rinde directamente a la asociación y <strong className="ml-1">no impacta en Caja ni Banco.</strong>
+        <span className="ml-2 text-amber-600">· {countPagan} deben abonar · {countNoPagan} primera vez (sin costo)</span>
       </div>
 
-      {/* Buscador */}
+      {/* Filtros */}
       <Card className="p-3 mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Buscar por nombre o DNI..." value={busqueda} onChange={e => setBusqueda(e.target.value)} className="pl-9" />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input placeholder="Buscar por nombre o DNI..." value={busqueda} onChange={e => setBusqueda(e.target.value)} className="pl-9" />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { value: 'todos', label: 'Todos' },
+              { value: 'pagan', label: 'Deben pagar' },
+              { value: 'no_pagan', label: 'No pagan' },
+              { value: 'pendientes', label: 'Pendientes' },
+            ].map(f => (
+              <button
+                key={f.value}
+                onClick={() => setFiltroVista(f.value)}
+                className={cn(
+                  'px-3 py-1.5 rounded-md text-xs font-medium border transition-all',
+                  filtroVista === f.value ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:border-primary/50'
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </Card>
 
@@ -262,56 +619,84 @@ export default function Afiliaciones() {
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead>Beneficiario</TableHead>
-              <TableHead>DNI</TableHead>
               <TableHead>Rama</TableHead>
+              <TableHead>Tipo</TableHead>
               <TableHead>Estado {anio}</TableHead>
-              <TableHead>Monto</TableHead>
-              <TableHead>Fecha Pago</TableHead>
+              <TableHead>Seguro</TableHead>
+              <TableHead>Pagado</TableHead>
+              <TableHead>Fecha</TableHead>
               <TableHead>Forma</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
             ) : filas.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No hay beneficiarios</TableCell></TableRow>
-            ) : filas.map(({ beneficiario: b, afiliacion, esPrimeraVez }) => (
-              <TableRow key={b.id} className={!afiliacion ? 'bg-red-50/30' : ''}>
-                <TableCell className="font-medium">{b.nombre}</TableCell>
-                <TableCell className="text-muted-foreground">{b.dni || '—'}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="text-xs">{b.rama || '—'}</Badge>
-                </TableCell>
-                <TableCell>
-                  {afiliacion ? (
-                    afiliacion.es_primera_vez ? (
+              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No hay beneficiarios</TableCell></TableRow>
+            ) : filas.map(({ beneficiario: b, afiliacion, esPrimeraVez }) => {
+              const saldoPendiente = afiliacion && !afiliacion.es_primera_vez
+                ? (afiliacion.monto || 0) - (afiliacion.monto_pagado || afiliacion.monto || 0)
+                : 0;
+              return (
+                <TableRow key={b.id} className={!afiliacion ? 'bg-red-50/30' : ''}>
+                  <TableCell className="font-medium">{b.nombre}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">{b.rama || '—'}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {esPrimeraVez ? (
                       <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">⭐ Primera vez</Badge>
                     ) : (
-                      <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">✓ Afiliado</Badge>
-                    )
-                  ) : esPrimeraVez ? (
-                    <Badge className="bg-slate-100 text-slate-600 border text-xs">Primera vez (pendiente)</Badge>
-                  ) : (
-                    <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs">✗ Sin afiliar</Badge>
-                  )}
-                </TableCell>
-                <TableCell className="font-semibold">
-                  {afiliacion
-                    ? afiliacion.es_primera_vez ? <span className="text-amber-600 text-xs">No abona</span> : formatMoney(afiliacion.monto)
-                    : '—'}
-                </TableCell>
-                <TableCell className="text-muted-foreground text-sm">{afiliacion?.fecha_pago || '—'}</TableCell>
-                <TableCell className="text-muted-foreground text-sm">{afiliacion?.forma_pago || '—'}</TableCell>
-                <TableCell>
-                  {afiliacion && (
-                    <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(afiliacion.id)}>
-                      <XCircle className="w-4 h-4 text-muted-foreground" />
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
+                      <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs">Renovación</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {afiliacion ? (
+                      afiliacion.es_primera_vez ? (
+                        <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">✓ Sin costo</Badge>
+                      ) : saldoPendiente > 0 ? (
+                        <Badge className="bg-orange-100 text-orange-700 border-orange-300 border text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />Parcial
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">✓ Pagado</Badge>
+                      )
+                    ) : esPrimeraVez ? (
+                      <Badge className="bg-slate-100 text-slate-600 border text-xs">Pendiente</Badge>
+                    ) : (
+                      <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs">✗ Sin afiliar</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {afiliacion
+                      ? afiliacion.es_primera_vez ? <span className="text-amber-600 text-xs">No abona</span> : formatMoney(afiliacion.monto)
+                      : esPrimeraVez ? <span className="text-xs text-muted-foreground">No abona</span> : '—'}
+                  </TableCell>
+                  <TableCell className="font-semibold">
+                    {afiliacion && !afiliacion.es_primera_vez
+                      ? <>
+                          <span className={saldoPendiente > 0 ? 'text-orange-600' : 'text-green-600'}>
+                            {formatMoney(afiliacion.monto_pagado || afiliacion.monto)}
+                          </span>
+                          {saldoPendiente > 0 && (
+                            <p className="text-xs text-muted-foreground">resta {formatMoney(saldoPendiente)}</p>
+                          )}
+                        </>
+                      : '—'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{afiliacion?.fecha_pago || '—'}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{afiliacion?.forma_pago || '—'}</TableCell>
+                  <TableCell>
+                    {afiliacion && (
+                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(afiliacion.id)}>
+                        <XCircle className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </Card>
@@ -322,6 +707,16 @@ export default function Afiliaciones() {
           onClose={() => setShowForm(false)}
           beneficiarios={beneficiarios}
           afiliacionesExistentes={afiliacionesAnio}
+          anio={anio}
+        />
+      )}
+
+      {showMasivo && (
+        <AfiliacionMasivaDialog
+          open
+          onClose={() => setShowMasivo(false)}
+          beneficiarios={beneficiarios}
+          afiliacionesExistentes={afiliaciones}
           anio={anio}
         />
       )}

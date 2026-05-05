@@ -20,7 +20,11 @@
     },
     "monto": {
       "type": "number",
-      "description": "Monto abonado por la afiliaci\u00f3n (seguro)"
+      "description": "Monto total del seguro (lo que debe abonar en total)"
+    },
+    "monto_pagado": {
+      "type": "number",
+      "description": "Monto efectivamente pagado hasta el momento (puede ser parcial)"
     },
     "fecha_pago": {
       "type": "string",
