@@ -10,11 +10,93 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, CheckCircle2, XCircle, Search, DollarSign, ShieldCheck, Users, AlertCircle } from 'lucide-react';
+import { Plus, CheckCircle2, XCircle, Search, DollarSign, ShieldCheck, Users, AlertCircle, Pencil } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+
+// ——— Dialog para editar tipo de afiliación del beneficiario ———
+function EditarTipoAfiliacionDialog({ open, onClose, beneficiario }) {
+  const queryClient = useQueryClient();
+  // null = sin fecha (primera vez), o una fecha real
+  const [tipo, setTipo] = useState(beneficiario?.fecha_primer_afiliacion ? 'renovacion' : 'primera_vez');
+  const [fecha, setFecha] = useState(beneficiario?.fecha_primer_afiliacion || '');
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.Beneficiario.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['beneficiarios'] });
+      toast.success('Estado de afiliación actualizado');
+      onClose();
+    }
+  });
+
+  const handleSave = () => {
+    const nuevaFecha = tipo === 'primera_vez' ? null : (fecha || new Date().toISOString().split('T')[0]);
+    updateMutation.mutate({
+      id: beneficiario.id,
+      data: { fecha_primer_afiliacion: nuevaFecha }
+    });
+  };
+
+  if (!beneficiario) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Tipo de afiliación — {beneficiario.nombre}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            Define si este miembro es primera afiliación (no abona) o renovación (debe abonar).
+          </p>
+          <div className="space-y-2">
+            <button
+              onClick={() => setTipo('primera_vez')}
+              className={cn(
+                'w-full text-left p-3 rounded-lg border text-sm transition-all',
+                tipo === 'primera_vez' ? 'border-amber-400 bg-amber-50' : 'border-border hover:border-amber-300'
+              )}
+            >
+              <div className="font-medium text-amber-700">⭐ Primera afiliación</div>
+              <div className="text-xs text-muted-foreground mt-0.5">No abona seguro este año (bonificado por la Asociación)</div>
+            </button>
+            <button
+              onClick={() => setTipo('renovacion')}
+              className={cn(
+                'w-full text-left p-3 rounded-lg border text-sm transition-all',
+                tipo === 'renovacion' ? 'border-blue-400 bg-blue-50' : 'border-border hover:border-blue-300'
+              )}
+            >
+              <div className="font-medium text-blue-700">🔄 Renovación</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Ya estuvo afiliado — debe abonar el seguro</div>
+            </button>
+          </div>
+          {tipo === 'renovacion' && (
+            <div>
+              <Label className="text-xs">Fecha de primera afiliación</Label>
+              <Input
+                type="date"
+                value={fecha}
+                onChange={e => setFecha(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Puede ser aproximada, sirve para registrar el historial.</p>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={updateMutation.isPending}>
+            {updateMutation.isPending ? 'Guardando...' : 'Guardar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const AÑOS = [2024, 2025, 2026, 2027, 2028];
 const MONTO_SEGURO_DEFAULT = 14000;
@@ -452,6 +534,7 @@ export default function Afiliaciones() {
   const [showMasivo, setShowMasivo] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   const [filtroVista, setFiltroVista] = useState('todos'); // 'todos' | 'pagan' | 'no_pagan' | 'pendientes'
+  const [editandoTipo, setEditandoTipo] = useState(null); // beneficiario a editar
   const queryClient = useQueryClient();
 
   const { data: beneficiarios = [] } = useQuery({
@@ -646,11 +729,20 @@ export default function Afiliaciones() {
                     <Badge variant="outline" className="text-xs">{b.rama || '—'}</Badge>
                   </TableCell>
                   <TableCell>
-                    {esPrimeraVez ? (
-                      <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">⭐ Primera vez</Badge>
-                    ) : (
-                      <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs">Renovación</Badge>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {esPrimeraVez ? (
+                        <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">⭐ Primera vez</Badge>
+                      ) : (
+                        <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs">Renovación</Badge>
+                      )}
+                      <button
+                        onClick={() => setEditandoTipo(b)}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        title="Cambiar tipo"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    </div>
                   </TableCell>
                   <TableCell>
                     {afiliacion ? (
@@ -719,6 +811,14 @@ export default function Afiliaciones() {
           beneficiarios={beneficiarios}
           afiliacionesExistentes={afiliaciones}
           anio={anio}
+        />
+      )}
+
+      {editandoTipo && (
+        <EditarTipoAfiliacionDialog
+          open
+          onClose={() => setEditandoTipo(null)}
+          beneficiario={editandoTipo}
         />
       )}
     </div>
