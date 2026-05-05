@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
-// Campos que se comparan/muestran al resolver duplicados
+// Solo se muestran para resolver conflictos los campos donde AMBOS tienen valor y son diferentes.
+// Si el campo está vacío en la BD → se rellena automáticamente sin preguntar.
 const CAMPOS_COMPARACION = [
   { key: 'nombre', label: 'Nombre' },
   { key: 'telefono_contacto', label: 'Teléfono' },
@@ -48,9 +49,16 @@ function parseFecha(str) {
 function DuplicadoCard({ dup, camposSeleccionados, onToggleCampo, onSeleccionarTodo, onMantenerTodo }) {
   const [collapsed, setCollapsed] = useState(false);
 
+  // Solo mostrar campos donde AMBOS tienen valor y son distintos (conflicto real)
+  // Los que la BD tiene vacío y el archivo tiene valor → se aplican automáticamente
   const camposDiferentes = CAMPOS_COMPARACION.filter(c =>
-    (dup.nuevo[c.key] || '') !== (dup.existente[c.key] || '')
-    && (dup.nuevo[c.key] || '') !== ''
+    (dup.nuevo[c.key] || '') !== '' &&       // el archivo trae valor
+    (dup.existente[c.key] || '') !== '' &&   // la BD también tiene valor
+    (dup.nuevo[c.key] || '') !== (dup.existente[c.key] || '') // y son distintos
+  );
+  const camposAutoRelleno = CAMPOS_COMPARACION.filter(c =>
+    (dup.nuevo[c.key] || '') !== '' &&
+    (dup.existente[c.key] || '') === ''
   );
 
   const camposSelDni = camposSeleccionados[dup.nuevo.dni] || [];
@@ -66,11 +74,12 @@ function DuplicadoCard({ dup, camposSeleccionados, onToggleCampo, onSeleccionarT
           </button>
           <span className="font-semibold text-sm truncate">{dup.nuevo.nombre}</span>
           <span className="text-xs text-muted-foreground flex-shrink-0">DNI: {dup.nuevo.dni}</span>
-          {camposDiferentes.length === 0 ? (
+          {camposDiferentes.length === 0 && camposAutoRelleno.length === 0 ? (
             <Badge className="text-xs bg-green-100 text-green-700 border-green-300 border flex-shrink-0">Sin cambios</Badge>
           ) : (
             <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-300 border flex-shrink-0">
-              {camposDiferentes.length} diferencia(s) · {totalSeleccionados} a actualizar
+              {camposDiferentes.length > 0 && <>{camposDiferentes.length} conflicto(s) · {totalSeleccionados} a reemplazar</>}
+              {camposAutoRelleno.length > 0 && <span className="ml-1 text-green-700">+{camposAutoRelleno.length} auto</span>}
             </Badge>
           )}
         </div>
@@ -85,47 +94,55 @@ function DuplicadoCard({ dup, camposSeleccionados, onToggleCampo, onSeleccionarT
       {/* Detalle de campos */}
       {!collapsed && (
         <div className="divide-y">
-          {camposDiferentes.length === 0 ? (
+          {/* Campos con conflicto real → elegir cuál usar */}
+          {camposDiferentes.length === 0 && camposAutoRelleno.length === 0 && (
             <p className="text-xs text-muted-foreground p-3">Todos los campos coinciden con el registro existente.</p>
-          ) : (
-            camposDiferentes.map(c => {
-              const usarNuevo = camposSelDni.includes(c.key);
-              return (
-                <div key={c.key} className="grid grid-cols-[120px_1fr_auto_1fr] items-center gap-2 px-3 py-2 text-xs hover:bg-muted/20">
-                  {/* Label */}
-                  <span className="font-medium text-muted-foreground">{c.label}</span>
+          )}
 
-                  {/* Valor actual */}
-                  <div className={cn(
-                    'px-2 py-1 rounded truncate border text-center',
-                    !usarNuevo ? 'bg-blue-50 border-blue-300 text-blue-800 font-semibold ring-2 ring-blue-400' : 'bg-muted border-border text-muted-foreground line-through'
-                  )}>
-                    {dup.existente[c.key] || <span className="italic">vacío</span>}
-                  </div>
-
-                  {/* Toggle */}
-                  <button
-                    onClick={() => onToggleCampo(dup.nuevo.dni, c.key)}
-                    className={cn(
-                      'flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border transition-colors flex-shrink-0',
-                      usarNuevo
-                        ? 'bg-green-500 border-green-600 text-white'
-                        : 'bg-blue-500 border-blue-600 text-white'
-                    )}
-                  >
-                    {usarNuevo ? '← Actual' : 'Nuevo →'}
-                  </button>
-
-                  {/* Valor nuevo */}
-                  <div className={cn(
-                    'px-2 py-1 rounded truncate border text-center',
-                    usarNuevo ? 'bg-green-50 border-green-300 text-green-800 font-semibold ring-2 ring-green-400' : 'bg-muted border-border text-muted-foreground line-through'
-                  )}>
-                    {dup.nuevo[c.key] || <span className="italic">vacío</span>}
-                  </div>
+          {camposDiferentes.map(c => {
+            const usarNuevo = camposSelDni.includes(c.key);
+            return (
+              <div key={c.key} className="grid grid-cols-[110px_1fr_auto_1fr] items-center gap-2 px-3 py-2 text-xs hover:bg-muted/20">
+                <span className="font-medium text-muted-foreground">{c.label}</span>
+                <div className={cn(
+                  'px-2 py-1 rounded truncate border text-center',
+                  !usarNuevo ? 'bg-blue-50 border-blue-300 text-blue-800 font-semibold ring-2 ring-blue-400' : 'bg-muted border-border text-muted-foreground line-through'
+                )}>
+                  {dup.existente[c.key]}
                 </div>
-              );
-            })
+                <button
+                  onClick={() => onToggleCampo(dup.nuevo.dni, c.key)}
+                  className={cn(
+                    'flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border transition-colors flex-shrink-0',
+                    usarNuevo ? 'bg-green-500 border-green-600 text-white' : 'bg-blue-500 border-blue-600 text-white'
+                  )}
+                >
+                  {usarNuevo ? '← Mantener' : 'Reemplazar →'}
+                </button>
+                <div className={cn(
+                  'px-2 py-1 rounded truncate border text-center',
+                  usarNuevo ? 'bg-green-50 border-green-300 text-green-800 font-semibold ring-2 ring-green-400' : 'bg-muted border-border text-muted-foreground line-through'
+                )}>
+                  {dup.nuevo[c.key]}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Campos vacíos en BD → se rellenan automáticamente */}
+          {camposAutoRelleno.length > 0 && (
+            <div className="px-3 py-2 bg-green-50/50">
+              <p className="text-[10px] font-semibold text-green-700 mb-1.5">
+                ✓ {camposAutoRelleno.length} campo(s) vacíos → se rellenan automáticamente:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {camposAutoRelleno.map(c => (
+                  <span key={c.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-100 border border-green-300 text-[10px] text-green-800">
+                    <span className="font-medium">{c.label}:</span> {dup.nuevo[c.key]}
+                  </span>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -230,9 +247,15 @@ Devolvé un JSON con el array "personas".`,
     setNuevos(nuevosArr);
     setSelNuevos(new Set(nuevosArr.map((_, i) => i)));
 
-    // Inicializar: por defecto NO actualizar ningún campo
+    // Por defecto: seleccionar todos los campos con conflicto real para reemplazar
     const campos = {};
-    dups.forEach(d => { campos[d.nuevo.dni] = []; });
+    dups.forEach(d => {
+      campos[d.nuevo.dni] = CAMPOS_COMPARACION.filter(c =>
+        (d.nuevo[c.key] || '') !== '' &&
+        (d.existente[c.key] || '') !== '' &&
+        (d.nuevo[c.key] || '') !== (d.existente[c.key] || '')
+      ).map(c => c.key);
+    });
     setCamposAActualizar(campos);
 
     setLoading(false);
@@ -266,10 +289,16 @@ Devolvé un JSON con el array "personas".`,
 
     // Actualizar duplicados campo a campo
     for (const dup of duplicados) {
-      const campos = camposAActualizar[dup.nuevo.dni] || [];
-      if (campos.length > 0) {
+      const camposConflicto = camposAActualizar[dup.nuevo.dni] || [];
+      // Campos vacíos en BD con valor nuevo → siempre se aplican automáticamente
+      const camposAutoRelleno = CAMPOS_COMPARACION.filter(c =>
+        (dup.nuevo[c.key] || '') !== '' && (dup.existente[c.key] || '') === ''
+      ).map(c => c.key);
+
+      const todosCampos = [...new Set([...camposConflicto, ...camposAutoRelleno])];
+      if (todosCampos.length > 0) {
         const update = {};
-        campos.forEach(c => { update[c] = dup.nuevo[c]; });
+        todosCampos.forEach(c => { update[c] = dup.nuevo[c]; });
         await base44.entities.Beneficiario.update(dup.existente.id, update);
       }
     }
