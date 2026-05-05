@@ -257,52 +257,71 @@ export default function EstadoCuenta() {
                 </div>
               </Card>
 
-              {/* Afiliaciones / Seguro anual — ANTES de cuotas */}
+              {/* Afiliación a Scout Argentina — ANTES de cuotas */}
               {(() => {
                 const afiliacionesDelBen = afiliaciones.filter(a => a.beneficiario_id === b.id);
                 const afiliacionAnio = afiliacionesDelBen.find(a => Number(a.anio) === anio);
+
+                // Es primera vez si: la afiliación lo dice, o si no tiene fecha_primer_afiliacion
+                // (nunca tuvo afiliación previa = se inscribió este año o nunca se registró antes)
+                const esPrimeraVez = afiliacionAnio?.es_primera_vez ||
+                  (!afiliacionAnio && !b.fecha_primer_afiliacion);
+
                 const saldoPendienteAfil = afiliacionAnio && !afiliacionAnio.es_primera_vez
                   ? (afiliacionAnio.monto || 0) - (afiliacionAnio.monto_pagado || afiliacionAnio.monto || 0)
                   : 0;
+
+                // Color del card
+                const cardColor = esPrimeraVez
+                  ? "border-amber-200 bg-amber-50/40"
+                  : !afiliacionAnio
+                    ? "border-red-200 bg-red-50/40"
+                    : saldoPendienteAfil > 0
+                      ? "border-orange-200 bg-orange-50/40"
+                      : "border-green-200 bg-green-50/40";
+
+                const iconColor = esPrimeraVez
+                  ? "text-amber-500"
+                  : !afiliacionAnio
+                    ? "text-red-400"
+                    : saldoPendienteAfil > 0
+                      ? "text-orange-500"
+                      : "text-green-600";
+
                 return (
                   <div>
                     <h3 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-primary" /> Seguro / Afiliación {anio}
+                      <ShieldCheck className="w-4 h-4 text-primary" /> Afiliación a Scout Argentina {anio}
                     </h3>
-                    <Card className={cn(
-                      "p-4 flex items-center justify-between gap-3",
-                      !afiliacionAnio ? "border-red-200 bg-red-50/40" :
-                      saldoPendienteAfil > 0 ? "border-orange-200 bg-orange-50/40" :
-                      "border-green-200 bg-green-50/40"
-                    )}>
+                    <Card className={cn("p-4 flex items-center justify-between gap-3", cardColor)}>
                       <div className="flex items-center gap-3">
-                        <ShieldCheck className={cn("w-5 h-5 flex-shrink-0",
-                          !afiliacionAnio ? "text-red-400" :
-                          saldoPendienteAfil > 0 ? "text-orange-500" : "text-green-600"
-                        )} />
+                        <ShieldCheck className={cn("w-5 h-5 flex-shrink-0", iconColor)} />
                         <div>
-                          <p className="font-medium text-sm">Seguro anual {anio}</p>
+                          <p className="font-medium text-sm">Afiliación a Scout Argentina {anio}</p>
                           {afiliacionAnio?.fecha_pago && (
                             <p className="text-xs text-muted-foreground">Registrado el {afiliacionAnio.fecha_pago} · {afiliacionAnio.forma_pago}</p>
                           )}
-                          {!afiliacionAnio && (
+                          {esPrimeraVez && (
+                            <p className="text-xs text-amber-600">Primer año — bonificado por la Asociación Nacional</p>
+                          )}
+                          {!afiliacionAnio && !esPrimeraVez && (
                             <p className="text-xs text-muted-foreground">Sin registro de pago este año</p>
                           )}
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        {!afiliacionAnio ? (
+                        {esPrimeraVez ? (
+                          <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">⭐ Bonificado</Badge>
+                        ) : !afiliacionAnio ? (
                           <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs">✗ No pagado</Badge>
-                        ) : afiliacionAnio.es_primera_vez ? (
-                          <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">⭐ Primera vez — sin costo</Badge>
                         ) : saldoPendienteAfil > 0 ? (
                           <div>
-                            <p className="text-xs text-muted-foreground">Seguro: {formatMoney(afiliacionAnio.monto)}</p>
+                            <p className="text-xs text-muted-foreground">Monto: {formatMoney(afiliacionAnio.monto)}</p>
                             <p className="text-sm font-semibold text-orange-600">Debe: {formatMoney(saldoPendienteAfil)}</p>
                           </div>
                         ) : (
                           <div>
-                            <p className="text-xs text-muted-foreground">Seguro: {formatMoney(afiliacionAnio.monto)}</p>
+                            <p className="text-xs text-muted-foreground">Monto: {formatMoney(afiliacionAnio.monto)}</p>
                             <p className="text-sm font-semibold text-green-600">Pagado ✓</p>
                           </div>
                         )}
@@ -314,7 +333,7 @@ export default function EstadoCuenta() {
                           <div key={a.id} className="flex items-center justify-between px-3 py-1.5 rounded bg-muted/40 text-xs">
                             <span className="text-muted-foreground">Afiliación {a.anio}</span>
                             {a.es_primera_vez ? (
-                              <span className="text-amber-600">⭐ Sin costo</span>
+                              <span className="text-amber-600">⭐ Bonificado</span>
                             ) : (
                               <span className="text-green-600 font-medium">Pagado {formatMoney(a.monto_pagado || a.monto)}</span>
                             )}
