@@ -1,0 +1,78 @@
+{
+  "name": "Afiliacion",
+  "type": "object",
+  "properties": {
+    "beneficiario_id": {
+      "type": "string",
+      "description": "ID del beneficiario"
+    },
+    "beneficiario_nombre": {
+      "type": "string",
+      "description": "Nombre del beneficiario"
+    },
+    "beneficiario_dni": {
+      "type": "string",
+      "description": "DNI del beneficiario"
+    },
+    "anio": {
+      "type": "number",
+      "description": "A\u00f1o de la afiliaci\u00f3n"
+    },
+    "monto": {
+      "type": "number",
+      "description": "Monto abonado por la afiliaci\u00f3n (seguro)"
+    },
+    "fecha_pago": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha en que se realiz\u00f3 el pago"
+    },
+    "forma_pago": {
+      "type": "string",
+      "enum": [
+        "Efectivo",
+        "Transferencia"
+      ],
+      "description": "Forma de pago"
+    },
+    "es_primera_vez": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si es la primera afiliaci\u00f3n del beneficiario (no abona)"
+    },
+    "rama": {
+      "type": "string",
+      "description": "Rama del beneficiario al momento de la afiliaci\u00f3n"
+    },
+    "observaciones": {
+      "type": "string",
+      "description": "Notas adicionales"
+    }
+  },
+  "required": [
+    "beneficiario_id",
+    "anio"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
