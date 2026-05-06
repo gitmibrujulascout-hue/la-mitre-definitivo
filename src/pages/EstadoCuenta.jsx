@@ -12,7 +12,7 @@ import {
 import RamaBadge from '@/components/shared/RamaBadge';
 import {
   MESES, MESES_SIN_CUOTA,
-  CUOTA_EFECTIVO, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado
+  CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado
 } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 
@@ -86,6 +86,9 @@ export default function EstadoCuenta() {
     });
 
     const cuotaIndividual = getCuotaBeneficiario(b, activos);
+    // Calcular cuota transferencia aplicando el mismo ratio de descuento que efectivo
+    const ratioDescuento = esBeneficiarioConCuota(b) ? cuotaIndividual / CUOTA_EFECTIVO : 1;
+    const cuotaTransferencia = Math.round(CUOTA_TRANSFERENCIA * ratioDescuento);
 
     // Calcular deuda mes por mes: si el mes ya está pagado no genera deuda,
     // si no está pagado genera deuda por la cuota base (efectivo).
@@ -136,6 +139,7 @@ export default function EstadoCuenta() {
       totalCreditos,
       creditosDisp,
       marzoGratis,
+      cuotaTransferencia,
       tieneDescuento: cuotaIndividual < CUOTA_EFECTIVO && esBeneficiarioConCuota(b),
     };
   };
@@ -398,7 +402,12 @@ export default function EstadoCuenta() {
                 {esBeneficiarioConCuota(b) && !b.becado && (
                   <div className="flex justify-between text-xs text-muted-foreground mt-2 px-1">
                     <span>Pagado: <span className="font-medium text-green-600">{formatMoney(cuenta.pagadoCuotas)}</span></span>
-                    <span>Cuota: <span className="font-medium">{formatMoney(cuenta.cuotaIndividual)}/mes</span></span>
+                    <span className="text-right">
+                      Cuota: <span className="font-medium">{formatMoney(cuenta.cuotaIndividual)} efectivo</span>
+                      {' · '}
+                      <span className="font-medium">{formatMoney(cuenta.cuotaTransferencia)} transferencia</span>
+                      <span className="text-muted-foreground"> /mes</span>
+                    </span>
                   </div>
                 )}
               </div>
