@@ -59,17 +59,19 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     [beneficiarios]
   );
 
-  // Para campamentos: filtrar según si el campamento permite adultos pagantes
+  // Para campamentos: solo los asistentes registrados en el campamento seleccionado
   const beneficiariosParaCampamento = useMemo(() => {
     const selectedCampObj = campamentos.find(c => c.id === campamentoId);
-    if (selectedCampObj && !selectedCampObj.adultos_pagan) {
-      // Solo niños (beneficiarios que abonan)
-      return beneficiarios
-        .filter(b => b.activo !== false && b.tipo !== 'Voluntario' && !['Voluntario', 'Educador'].includes(b.rama))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-    }
+    if (!selectedCampObj) return [];
+
+    // Combinar beneficiarios_ids y adultos_ids del campamento
+    const idsAsistentes = [
+      ...(selectedCampObj.beneficiarios_ids || []),
+      ...(selectedCampObj.adultos_ids || []),
+    ];
+
     return beneficiarios
-      .filter(b => b.activo !== false)
+      .filter(b => b.activo !== false && idsAsistentes.includes(b.id))
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   }, [beneficiarios, campamentos, campamentoId]);
 
@@ -251,17 +253,41 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
             ))}
           </div>
 
+          {/* Campamento (antes que el beneficiario, solo en modo Campamento) */}
+          {tipoPago === 'Campamento' && (
+            <div>
+              <Label>Campamento *</Label>
+              <Select value={campamentoId} onValueChange={v => { setCampamentoId(v); setBeneficiarioId(''); setMontoManual(''); }}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar campamento" /></SelectTrigger>
+                <SelectContent>
+                  {campamentos.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Beneficiario */}
           <div>
             <Label>Beneficiario *</Label>
-            <Select value={beneficiarioId} onValueChange={v => { setBeneficiarioId(v); setHermanosSeleccionados([]); }}>
-              <SelectTrigger><SelectValue placeholder="Seleccionar beneficiario" /></SelectTrigger>
+            <Select
+              value={beneficiarioId}
+              onValueChange={v => { setBeneficiarioId(v); setHermanosSeleccionados([]); }}
+              disabled={tipoPago === 'Campamento' && !campamentoId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={tipoPago === 'Campamento' && !campamentoId ? 'Primero seleccioná un campamento' : 'Seleccionar beneficiario'} />
+              </SelectTrigger>
               <SelectContent>
                 {beneficiariosLista.map(b => (
                   <SelectItem key={b.id} value={b.id}>{b.nombre}{b.rama ? ` (${b.rama})` : ''}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {tipoPago === 'Campamento' && campamentoId && beneficiariosLista.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-1">No hay asistentes registrados en este campamento.</p>
+            )}
           </div>
 
           {/* Año */}
@@ -350,20 +376,9 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
             </div>
           )}
 
-          {/* Campamento */}
+          {/* Campamento - detalle de saldo y monto */}
           {tipoPago === 'Campamento' && (
             <div className="space-y-3">
-              <div>
-                <Label>Campamento *</Label>
-                <Select value={campamentoId} onValueChange={v => { setCampamentoId(v); setMontoManual(''); }}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar campamento" /></SelectTrigger>
-                  <SelectContent>
-                    {campamentos.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               {selectedCamp && beneficiarioId && (
                 <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm space-y-1">
                   <div className="flex justify-between">
