@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, CreditCard, Receipt, Tent, 
-  BookOpen, Menu, X, TreePine, Landmark, TrendingUp, ExternalLink, FileText, ShieldCheck
+  BookOpen, Menu, X, TreePine, Landmark, TrendingUp, ExternalLink, FileText, ShieldCheck, MessageCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +17,7 @@ const navItems = [
   { path: '/actividades', label: 'Act. Económicas', icon: TrendingUp },
   { path: '/reporte-pagos', label: 'Reporte de Pagos', icon: FileText },
   { path: '/afiliaciones', label: 'Afiliaciones', icon: ShieldCheck },
+  { path: '/agente-scout', label: 'Agente WhatsApp', icon: MessageCircle },
 ];
 
 export default function Sidebar() {
