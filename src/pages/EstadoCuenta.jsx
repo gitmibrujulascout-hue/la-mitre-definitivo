@@ -11,8 +11,8 @@ import {
 } from 'lucide-react';
 import RamaBadge from '@/components/shared/RamaBadge';
 import {
-  MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS,
-  CUOTA_EFECTIVO, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario
+  MESES, MESES_SIN_CUOTA,
+  CUOTA_EFECTIVO, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado
 } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 
@@ -67,20 +67,23 @@ export default function EstadoCuenta() {
     if (!b) return null;
     const activos = beneficiarios.filter(x => x.activo !== false);
     const pagosDelBen = pagos.filter(p => p.beneficiario_id === b.id);
-    // Pagos de cuota del año (pueden registrarse en cualquier año pero con anio=actual)
-    // Pagos de cuota del año seleccionado
     const pagosCuotasAnio = pagosDelBen.filter(
       p => Number(p.anio) === Number(anio) && p.tipo_pago !== 'Campamento'
     );
-    // Todos los pagos del año (incluye campamento, para historial)
     const pagosAnio = pagosDelBen.filter(p => Number(p.anio) === Number(anio));
     const mesesPagados = pagosCuotasAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []));
 
+    const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
+    const esPrimeraVez = !b.fecha_primer_afiliacion;
+    const marzoGratis = marzoEsBonificado(afiliacionAnio, esPrimeraVez);
+
     const mesActual = new Date().getMonth(); // 0-indexed
     const mesesTranscurridos = anio < new Date().getFullYear() ? 12 : anio > new Date().getFullYear() ? 0 : mesActual + 1;
-    const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter(
-      m => !MESES_SIN_CUOTA.includes(m) && !MESES_BONIFICADOS.includes(m)
-    );
+    const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter(m => {
+      if (MESES_SIN_CUOTA.includes(m)) return false;
+      if (m === 'Marzo' && marzoGratis) return false;
+      return true;
+    });
 
     const cuotaIndividual = getCuotaBeneficiario(b, activos);
 
@@ -132,6 +135,7 @@ export default function EstadoCuenta() {
       saldo,
       totalCreditos,
       creditosDisp,
+      marzoGratis,
       tieneDescuento: cuotaIndividual < CUOTA_EFECTIVO && esBeneficiarioConCuota(b),
     };
   };
@@ -367,7 +371,7 @@ export default function EstadoCuenta() {
                     const pago = cuenta.pagosAnio.find(p => (p.meses || [p.mes]).includes(mes));
                     const pagado = !!pago;
                     const sinCuota = MESES_SIN_CUOTA.includes(mes);
-                    const bonificado = MESES_BONIFICADOS.includes(mes);
+                    const bonificado = mes === 'Marzo' && cuenta.marzoGratis;
                     return (
                       <Card key={mes} className={cn(
                         'p-2.5 text-center',
