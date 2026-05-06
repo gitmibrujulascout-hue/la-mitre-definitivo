@@ -14,7 +14,6 @@ import RamaBadge from '@/components/shared/RamaBadge';
 import { RAMAS, TODOS_LOS_ROLES, formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -91,20 +90,57 @@ export default function ReporteBeneficiarios() {
   };
 
   const exportarPDF = () => {
-    const doc = new jsPDF({ orientation: 'landscape' });
-    doc.setFontSize(14);
-    doc.text(`Reporte de Beneficiarios ${anio}`, 14, 15);
-    doc.setFontSize(9);
-    doc.text(`Total: ${filtrados.length} | Con deuda: ${filtrados.filter(b => b.tieneDeuda).length} | Afiliados: ${filtrados.filter(b => b.afiliacion).length}`, 14, 22);
-    doc.autoTable({
-      head: [COLS],
-      body: filas(),
-      startY: 26,
-      styles: { fontSize: 7, cellPadding: 2 },
-      headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [245, 247, 250] },
-      columnStyles: { 0: { cellWidth: 40 } },
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 10;
+    const colWidths = [42, 18, 20, 22, 12, 12, 22, 22, 22, 22, 18];
+    const rowH = 7;
+    let y = 14;
+
+    // Título
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Reporte de Beneficiarios ${anio}`, margin, y);
+    y += 6;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total: ${filtrados.length}  |  Con deuda: ${filtrados.filter(b => b.tieneDeuda).length}  |  Afiliados: ${filtrados.filter(b => b.afiliacion).length}  |  Becados: ${filtrados.filter(b => b.becado).length}`, margin, y);
+    y += 6;
+
+    // Header
+    doc.setFillColor(30, 64, 175);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    let x = margin;
+    COLS.forEach((col, i) => {
+      doc.rect(x, y, colWidths[i], rowH, 'F');
+      doc.text(col, x + 1.5, y + 4.5);
+      x += colWidths[i];
     });
+    y += rowH;
+
+    // Rows
+    doc.setFont('helvetica', 'normal');
+    filas().forEach((row, ri) => {
+      if (y + rowH > doc.internal.pageSize.getHeight() - 10) {
+        doc.addPage();
+        y = 14;
+      }
+      doc.setFillColor(ri % 2 === 0 ? 255 : 245);
+      doc.setTextColor(30, 30, 30);
+      x = margin;
+      row.forEach((cell, i) => {
+        doc.rect(x, y, colWidths[i], rowH, 'F');
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(x, y, colWidths[i], rowH, 'S');
+        const text = String(cell ?? '');
+        doc.text(text.length > 18 ? text.slice(0, 17) + '…' : text, x + 1.5, y + 4.5);
+        x += colWidths[i];
+      });
+      y += rowH;
+    });
+
     doc.save(`reporte-beneficiarios-${anio}.pdf`);
   };
 
