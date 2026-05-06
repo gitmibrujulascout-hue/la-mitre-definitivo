@@ -46,6 +46,18 @@ export default function ActividadForm({ open, onClose, onSaved, initialData, ben
     setForm(prev => ({ ...prev, ramas_participantes: updated, adultos_ids: adultosAuto }));
   };
 
+  const voluntariosPuros = adultos.filter(b => b.rama === 'Voluntario');
+
+  const toggleVoluntarios = () => {
+    const todosSeleccionados = voluntariosPuros.every(b => form.adultos_ids.includes(b.id));
+    if (todosSeleccionados) {
+      setForm(prev => ({ ...prev, adultos_ids: prev.adultos_ids.filter(id => !voluntariosPuros.map(b => b.id).includes(id)) }));
+    } else {
+      const nuevos = voluntariosPuros.map(b => b.id);
+      setForm(prev => ({ ...prev, adultos_ids: [...new Set([...prev.adultos_ids, ...nuevos])] }));
+    }
+  };
+
   const toggleAdulto = (id) => {
     setForm(prev => ({
       ...prev,
@@ -165,6 +177,20 @@ export default function ActividadForm({ open, onClose, onSaved, initialData, ben
                   </button>
                 );
               })}
+              {voluntariosPuros.length > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleVoluntarios}
+                  className={cn(
+                    'px-3 py-1.5 rounded-full text-sm font-medium border transition-all',
+                    voluntariosPuros.every(b => form.adultos_ids.includes(b.id))
+                      ? 'bg-slate-700 text-white border-slate-700'
+                      : 'bg-muted text-muted-foreground border-border'
+                  )}
+                >
+                  Voluntarios
+                </button>
+              )}
             </div>
           </div>
 
