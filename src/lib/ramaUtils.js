@@ -29,10 +29,10 @@ export function marzoEsBonificado(afiliacionAnio, esPrimeraVez) {
   if (!afiliacionAnio) return false; // Sin afiliación registrada → no bonificado
   if (afiliacionAnio.es_primera_vez) return true;
   if (!afiliacionAnio.fecha_pago) return false;
-  const fechaPago = new Date(afiliacionAnio.fecha_pago);
-  const anio = fechaPago.getFullYear();
-  const limiteMarzo = new Date(anio, 2, 14); // 14 de Marzo
-  return fechaPago <= limiteMarzo;
+  // Parsear como fecha local para evitar desfase de zona horaria (UTC vs AR)
+  const [anio, mes, dia] = afiliacionAnio.fecha_pago.split('T')[0].split('-').map(Number);
+  // Bonificado si pagó la afiliación en o antes del 31 de Marzo
+  return anio * 10000 + mes * 100 + dia <= anio * 10000 + 3 * 100 + 31;
 }
 
 export const CUOTA_EFECTIVO = 25000;
