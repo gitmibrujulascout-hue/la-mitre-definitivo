@@ -14,7 +14,7 @@ import { MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS, CUOTA_EFECTIVO, formatMoney 
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, onBack, afiliacion, esPrimeraVezAfiliacion }) {
+export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, onBack, afiliacion, esPrimeraVezAfiliacion, todosLosBeneficiarios = [] }) {
   const [showAplicar, setShowAplicar] = useState(false);
   const [creditoSeleccionado, setCreditoSeleccionado] = useState(null);
   const queryClient = useQueryClient();
@@ -101,7 +101,9 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
       <CreditosPanel
         beneficiarioId={beneficiario.id}
         beneficiarioNombre={beneficiario.nombre}
+        grupoFamiliar={beneficiario.grupo_familiar}
         campamentos={campamentos}
+        todosLosBeneficiarios={todosLosBeneficiarios}
         onSaved={() => queryClient.invalidateQueries({ queryKey: ['pagos'] })}
       />
 
@@ -189,8 +191,9 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
 }
 
 // Subcomponente: panel de créditos disponibles del beneficiario
-function CreditosPanel({ beneficiarioId, beneficiarioNombre, campamentos, onSaved }) {
+function CreditosPanel({ beneficiarioId, beneficiarioNombre, grupoFamiliar, campamentos, todosLosBeneficiarios, onSaved }) {
   const [showAplicar, setShowAplicar] = useState(false);
+  const [showTransferir, setShowTransferir] = useState(false);
   const [creditoSel, setCreditoSel] = useState(null);
   const queryClient = useQueryClient();
 
@@ -220,12 +223,21 @@ function CreditosPanel({ beneficiarioId, beneficiarioNombre, campamentos, onSave
                     {cr.monto_original !== cr.monto_disponible && ` (original: ${formatMoney(cr.monto_original)})`}
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() => { setCreditoSel(cr); setShowAplicar(true); }}
-                >
-                  <Zap className="w-3 h-3 mr-1" />Aplicar crédito
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { setCreditoSel(cr); setShowTransferir(true); }}
+                  >
+                    Transferir
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => { setCreditoSel(cr); setShowAplicar(true); }}
+                  >
+                    <Zap className="w-3 h-3 mr-1" />Aplicar
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
@@ -248,7 +260,119 @@ function CreditosPanel({ beneficiarioId, beneficiarioNombre, campamentos, onSave
           }}
         />
       )}
+      {showTransferir && creditoSel && (
+        <TransferirCreditoDialog
+          credito={creditoSel}
+          origenId={beneficiarioId}
+          grupoFamiliar={grupoFamiliar}
+          todosLosBeneficiarios={todosLosBeneficiarios}
+          onClose={() => { setShowTransferir(false); setCreditoSel(null); }}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario', beneficiarioId] });
+            setShowTransferir(false);
+            setCreditoSel(null);
+            onSaved();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+// Dialog para transferir crédito a otro beneficiario
+function TransferirCreditoDialog({ credito, origenId, grupoFamiliar, todosLosBeneficiarios, onClose, onSaved }) {
+  const queryClient = useQueryClient();
+  // Priorizar familia, luego todos los demás (excluyendo el propio)
+  const familiares = todosLosBeneficiarios.filter(b =>
+    b.id !== origenId && b.activo !== false && grupoFamiliar && b.grupo_familiar === grupoFamiliar
+  );
+  const otrosBen = todosLosBeneficiarios.filter(b =>
+    b.id !== origenId && b.activo !== false && (!grupoFamiliar || b.grupo_familiar !== grupoFamiliar)
+  );
+
+  const [destinoId, setDestinoId] = useState('');
+  const [monto, setMonto] = useState(credito.monto_disponible.toString());
+  const montoNum = parseFloat(monto) || 0;
+
+  const destinatario = todosLosBeneficiarios.find(b => b.id === destinoId);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      // Crear crédito nuevo para el destinatario
+      await base44.entities.CreditoBeneficiario.create({
+        beneficiario_id: destinoId,
+        beneficiario_nombre: destinatario?.nombre,
+        actividad_id: credito.actividad_id,
+        actividad_nombre: credito.actividad_nombre,
+        monto_original: montoNum,
+        monto_disponible: montoNum,
+        fecha: new Date().toISOString().split('T')[0],
+        observaciones: `Transferido desde ${credito.beneficiario_nombre}`,
+      });
+      // Descontar del crédito origen
+      await base44.entities.CreditoBeneficiario.update(credito.id, {
+        monto_disponible: Math.max(0, credito.monto_disponible - montoNum),
+      });
+      // Invalidar créditos del destinatario también
+      queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario', destinoId] });
+    },
+    onSuccess: () => { toast.success('Crédito transferido correctamente'); onSaved(); },
+  });
+
+  const canSave = montoNum > 0 && montoNum <= credito.monto_disponible && !!destinoId;
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Transferir crédito</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="bg-primary/5 rounded-lg p-3 text-center">
+            <p className="text-xs text-muted-foreground">Crédito disponible de "{credito.actividad_nombre}"</p>
+            <p className="text-2xl font-bold text-primary">{formatMoney(credito.monto_disponible)}</p>
+          </div>
+
+          <div>
+            <Label>Transferir a</Label>
+            <Select value={destinoId} onValueChange={setDestinoId}>
+              <SelectTrigger><SelectValue placeholder="Seleccionar beneficiario" /></SelectTrigger>
+              <SelectContent>
+                {familiares.length > 0 && (
+                  <>
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase">Grupo familiar</div>
+                    {familiares.map(b => (
+                      <SelectItem key={b.id} value={b.id}>{b.nombre} · {b.rama || ''}</SelectItem>
+                    ))}
+                    {otrosBen.length > 0 && <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase mt-1">Otros</div>}
+                  </>
+                )}
+                {otrosBen.map(b => (
+                  <SelectItem key={b.id} value={b.id}>{b.nombre} · {b.rama || ''}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>Monto a transferir</Label>
+            <Input
+              type="number"
+              value={monto}
+              onChange={e => setMonto(e.target.value)}
+              max={credito.monto_disponible}
+            />
+            <p className="text-xs text-muted-foreground mt-1">Máximo: {formatMoney(credito.monto_disponible)}</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={() => mutation.mutate()} disabled={!canSave || mutation.isPending}>
+            Transferir {formatMoney(montoNum)}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

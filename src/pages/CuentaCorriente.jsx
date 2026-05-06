@@ -135,7 +135,7 @@ export default function CuentaCorriente() {
     const cuenta = cuentas.find(c => c.id === selectedBen.id);
     const pagosDelBen = pagos.filter(p => p.beneficiario_id === selectedBen.id);
     const campBen = campamentos.filter(c => c.beneficiarios_ids?.includes(selectedBen.id));
-    return <CuentaDetalle beneficiario={cuenta} pagos={pagosDelBen} campamentos={campBen} anio={anio} onBack={() => setSelectedBen(null)} afiliacion={cuenta?.afiliacionAnio} esPrimeraVezAfiliacion={cuenta?.esPrimeraVezAfiliacion} />;
+    return <CuentaDetalle beneficiario={cuenta} pagos={pagosDelBen} campamentos={campBen} anio={anio} onBack={() => setSelectedBen(null)} afiliacion={cuenta?.afiliacionAnio} esPrimeraVezAfiliacion={cuenta?.esPrimeraVezAfiliacion} todosLosBeneficiarios={beneficiarios} />;
   }
 
   return (

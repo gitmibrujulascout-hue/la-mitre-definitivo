@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -172,41 +171,27 @@ export default function ActividadForm({ open, onClose, onSaved, initialData, ben
           {/* Adultos responsables */}
           {adultos.length > 0 && (
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label>Adultos responsables ({form.adultos_ids.length} seleccionados)</Label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => update('adultos_ids', adultos.map(b => b.id))}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    Todos
-                  </button>
-                  {form.adultos_ids.length > 0 && (
-                    <>
-                      <span className="text-xs text-muted-foreground">·</span>
-                      <button
-                        type="button"
-                        onClick={() => update('adultos_ids', [])}
-                        className="text-xs text-muted-foreground hover:underline"
-                      >
-                        Ninguno
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="max-h-40 overflow-y-auto border rounded-lg p-2 space-y-1">
-                {adultos.map(b => (
-                  <div key={b.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-muted text-sm">
-                    <Checkbox
-                      checked={form.adultos_ids.includes(b.id)}
-                      onCheckedChange={() => toggleAdulto(b.id)}
-                    />
-                    <span className="flex-1">{b.nombre}</span>
-                    {b.rama_educador && <span className="text-xs text-muted-foreground">{b.rama_educador}</span>}
-                  </div>
-                ))}
+              <Label className="mb-2 block">Voluntarios / Adultos responsables</Label>
+              <div className="flex gap-2 flex-wrap">
+                {adultos.map(b => {
+                  const active = form.adultos_ids.includes(b.id);
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => toggleAdulto(b.id)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-full text-sm font-medium border transition-all',
+                        active
+                          ? 'bg-slate-700 text-white border-slate-700'
+                          : 'bg-muted text-muted-foreground border-border'
+                      )}
+                    >
+                      {b.nombre}
+                      {b.rama_educador && <span className="ml-1 opacity-60 text-xs">({b.rama_educador})</span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
