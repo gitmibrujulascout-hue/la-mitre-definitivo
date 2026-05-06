@@ -123,8 +123,17 @@ export default function EstadoCuenta() {
     const creditosDisp = creditos.filter(c => c.beneficiario_id === b.id && (c.monto_disponible || 0) > 0);
     const totalCreditos = creditosDisp.reduce((s, c) => s + (c.monto_disponible || 0), 0);
 
+    // Afiliación: si no es primera vez, sumar deuda pendiente al saldo
+    let saldoAfiliacion = 0;
+    if (!esPrimeraVez && anio >= AÑO_INICIO) {
+      const MONTO_SEGURO = 42000;
+      const montoPagadoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto_pagado || afiliacionAnio.monto || 0) : 0;
+      const montoDebidoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto || MONTO_SEGURO) : MONTO_SEGURO;
+      saldoAfiliacion = montoPagadoAfiliacion - montoDebidoAfiliacion;
+    }
+
     // Saldo real total
-    const saldo = saldoCuotas + saldoCamp + totalCreditos;
+    const saldo = saldoCuotas + saldoCamp + totalCreditos + saldoAfiliacion;
 
     return {
       pagosAnio,
