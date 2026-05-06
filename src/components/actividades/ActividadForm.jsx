@@ -172,7 +172,20 @@ export default function ActividadForm({ open, onClose, onSaved, initialData, ben
           {/* Adultos responsables */}
           {adultos.length > 0 && (
             <div>
-              <Label className="mb-2 block">Adultos responsables</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Adultos responsables</Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allIds = adultos.map(b => b.id);
+                    const allSelected = allIds.every(id => form.adultos_ids.includes(id));
+                    update('adultos_ids', allSelected ? [] : allIds);
+                  }}
+                  className="text-xs text-primary hover:underline"
+                >
+                  {adultos.every(b => form.adultos_ids.includes(b.id)) ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                </button>
+              </div>
               <div className="max-h-40 overflow-y-auto border rounded-lg p-2 space-y-1">
                 {adultos.map(b => (
                   <div key={b.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-muted text-sm">

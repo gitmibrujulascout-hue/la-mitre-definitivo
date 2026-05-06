@@ -180,7 +180,22 @@ export default function CampamentoForm({ open, onClose, beneficiarios, campament
 
           {/* Adultos asistentes */}
           <div>
-            <Label className="mb-2 block">Adultos / Voluntarios asistentes ({(form.adultos_ids || []).length} seleccionados)</Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label>Adultos / Voluntarios asistentes ({(form.adultos_ids || []).length} seleccionados)</Label>
+              {adultos.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allIds = adultos.map(b => b.id);
+                    const allSelected = allIds.every(id => (form.adultos_ids || []).includes(id));
+                    update('adultos_ids', allSelected ? [] : allIds);
+                  }}
+                  className="text-xs text-primary hover:underline"
+                >
+                  {adultos.every(b => (form.adultos_ids || []).includes(b.id)) ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                </button>
+              )}
+            </div>
             <ScrollArea className="h-36 border rounded-lg p-2">
               {adultos.length === 0 ? (
                 <p className="text-xs text-muted-foreground p-2">No hay adultos/voluntarios registrados</p>
