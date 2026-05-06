@@ -34,5 +34,17 @@
     }
   ],
   "whatsapp_greeting": "\u00a1Hola! Soy el asistente del Grupo Scout \ud83c\udfd5\ufe0f\n\nPuedo ayudarte a consultar tu *estado de cuenta* y *historial de pagos*.\n\nPor favor, enviame tu *n\u00famero de DNI* (sin puntos) y te doy toda la informaci\u00f3n al instante.",
+  "context_files": [],
+  "app_user_connector_configs": [],
+  "selected_skill_names": [],
+  "selected_workspace_skill_ids": [],
+  "model": "automatic",
+  "telegram_greeting": "",
+  "line_greeting": "",
+  "memory_config": {
+    "enabled": true,
+    "scope": "both",
+    "instructions": null
+  },
   "name": "consulta_scout"
 }
