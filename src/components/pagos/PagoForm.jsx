@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, marzoEsBonificado } from '@/lib/ramaUtils';
+import { registrarPagos } from '@/lib/registros';
 import { toast } from 'sonner';
 import { Tent, CreditCard, Users } from 'lucide-react';
 
@@ -41,11 +42,10 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   });
 
   const createMutation = useMutation({
-    mutationFn: async (pagos) => {
-      await Promise.all(pagos.map(p => base44.entities.Pago.create(p)));
-    },
+    mutationFn: async (pagos) => registrarPagos(pagos),
     onSuccess: (_, pagos) => {
       queryClient.invalidateQueries({ queryKey: ['pagos'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos'] });
       onClose();
       toast.success(pagos.length > 1 ? `${pagos.length} pagos registrados` : 'Pago registrado');
     },

@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { base44 } from '@/api/base44Client';
+import { registrarGasto, actualizarGasto } from '@/lib/registros';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Upload, Loader2, Sparkles, FileText } from 'lucide-react';
 import { toast } from 'sonner';
@@ -46,11 +47,16 @@ export default function GastoForm({ open, onClose, initialData }) {
 
   const queryClient = useQueryClient();
   const createMutation = useMutation({
-    mutationFn: data => base44.entities.Gasto.create(data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['gastos'] }); onClose(); toast.success('Gasto registrado'); },
+    mutationFn: data => registrarGasto(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gastos'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos'] });
+      onClose();
+      toast.success('Gasto registrado');
+    },
   });
   const updateMutation = useMutation({
-    mutationFn: data => base44.entities.Gasto.update(initialData.id, data),
+    mutationFn: data => actualizarGasto(initialData.id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['gastos'] }); onClose(); toast.success('Gasto actualizado'); },
   });
 

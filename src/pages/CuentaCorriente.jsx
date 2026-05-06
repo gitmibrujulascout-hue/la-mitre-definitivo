@@ -12,6 +12,7 @@ import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
 import PagoForm from '@/components/pagos/PagoForm';
 import { RAMAS, MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado } from '@/lib/ramaUtils';
+import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 
 const CUOTA_EFECTIVO_REF = CUOTA_EFECTIVO;
 import { cn } from '@/lib/utils';
@@ -94,9 +95,8 @@ export default function CuentaCorriente() {
       let saldoAfiliacion = 0;
       if (!esPrimeraVez && anio >= AÑO_INICIO) {
         // Debe pagar afiliación: si no tiene registro o tiene saldo pendiente
-        const MONTO_SEGURO = 42000;
         const montoPagadoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto_pagado || afiliacionAnio.monto || 0) : 0;
-        const montoDebidoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto || MONTO_SEGURO) : MONTO_SEGURO;
+        const montoDebidoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto || MONTO_SEGURO_AFILIACION) : MONTO_SEGURO_AFILIACION;
         saldoAfiliacion = montoPagadoAfiliacion - montoDebidoAfiliacion;
       }
 

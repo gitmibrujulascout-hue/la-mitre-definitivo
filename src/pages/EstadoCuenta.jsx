@@ -14,6 +14,7 @@ import {
   MESES, MESES_SIN_CUOTA,
   CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado
 } from '@/lib/ramaUtils';
+import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 import { cn } from '@/lib/utils';
 
 const AÑO_INICIO = 2026;
@@ -126,9 +127,8 @@ export default function EstadoCuenta() {
     // Afiliación: si no es primera vez, sumar deuda pendiente al saldo
     let saldoAfiliacion = 0;
     if (!esPrimeraVez && anio >= AÑO_INICIO) {
-      const MONTO_SEGURO = 42000;
       const montoPagadoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto_pagado || afiliacionAnio.monto || 0) : 0;
-      const montoDebidoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto || MONTO_SEGURO) : MONTO_SEGURO;
+      const montoDebidoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto || MONTO_SEGURO_AFILIACION) : MONTO_SEGURO_AFILIACION;
       saldoAfiliacion = montoPagadoAfiliacion - montoDebidoAfiliacion;
     }
 
