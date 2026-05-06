@@ -64,11 +64,13 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     const selectedCampObj = campamentos.find(c => c.id === campamentoId);
     if (!selectedCampObj) return [];
 
-    // Combinar beneficiarios_ids y adultos_ids del campamento
-    const idsAsistentes = [
-      ...(selectedCampObj.beneficiarios_ids || []),
-      ...(selectedCampObj.adultos_ids || []),
-    ];
+    // Si los adultos no pagan, solo incluir los beneficiarios_ids (niños)
+    const idsAsistentes = selectedCampObj.adultos_pagan
+      ? [
+          ...(selectedCampObj.beneficiarios_ids || []),
+          ...(selectedCampObj.adultos_ids || []),
+        ]
+      : [...(selectedCampObj.beneficiarios_ids || [])];
 
     return beneficiarios
       .filter(b => b.activo !== false && idsAsistentes.includes(b.id))
