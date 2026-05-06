@@ -1,0 +1,229 @@
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Download, Filter, Users } from 'lucide-react';
+import PageHeader from '@/components/shared/PageHeader';
+import RamaBadge from '@/components/shared/RamaBadge';
+import { RAMAS, TODOS_LOS_ROLES, formatMoney } from '@/lib/ramaUtils';
+import { cn } from '@/lib/utils';
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+export default function ReporteBeneficiarios() {
+  const anioActual = new Date().getFullYear();
+  const [anio, setAnio] = useState(anioActual.toString());
+  const [filtroRama, setFiltroRama] = useState('todas');
+  const [filtroTipo, setFiltroTipo] = useState('todos');
+  const [filtroDeuda, setFiltroDeuda] = useState('todos');
+  const [filtroAfiliacion, setFiltroAfiliacion] = useState('todos');
+  const [filtroActivo, setFiltroActivo] = useState('activos');
+  const [search, setSearch] = useState('');
+
+  const { data: beneficiarios = [] } = useQuery({ queryKey: ['beneficiarios'], queryFn: () => base44.entities.Beneficiario.list() });
+  const { data: pagos = [] } = useQuery({ queryKey: ['pagos'], queryFn: () => base44.entities.Pago.list('-fecha_pago', 1000) });
+  const { data: afiliaciones = [] } = useQuery({ queryKey: ['afiliaciones'], queryFn: () => base44.entities.Afiliacion.list() });
+  const { data: campamentos = [] } = useQuery({ queryKey: ['campamentos'], queryFn: () => base44.entities.Campamento.list() });
+
+  const anioNum = parseInt(anio);
+
+  const datos = useMemo(() => {
+    return beneficiarios.map(b => {
+      const pagosBen = pagos.filter(p => p.beneficiario_id === b.id && p.anio === anioNum);
+      const mesesPagados = new Set(pagosBen.filter(p => p.tipo_pago !== 'Campamento').flatMap(p => p.meses || [p.mes]).filter(Boolean));
+      const mesesDeuda = MESES.filter(m => !mesesPagados.has(m));
+      const totalPagado = pagosBen.reduce((s, p) => s + (p.monto || 0), 0);
+      const campsAsignados = campamentos.filter(c => (c.beneficiarios_ids || []).includes(b.id));
+      const totalCampamentos = campsAsignados.reduce((s, c) => s + (c.costo_por_persona || 0), 0);
+      const pagadoCamp = pagosBen.filter(p => p.tipo_pago === 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
+      const deudaCamp = Math.max(0, totalCampamentos - pagadoCamp);
+      const afiliacion = afiliaciones.find(a => a.beneficiario_id === b.id && a.anio === anioNum);
+      const tieneDeuda = b.tipo !== 'Voluntario' && !b.becado && (mesesDeuda.length > 0 || deudaCamp > 0);
+      return { ...b, mesesPagados: mesesPagados.size, mesesDeuda: mesesDeuda.length, totalPagado, deudaCamp, tieneDeuda, afiliacion };
+    });
+  }, [beneficiarios, pagos, afiliaciones, campamentos, anioNum]);
+
+  const filtrados = useMemo(() => {
+    return datos.filter(b => {
+      if (filtroActivo === 'activos' && b.activo === false) return false;
+      if (filtroActivo === 'inactivos' && b.activo !== false) return false;
+      if (filtroRama !== 'todas' && b.rama !== filtroRama) return false;
+      if (filtroTipo !== 'todos' && (b.tipo || 'Beneficiario') !== filtroTipo) return false;
+      if (filtroDeuda === 'con_deuda' && !b.tieneDeuda) return false;
+      if (filtroDeuda === 'sin_deuda' && b.tieneDeuda) return false;
+      if (filtroAfiliacion === 'afiliado' && !b.afiliacion) return false;
+      if (filtroAfiliacion === 'no_afiliado' && b.afiliacion) return false;
+      if (search && !b.nombre?.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    }).sort((a, b2) => (a.nombre || '').localeCompare(b2.nombre || '', 'es'));
+  }, [datos, filtroActivo, filtroRama, filtroTipo, filtroDeuda, filtroAfiliacion, search]);
+
+  const exportarCSV = () => {
+    const cols = ['Nombre', 'Rama', 'Tipo', 'DNI', 'Activo', 'Becado', 'Meses pagados', 'Meses con deuda', 'Deuda campamento', 'Total pagado', 'Afiliación'];
+    const rows = filtrados.map(b => [
+      b.nombre || '', b.rama || '', b.tipo || 'Beneficiario', b.dni || '',
+      b.activo !== false ? 'Sí' : 'No', b.becado ? 'Sí' : 'No',
+      b.mesesPagados, b.mesesDeuda, b.deudaCamp, b.totalPagado,
+      b.afiliacion ? 'Sí' : 'No',
+    ]);
+    const csv = [cols, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url;
+    a.download = `reporte-beneficiarios-${anio}.csv`; a.click(); URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div>
+      <PageHeader title="Reporte de Beneficiarios" description="Estado de miembros, pagos y deudas por período">
+        <Button variant="outline" onClick={exportarCSV} disabled={filtrados.length === 0}>
+          <Download className="w-4 h-4 mr-2" />Exportar CSV
+        </Button>
+      </PageHeader>
+
+      {/* Filtros */}
+      <Card className="p-4 mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Filtros</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <Select value={anio} onValueChange={setAnio}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[2024,2025,2026,2027].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filtroRama} onValueChange={setFiltroRama}>
+            <SelectTrigger><SelectValue placeholder="Rama" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas las ramas</SelectItem>
+              {TODOS_LOS_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos los tipos</SelectItem>
+              <SelectItem value="Beneficiario">Beneficiarios</SelectItem>
+              <SelectItem value="Voluntario">Voluntarios</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filtroDeuda} onValueChange={setFiltroDeuda}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Toda deuda</SelectItem>
+              <SelectItem value="con_deuda">Con deuda</SelectItem>
+              <SelectItem value="sin_deuda">Sin deuda</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filtroAfiliacion} onValueChange={setFiltroAfiliacion}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Afiliación: todos</SelectItem>
+              <SelectItem value="afiliado">Afiliados</SelectItem>
+              <SelectItem value="no_afiliado">No afiliados</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filtroActivo} onValueChange={setFiltroActivo}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="activos">Solo activos</SelectItem>
+              <SelectItem value="inactivos">Solo inactivos</SelectItem>
+              <SelectItem value="todos">Todos</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="mt-3">
+          <Input placeholder="Buscar por nombre..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" />
+        </div>
+      </Card>
+
+      {/* Resumen */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: 'Total', value: filtrados.length, color: 'text-foreground' },
+          { label: 'Con deuda', value: filtrados.filter(b => b.tieneDeuda).length, color: 'text-red-600' },
+          { label: 'Afiliados', value: filtrados.filter(b => b.afiliacion).length, color: 'text-green-600' },
+          { label: 'Becados', value: filtrados.filter(b => b.becado).length, color: 'text-amber-600' },
+        ].map(s => (
+          <Card key={s.label} className="p-4 text-center">
+            <p className="text-xs text-muted-foreground">{s.label}</p>
+            <p className={cn('text-2xl font-bold', s.color)}>{s.value}</p>
+          </Card>
+        ))}
+      </div>
+
+      {/* Tabla */}
+      <Card className="overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50">
+              <TableHead>Nombre</TableHead>
+              <TableHead>Rama</TableHead>
+              <TableHead className="hidden sm:table-cell">DNI</TableHead>
+              <TableHead>Meses pagados</TableHead>
+              <TableHead>Deuda cuotas</TableHead>
+              <TableHead>Deuda camp.</TableHead>
+              <TableHead>Afiliación {anio}</TableHead>
+              <TableHead>Estado</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtrados.length === 0 ? (
+              <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                No hay beneficiarios con los filtros seleccionados
+              </TableCell></TableRow>
+            ) : filtrados.map(b => (
+              <TableRow key={b.id} className={b.tieneDeuda ? 'bg-red-50/40' : ''}>
+                <TableCell className="font-medium">{b.nombre}</TableCell>
+                <TableCell><RamaBadge rama={b.rama} /></TableCell>
+                <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">{b.dni || '—'}</TableCell>
+                <TableCell>
+                  {b.tipo === 'Voluntario' ? <span className="text-muted-foreground text-xs">N/A</span> : (
+                    <span className={cn('font-medium text-sm', b.mesesDeuda > 0 ? 'text-red-600' : 'text-green-600')}>
+                      {b.mesesPagados} / 12
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {b.tipo === 'Voluntario' || b.becado ? <span className="text-muted-foreground text-xs">—</span> : (
+                    b.mesesDeuda > 0
+                      ? <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs">{b.mesesDeuda} mes{b.mesesDeuda > 1 ? 'es' : ''}</Badge>
+                      : <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">Al día</Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {b.deudaCamp > 0
+                    ? <span className="text-red-600 font-medium text-sm">{formatMoney(b.deudaCamp)}</span>
+                    : <span className="text-muted-foreground text-xs">—</span>
+                  }
+                </TableCell>
+                <TableCell>
+                  {b.tipo === 'Voluntario' ? <span className="text-muted-foreground text-xs">N/A</span>
+                    : b.afiliacion
+                      ? <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">Afiliado</Badge>
+                      : <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">Pendiente</Badge>
+                  }
+                </TableCell>
+                <TableCell>
+                  {b.activo === false
+                    ? <Badge variant="secondary" className="text-xs">Inactivo</Badge>
+                    : b.becado
+                      ? <Badge className="bg-amber-100 text-amber-700 border text-xs">Becado</Badge>
+                      : null
+                  }
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
+  );
+}

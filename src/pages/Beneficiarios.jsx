@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
@@ -24,7 +24,10 @@ export default function Beneficiarios() {
   const [showImport, setShowImport] = useState(false);
   const [search, setSearch] = useState('');
   const [filterDni, setFilterDni] = useState('');
-  const [filterRama, setFilterRama] = useState('todas');
+  const [filterRama, setFilterRama] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('rama') || 'todas';
+  });
   const [filterTipo, setFilterTipo] = useState('todos');
   const [filterFuncion, setFilterFuncion] = useState('todas');
   const [selected, setSelected] = useState([]);

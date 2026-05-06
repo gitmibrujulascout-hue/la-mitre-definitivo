@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Users, CreditCard, Receipt, Tent, TrendingUp, TrendingDown, Award } from 'lucide-react';
+import { Users, CreditCard, Receipt, TrendingUp, TrendingDown, Wallet, Landmark } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 import StatsCard from '@/components/shared/StatsCard';
-import RamaBadge from '@/components/shared/RamaBadge';
 import { RAMA_CONFIG, RAMAS, formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 
@@ -25,13 +25,13 @@ export default function Dashboard() {
     queryFn: () => base44.entities.Gasto.list()
   });
 
-  const { data: campamentos = [] } = useQuery({
-    queryKey: ['campamentos'],
-    queryFn: () => base44.entities.Campamento.list()
+  const { data: movimientosExtra = [] } = useQuery({
+    queryKey: ['movimientos_banco'],
+    queryFn: () => base44.entities.MovimientoBanco.list('-fecha', 500),
   });
 
-  const totalIngresos = pagos.reduce((sum, p) => sum + (p.monto || 0), 0);
-  const totalGastos = gastos.reduce((sum, g) => sum + (g.monto || 0), 0);
+  const navigate = useNavigate();
+
   const activos = beneficiarios.filter((b) => b.activo !== false);
   const becados = activos.filter((b) => b.becado);
 
@@ -40,15 +40,69 @@ export default function Dashboard() {
     return acc;
   }, {});
 
+  // Helper: destino de un pago/gasto
+  const destinoPago = (p) => {
+    if (p.destino === 'Banco') return 'Banco';
+    if (p.destino === 'Caja') return 'Caja';
+    if (p.forma_pago === 'Transferencia') return 'Banco';
+    return 'Caja';
+  };
+  const destinoGasto = (g) => {
+    if (g.destino === 'Banco') return 'Banco';
+    if (g.destino === 'Caja') return 'Caja';
+    if (g.forma_pago === 'Transferencia') return 'Banco';
+    return 'Caja';
+  };
+
+  const fondos = useMemo(() => {
+    const calcular = (cuenta) => {
+      const ingresosPagos = pagos.filter(p => destinoPago(p) === cuenta).reduce((s, p) => s + (p.monto || 0), 0);
+      const egresosGastos = gastos.filter(g => destinoGasto(g) === cuenta).reduce((s, g) => s + (g.monto || 0), 0);
+      const movs = movimientosExtra.filter(m => (m.cuenta || 'Caja') === cuenta);
+      const ingresosExtra = movs.filter(m => m.tipo === 'Ingreso').reduce((s, m) => s + (m.monto || 0), 0);
+      const egresosExtra = movs.filter(m => m.tipo === 'Egreso').reduce((s, m) => s + (m.monto || 0), 0);
+      const ingresos = ingresosPagos + ingresosExtra;
+      const egresos = egresosGastos + egresosExtra;
+      return { ingresos, egresos, saldo: ingresos - egresos };
+    };
+    return { caja: calcular('Caja'), banco: calcular('Banco') };
+  }, [pagos, gastos, movimientosExtra]);
+
   return (
     <div>
       <PageHeader title="Dashboard" description="Resumen general de tesorería" />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatsCard title="Beneficiarios" value={activos.length} subtitle={`${becados.length} becados`} icon={Users} />
-        <StatsCard title="Ingresos" value={formatMoney(totalIngresos)} subtitle={`${pagos.length} pagos`} icon={TrendingUp} />
-        <StatsCard title="Gastos" value={formatMoney(totalGastos)} subtitle={`${gastos.length} registros`} icon={TrendingDown} />
-        <StatsCard title="Balance" value={formatMoney(totalIngresos - totalGastos)} subtitle="Ingresos - Gastos" icon={CreditCard} />
+        <StatsCard title="Beneficiarios activos" value={activos.length} subtitle={`${becados.length} becados`} icon={Users} />
+        <StatsCard title="Balance total" value={formatMoney(fondos.caja.saldo + fondos.banco.saldo)} subtitle="Caja + Banco" icon={CreditCard} />
+        <StatsCard title="Saldo Caja" value={formatMoney(fondos.caja.saldo)} subtitle={`+${formatMoney(fondos.caja.ingresos)} / −${formatMoney(fondos.caja.egresos)}`} icon={Wallet} />
+        <StatsCard title="Saldo Banco" value={formatMoney(fondos.banco.saldo)} subtitle={`+${formatMoney(fondos.banco.ingresos)} / −${formatMoney(fondos.banco.egresos)}`} icon={Landmark} />
+      </div>
+
+      {/* Detalle financiero */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        {[{ label: 'Caja (Efectivo)', data: fondos.caja, icon: Wallet }, { label: 'Banco (Transferencia)', data: fondos.banco, icon: Landmark }].map(({ label, data, icon: Icon }) => (
+          <Card key={label} className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Icon className="w-4 h-4 text-primary" />
+              <span className="font-semibold text-sm">{label}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="bg-green-50 rounded-lg p-2">
+                <p className="text-xs text-muted-foreground">Ingresos</p>
+                <p className="font-bold text-green-700 text-sm">{formatMoney(data.ingresos)}</p>
+              </div>
+              <div className="bg-red-50 rounded-lg p-2">
+                <p className="text-xs text-muted-foreground">Egresos</p>
+                <p className="font-bold text-red-600 text-sm">{formatMoney(data.egresos)}</p>
+              </div>
+              <div className={cn('rounded-lg p-2', data.saldo >= 0 ? 'bg-blue-50' : 'bg-red-50')}>
+                <p className="text-xs text-muted-foreground">Saldo</p>
+                <p className={cn('font-bold text-sm', data.saldo >= 0 ? 'text-blue-700' : 'text-red-600')}>{formatMoney(data.saldo)}</p>
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
 
       {/* Ramas */}
@@ -56,7 +110,11 @@ export default function Dashboard() {
         {RAMAS.map((rama) => {
           const config = RAMA_CONFIG[rama];
           return (
-            <Card key={rama} className={cn('text-card-foreground p-4 rounded-xl border-2 shadow relative overflow-hidden', config.border)} style={{ backgroundColor: 'transparent' }}>
+            <Card
+              key={rama}
+              onClick={() => navigate(`/beneficiarios?rama=${encodeURIComponent(rama)}`)}
+              className={cn('text-card-foreground p-4 rounded-xl border-2 shadow relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow', config.border)}
+              style={{ backgroundColor: 'transparent' }}>
               <div className={cn('absolute inset-0 opacity-[0.08]', config.color)} />
               <div className="relative pl-3">
                 <p className="text-xs font-medium text-muted-foreground">{rama}</p>

@@ -18,6 +18,7 @@ import EstadoCuenta from '@/pages/EstadoCuenta';
 import ReportePagos from '@/pages/ReportePagos';
 import Afiliaciones from '@/pages/Afiliaciones';
 import AgenteScout from '@/pages/AgenteScout';
+import ReporteBeneficiarios from '@/pages/ReporteBeneficiarios';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, user } = useAuth();
@@ -66,6 +67,7 @@ const AuthenticatedApp = () => {
         <Route path="/reporte-pagos" element={<ReportePagos />} />
         <Route path="/afiliaciones" element={<Afiliaciones />} />
         <Route path="/agente-scout" element={<AgenteScout />} />
+        <Route path="/reporte-beneficiarios" element={<ReporteBeneficiarios />} />
       </Route>
       <Route path="/estado-cuenta" element={<EstadoCuenta />} />
       <Route path="*" element={<PageNotFound />} />

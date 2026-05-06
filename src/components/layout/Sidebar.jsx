@@ -16,6 +16,7 @@ const navItems = [
   { path: '/caja', label: 'Caja y Banco', icon: Landmark },
   { path: '/actividades', label: 'Act. Económicas', icon: TrendingUp },
   { path: '/reporte-pagos', label: 'Reporte de Pagos', icon: FileText },
+  { path: '/reporte-beneficiarios', label: 'Reporte Miembros', icon: Users },
   { path: '/afiliaciones', label: 'Afiliaciones', icon: ShieldCheck },
   { path: '/agente-scout', label: 'Agente WhatsApp', icon: MessageCircle },
 ];
