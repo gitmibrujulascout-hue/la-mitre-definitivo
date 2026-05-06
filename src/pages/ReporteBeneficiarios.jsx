@@ -7,11 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, Filter, Users } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Download, Filter, Users, FileSpreadsheet, FileText } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import { RAMAS, TODOS_LOS_ROLES, formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -63,26 +66,66 @@ export default function ReporteBeneficiarios() {
     }).sort((a, b2) => (a.nombre || '').localeCompare(b2.nombre || '', 'es'));
   }, [datos, filtroActivo, filtroRama, filtroTipo, filtroDeuda, filtroAfiliacion, search]);
 
-  const exportarCSV = () => {
-    const cols = ['Nombre', 'Rama', 'Tipo', 'DNI', 'Activo', 'Becado', 'Meses pagados', 'Meses con deuda', 'Deuda campamento', 'Total pagado', 'Afiliación'];
-    const rows = filtrados.map(b => [
-      b.nombre || '', b.rama || '', b.tipo || 'Beneficiario', b.dni || '',
-      b.activo !== false ? 'Sí' : 'No', b.becado ? 'Sí' : 'No',
-      b.mesesPagados, b.mesesDeuda, b.deudaCamp, b.totalPagado,
-      b.afiliacion ? 'Sí' : 'No',
-    ]);
-    const csv = [cols, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url;
-    a.download = `reporte-beneficiarios-${anio}.csv`; a.click(); URL.revokeObjectURL(url);
+  const filas = () => filtrados.map(b => [
+    b.nombre || '',
+    b.rama || '',
+    b.tipo || 'Beneficiario',
+    b.dni || '',
+    b.activo !== false ? 'Sí' : 'No',
+    b.becado ? 'Sí' : 'No',
+    b.tipo === 'Voluntario' ? 'N/A' : `${b.mesesPagados} / 12`,
+    b.tipo === 'Voluntario' || b.becado ? '—' : b.mesesDeuda > 0 ? `${b.mesesDeuda} mes(es)` : 'Al día',
+    b.deudaCamp > 0 ? `$${b.deudaCamp}` : '—',
+    `$${b.totalPagado}`,
+    b.tipo === 'Voluntario' ? 'N/A' : b.afiliacion ? 'Sí' : 'Pendiente',
+  ]);
+
+  const COLS = ['Nombre', 'Rama', 'Tipo', 'DNI', 'Activo', 'Becado', 'Meses pagados', 'Deuda cuotas', 'Deuda camp.', 'Total pagado', 'Afiliación'];
+
+  const exportarXLS = async () => {
+    const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs');
+    const ws = XLSX.utils.aoa_to_sheet([COLS, ...filas()]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `Reporte ${anio}`);
+    XLSX.writeFile(wb, `reporte-beneficiarios-${anio}.xlsx`);
+  };
+
+  const exportarPDF = () => {
+    const doc = new jsPDF({ orientation: 'landscape' });
+    doc.setFontSize(14);
+    doc.text(`Reporte de Beneficiarios ${anio}`, 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Total: ${filtrados.length} | Con deuda: ${filtrados.filter(b => b.tieneDeuda).length} | Afiliados: ${filtrados.filter(b => b.afiliacion).length}`, 14, 22);
+    doc.autoTable({
+      head: [COLS],
+      body: filas(),
+      startY: 26,
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+      columnStyles: { 0: { cellWidth: 40 } },
+    });
+    doc.save(`reporte-beneficiarios-${anio}.pdf`);
   };
 
   return (
     <div>
       <PageHeader title="Reporte de Beneficiarios" description="Estado de miembros, pagos y deudas por período">
-        <Button variant="outline" onClick={exportarCSV} disabled={filtrados.length === 0}>
-          <Download className="w-4 h-4 mr-2" />Exportar CSV
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" disabled={filtrados.length === 0}>
+              <Download className="w-4 h-4 mr-2" />Exportar
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={exportarXLS}>
+              <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" />Excel (.xlsx)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportarPDF}>
+              <FileText className="w-4 h-4 mr-2 text-red-600" />PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </PageHeader>
 
       {/* Filtros */}
