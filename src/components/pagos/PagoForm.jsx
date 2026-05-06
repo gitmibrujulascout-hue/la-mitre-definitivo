@@ -64,16 +64,18 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     const selectedCampObj = campamentos.find(c => c.id === campamentoId);
     if (!selectedCampObj) return [];
 
-    // Si los adultos no pagan, solo incluir los beneficiarios_ids (niños)
-    const idsAsistentes = selectedCampObj.adultos_pagan
-      ? [
-          ...(selectedCampObj.beneficiarios_ids || []),
-          ...(selectedCampObj.adultos_ids || []),
-        ]
-      : [...(selectedCampObj.beneficiarios_ids || [])];
+    const idsAsistentes = [
+      ...(selectedCampObj.beneficiarios_ids || []),
+      ...(selectedCampObj.adultos_ids || []),
+    ];
 
     return beneficiarios
-      .filter(b => b.activo !== false && idsAsistentes.includes(b.id))
+      .filter(b => {
+        if (!b.activo || !idsAsistentes.includes(b.id)) return false;
+        // Si los adultos no pagan, excluir voluntarios y educadores
+        if (!selectedCampObj.adultos_pagan && (b.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(b.rama))) return false;
+        return true;
+      })
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   }, [beneficiarios, campamentos, campamentoId]);
 
