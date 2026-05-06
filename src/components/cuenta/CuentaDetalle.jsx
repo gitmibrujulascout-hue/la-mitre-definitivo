@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, CheckCircle2, XCircle, Award, Tent, Gift, Zap, ShieldCheck, AlertCircle } from 'lucide-react';
 import RamaBadge from '@/components/shared/RamaBadge';
-import { MESES, MESES_SIN_CUOTA, MESES_BONIFICADOS, CUOTA_EFECTIVO, formatMoney } from '@/lib/ramaUtils';
+import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, marzoEsBonificado } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -23,6 +23,7 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
 
   const pagosAnio = pagos.filter(p => p.anio === anio);
   const mesesPagados = pagosAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []));
+  const marzoGratis = marzoEsBonificado(afiliacion, esPrimeraVezAfiliacion);
 
   return (
     <div>
@@ -114,7 +115,7 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
           const pago = pagosAnio.find(p => (p.meses || [p.mes]).includes(mes));
           const pagado = !!pago;
           const sinCuota = MESES_SIN_CUOTA.includes(mes);
-          const bonificado = MESES_BONIFICADOS.includes(mes);
+          const bonificado = mes === 'Marzo' && marzoGratis;
 
           return (
             <Card key={mes} className={cn(
