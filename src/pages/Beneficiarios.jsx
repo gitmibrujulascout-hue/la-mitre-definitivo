@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye } from 'lucide-react';
+import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye, MessageCircle } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import BeneficiarioForm from '@/components/beneficiarios/BeneficiarioForm';
