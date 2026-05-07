@@ -254,7 +254,11 @@ export default function Beneficiarios() {
                     <div className="flex items-center gap-1">
                       {(b.telefono_contacto || b.telefono_contacto_2) && (
                         <a
-                          href={`https://wa.me/${(b.telefono_contacto || b.telefono_contacto_2).replace(/\D/g, '')}`}
+                          href={(() => {
+                            const num = (b.telefono_contacto || b.telefono_contacto_2).replace(/\D/g, '');
+                            const full = num.startsWith('54') ? num : `54${num}`;
+                            return `https://wa.me/${full}`;
+                          })()}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
