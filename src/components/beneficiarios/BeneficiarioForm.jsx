@@ -347,7 +347,14 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Sexo</Label>
-                <Input value={form.sexo || ''} onChange={e => update('sexo', e.target.value)} placeholder="M / F / Otro" />
+                <Select value={form.sexo || ''} onValueChange={v => update('sexo', v === '__blank__' ? '' : v)}>
+                  <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__blank__">Sin especificar</SelectItem>
+                    <SelectItem value="Masculino">Masculino</SelectItem>
+                    <SelectItem value="Femenino">Femenino</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Estado civil</Label>
@@ -409,7 +416,27 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Función</Label>
-                <Input value={form.funcion} onChange={e => update('funcion', e.target.value)} placeholder="Ej: Jefe de Sección" />
+                <Select value={form.funcion || ''} onValueChange={v => update('funcion', v)}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar función" /></SelectTrigger>
+                  <SelectContent>
+                    {[
+                      'Ayudante de Comunidad Caminante',
+                      'Ayudante de Comunidad Rover',
+                      'Ayudante de Manada',
+                      'Ayudante de Unidad Scout',
+                      'Caminante',
+                      'Equipo de Apoyo',
+                      'Jefe de Comunidad Caminante',
+                      'Jefe de Comunidad Rover',
+                      'Jefe de Manada',
+                      'Jefe de Unidad Scout',
+                      'Lobato / Lobezna',
+                      'Representante de Entidad Patrocinante',
+                      'Rover',
+                      'Scout',
+                    ].map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Categoría</Label>
