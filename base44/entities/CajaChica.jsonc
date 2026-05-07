@@ -1,0 +1,62 @@
+{
+  "name": "CajaChica",
+  "type": "object",
+  "properties": {
+    "monto": {
+      "type": "number",
+      "description": "Monto disponible en caja chica"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha del registro"
+    },
+    "concepto": {
+      "type": "string",
+      "description": "Descripci\u00f3n / motivo de la caja chica"
+    },
+    "responsable": {
+      "type": "string",
+      "description": "Voluntario responsable"
+    },
+    "estado": {
+      "type": "string",
+      "enum": [
+        "Abierta",
+        "Cerrada"
+      ],
+      "default": "Abierta",
+      "description": "Estado de la caja chica"
+    },
+    "observaciones": {
+      "type": "string",
+      "description": "Notas adicionales"
+    }
+  },
+  "required": [
+    "monto",
+    "fecha"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

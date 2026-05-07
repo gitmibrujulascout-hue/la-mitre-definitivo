@@ -16,6 +16,7 @@ import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import ImportMovimientosBancoDialog from '@/components/caja/ImportMovimientosBancoDialog';
+import CajaChicaPanel from '@/components/caja/CajaChicaPanel';
 
 function MovimientoManualDialog({ open, onClose, cuentaDestino }) {
   const [form, setForm] = useState({
@@ -264,6 +265,9 @@ export default function Caja() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Caja Chica — solo visible en pestaña Caja */}
+      {tab === 'caja' && <CajaChicaPanel />}
 
       {/* Tabla de movimientos */}
       <Card className="overflow-hidden">
