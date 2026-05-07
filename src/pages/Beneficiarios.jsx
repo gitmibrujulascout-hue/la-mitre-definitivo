@@ -257,7 +257,7 @@ export default function Beneficiarios() {
                           href={(() => {
                             const num = (b.telefono_contacto || b.telefono_contacto_2).replace(/\D/g, '');
                             const full = num.startsWith('54') ? num : `54${num}`;
-                            return `https://wa.me/${full}`;
+                            return `https://web.whatsapp.com/send?phone=${full}`;
                           })()}
                           target="_blank"
                           rel="noopener noreferrer"
