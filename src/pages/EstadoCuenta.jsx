@@ -386,7 +386,7 @@ export default function EstadoCuenta() {
                     // Un mes genera deuda si ya transcurrió y no está pagado ni bonificado
                     const mesIdx = MESES.indexOf(mes);
                     const mesActualIdx = new Date().getMonth(); // 0=Enero
-                    const yaTranscurrioEsteAnio = anio < new Date().getFullYear() || mesIdx < mesActualIdx;
+                    const yaTranscurrioEsteAnio = anio < new Date().getFullYear() || mesIdx <= mesActualIdx;
                     const esDeuda = !sinCuota && !b.becado && !bonificado && !pagado && yaTranscurrioEsteAnio && esBeneficiarioConCuota(b);
                     return (
                      <Card key={mes} className={cn(
