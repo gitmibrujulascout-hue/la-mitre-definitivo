@@ -252,6 +252,17 @@ export default function Beneficiarios() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
+                      {(b.telefono_contacto || b.telefono_contacto_2) && (
+                        <a
+                          href={`https://wa.me/${(b.telefono_contacto || b.telefono_contacto_2).replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button variant="ghost" size="icon" title="Enviar WhatsApp">
+                            <MessageCircle className="w-4 h-4 text-green-600" />
+                          </Button>
+                        </a>
+                      )}
                       <Button variant="ghost" size="icon" onClick={() => setFichaOpen(b)}>
                         <Eye className="w-4 h-4 text-muted-foreground" />
                       </Button>
