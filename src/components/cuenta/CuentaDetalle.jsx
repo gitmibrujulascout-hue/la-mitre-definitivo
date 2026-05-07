@@ -13,11 +13,18 @@ import RamaBadge from '@/components/shared/RamaBadge';
 import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, marzoEsBonificado } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import WhatsAppResumenBtn from '@/components/cuenta/WhatsAppResumenBtn';
 
 export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, onBack, afiliacion, esPrimeraVezAfiliacion, todosLosBeneficiarios = [] }) {
   const [showAplicar, setShowAplicar] = useState(false);
   const [creditoSeleccionado, setCreditoSeleccionado] = useState(null);
   const queryClient = useQueryClient();
+
+  const { data: creditosWA = [] } = useQuery({
+    queryKey: ['creditos-beneficiario', beneficiario?.id],
+    queryFn: () => base44.entities.CreditoBeneficiario.filter({ beneficiario_id: beneficiario.id }),
+    enabled: !!beneficiario?.id,
+  });
 
   if (!beneficiario) return null;
 
@@ -42,11 +49,22 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
               )}
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground">Saldo {anio}</p>
-            <p className={cn('text-3xl font-bold', beneficiario.saldo >= 0 ? 'text-green-600' : 'text-red-500')}>
-              {formatMoney(beneficiario.saldo)}
-            </p>
+          <div className="flex flex-col items-end gap-2">
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Saldo {anio}</p>
+              <p className={cn('text-3xl font-bold', beneficiario.saldo >= 0 ? 'text-green-600' : 'text-red-500')}>
+                {formatMoney(beneficiario.saldo)}
+              </p>
+            </div>
+            <WhatsAppResumenBtn
+              beneficiario={beneficiario}
+              pagos={pagos}
+              campamentos={campamentos}
+              anio={anio}
+              afiliacion={afiliacion}
+              esPrimeraVezAfiliacion={esPrimeraVezAfiliacion}
+              creditos={creditosWA}
+            />
           </div>
         </div>
       </Card>
