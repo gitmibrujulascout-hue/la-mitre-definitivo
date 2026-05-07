@@ -383,25 +383,33 @@ export default function EstadoCuenta() {
                     const pagado = !!pago;
                     const sinCuota = MESES_SIN_CUOTA.includes(mes);
                     const bonificado = mes === 'Marzo' && cuenta.marzoGratis;
+                    // Un mes genera deuda si ya transcurrió y no está pagado ni bonificado
+                    const mesIdx = MESES.indexOf(mes);
+                    const mesActualIdx = new Date().getMonth(); // 0=Enero
+                    const yaTranscurrioEsteAnio = anio < new Date().getFullYear() || mesIdx < mesActualIdx;
+                    const esDeuda = !sinCuota && !b.becado && !bonificado && !pagado && yaTranscurrioEsteAnio && esBeneficiarioConCuota(b);
                     return (
-                      <Card key={mes} className={cn(
-                        'p-2.5 text-center',
-                        sinCuota ? 'bg-slate-50 border-slate-200 opacity-40' :
-                        b.becado || bonificado ? 'bg-amber-50 border-amber-200' :
-                        pagado ? 'bg-green-50 border-green-200' : 'bg-red-50/40 border-red-100'
-                      )}>
-                        <p className="text-xs font-medium text-muted-foreground">{mes.substring(0, 3)}</p>
-                        {sinCuota ? (
-                          <p className="text-xs text-slate-300 mt-1">—</p>
-                        ) : b.becado ? (
-                          <Award className="w-4 h-4 text-amber-500 mx-auto mt-1" />
-                        ) : bonificado && !pagado ? (
-                          <Award className="w-4 h-4 text-amber-400 mx-auto mt-1" />
-                        ) : pagado ? (
-                          <CheckCircle2 className="w-4 h-4 text-green-500 mx-auto mt-1" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-red-300 mx-auto mt-1" />
-                        )}
+                     <Card key={mes} className={cn(
+                       'p-2.5 text-center',
+                       sinCuota ? 'bg-slate-50 border-slate-200 opacity-40' :
+                       b.becado || bonificado ? 'bg-amber-50 border-amber-200' :
+                       pagado ? 'bg-green-50 border-green-200' :
+                       esDeuda ? 'bg-red-100 border-red-400' : 'bg-slate-50 border-slate-200'
+                     )}>
+                       <p className={cn("text-xs font-medium", esDeuda ? "text-red-700 font-bold" : "text-muted-foreground")}>{mes.substring(0, 3)}</p>
+                       {sinCuota ? (
+                         <p className="text-xs text-slate-300 mt-1">—</p>
+                       ) : b.becado ? (
+                         <Award className="w-4 h-4 text-amber-500 mx-auto mt-1" />
+                       ) : bonificado && !pagado ? (
+                         <Award className="w-4 h-4 text-amber-400 mx-auto mt-1" />
+                       ) : pagado ? (
+                         <CheckCircle2 className="w-4 h-4 text-green-500 mx-auto mt-1" />
+                       ) : esDeuda ? (
+                         <XCircle className="w-4 h-4 text-red-600 mx-auto mt-1" />
+                       ) : (
+                         <p className="text-xs text-slate-300 mt-1">—</p>
+                       )}
                       </Card>
                     );
                   })}
