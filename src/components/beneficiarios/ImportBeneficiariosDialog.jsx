@@ -175,6 +175,7 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
       prompt: `Tenés un archivo Excel de un grupo scout con las siguientes columnas: Tipo Documento, Documento (DNI), Nombre, Sexo, Fecha Nacimiento, Provincia, Localidad, Calle, Codigo Postal, Estado Civil, Telefono, Email, Religion, Religion Descripcion, Estudios, Titulo, Empresa, Discapacidad, Detalle Discapacidad, Nacionalidad, Funcion, Categoria, Rama, Zona, Distrito, Código, Organismo, Fecha Primer Afiliacion.
 Extraé TODAS las filas de datos (ignorá la fila de encabezados).
 Para las fechas (Fecha Nacimiento y Fecha Primer Afiliacion), convertilas EXACTAMENTE al formato YYYY-MM-DD, sin alterar el día. Si la celda está vacía, devolvé string vacío.
+Para el campo sexo: normalizalo siempre a "Masculino" o "Femenino" (con mayúscula inicial). Cualquier variante como "M", "m", "MASCULINO", "masculino", "Varón", "Hombre", "H" → "Masculino". Cualquier variante como "F", "f", "FEMENINO", "femenino", "Mujer", "Dama" → "Femenino". Si está vacío o es desconocido, devolvé string vacío.
 Devolvé un JSON con el array "personas".`,
       file_urls: [file_url],
       response_json_schema: {
@@ -212,6 +213,14 @@ Devolvé un JSON con el array "personas".`,
       return;
     }
 
+    const normalizarSexo = (s) => {
+      if (!s) return '';
+      const v = s.toString().trim().toLowerCase();
+      if (['m', 'masculino', 'varon', 'varón', 'hombre', 'h', 'male'].includes(v)) return 'Masculino';
+      if (['f', 'femenino', 'mujer', 'dama', 'female'].includes(v)) return 'Femenino';
+      return '';
+    };
+
     const enriched = result.personas.map(p => {
       const fecha = parseFecha(p.fecha_nacimiento);
       const fechaAfil = parseFecha(p.fecha_primer_afiliacion);
@@ -219,6 +228,7 @@ Devolvé un JSON con el array "personas".`,
       const tipo = ramaCalculada === 'Voluntario' ? 'Voluntario' : 'Beneficiario';
       return {
         ...p,
+        sexo: normalizarSexo(p.sexo),
         fecha_nacimiento: fecha,
         fecha_primer_afiliacion: fechaAfil || '',
         rama: ramaCalculada,
