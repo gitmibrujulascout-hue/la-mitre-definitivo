@@ -12,7 +12,11 @@
     },
     "telefono_contacto": {
       "type": "string",
-      "description": "Tel\u00e9fono"
+      "description": "Tel\u00e9fono / WhatsApp principal"
+    },
+    "telefono_contacto_2": {
+      "type": "string",
+      "description": "Tel\u00e9fono / WhatsApp secundario (ej: mam\u00e1, pap\u00e1)"
     },
     "fecha_nacimiento": {
       "type": "string",

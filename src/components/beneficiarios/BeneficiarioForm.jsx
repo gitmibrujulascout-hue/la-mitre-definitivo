@@ -13,7 +13,7 @@ import { AlertTriangle, ArrowRight, Users, Search, X } from 'lucide-react';
 
 export default function BeneficiarioForm({ open, onClose, onSave, initialData, todosBeneficiarios = [] }) {
   const [form, setForm] = useState(initialData || {
-    nombre: '', dni: '', telefono_contacto: '', fecha_nacimiento: '',
+    nombre: '', dni: '', telefono_contacto: '', telefono_contacto_2: '', fecha_nacimiento: '',
     funcion: '', categoria: '', zona: '', distrito: '', codigo: '', organismo: '',
     religion: '', religion_descripcion: '',
     rama: '', tipo: 'Beneficiario', becado: false, email_contacto: '', activo: true,
@@ -161,19 +161,23 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                 <Input value={form.dni} onChange={e => update('dni', e.target.value)} placeholder="12345678" />
               </div>
               <div>
-                <Label>Teléfono</Label>
+                <Label>WhatsApp / Tel. principal</Label>
                 <Input value={form.telefono_contacto} onChange={e => update('telefono_contacto', e.target.value)} placeholder="351-1234567" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Fecha de nacimiento</Label>
-                <Input type="date" value={form.fecha_nacimiento} onChange={e => update('fecha_nacimiento', e.target.value)} />
+                <Label>WhatsApp / Tel. secundario</Label>
+                <Input value={form.telefono_contacto_2 || ''} onChange={e => update('telefono_contacto_2', e.target.value)} placeholder="Mamá / Papá" />
               </div>
               <div>
                 <Label>Email contacto</Label>
                 <Input value={form.email_contacto} onChange={e => update('email_contacto', e.target.value)} placeholder="email@ejemplo.com" />
               </div>
+            </div>
+            <div>
+              <Label>Fecha de nacimiento</Label>
+              <Input type="date" value={form.fecha_nacimiento} onChange={e => update('fecha_nacimiento', e.target.value)} />
             </div>
             <div>
               <Label>Tipo *</Label>
