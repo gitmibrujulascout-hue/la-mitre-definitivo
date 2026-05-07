@@ -270,16 +270,14 @@ export default function EstadoCuenta() {
                   {/* Saldo */}
                   <div className={cn(
                     "rounded-xl p-4 text-center min-w-[130px]",
-                    b.becado ? "bg-amber-50 border border-amber-200" :
                     cuenta.saldo >= 0 ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"
                   )}>
                     <p className="text-xs text-muted-foreground mb-1">Saldo {anio}</p>
-                    {b.becado ? (
-                      <p className="text-lg font-bold text-amber-600">Becado</p>
-                    ) : (
-                      <p className={cn("text-2xl font-bold", cuenta.saldo >= 0 ? "text-green-600" : "text-red-500")}>
-                        {formatMoney(cuenta.saldo)}
-                      </p>
+                    <p className={cn("text-2xl font-bold", cuenta.saldo >= 0 ? "text-green-600" : "text-red-500")}>
+                      {formatMoney(cuenta.saldo)}
+                    </p>
+                    {b.becado && cuenta.saldo >= 0 && (
+                      <p className="text-xs text-amber-600 mt-1">Cuotas bonificadas</p>
                     )}
                     {cuenta.tieneDescuento && (
                       <p className="text-xs text-blue-600 mt-1">{formatMoney(cuenta.cuotaIndividual)}/mes</p>
