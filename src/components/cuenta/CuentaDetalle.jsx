@@ -32,11 +32,13 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
   const mesesPagados = pagosAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []));
   const marzoGratis = marzoEsBonificado(afiliacion, esPrimeraVezAfiliacion);
 
-  // Mes desde el que comienza a abonar (basado en fecha de afiliación del año)
+  // Mes desde el que comienza a abonar: solo si se incorporó este año (fecha_primer_afiliacion en el año actual)
   let mesPrimerCuota = 0;
-  if (afiliacion?.fecha_pago) {
-    const [, mesAfil] = afiliacion.fecha_pago.split('T')[0].split('-').map(Number);
-    mesPrimerCuota = mesAfil - 1;
+  if (beneficiario?.fecha_primer_afiliacion) {
+    const [anioAfil, mesAfil] = beneficiario.fecha_primer_afiliacion.split('T')[0].split('-').map(Number);
+    if (anioAfil === anio) {
+      mesPrimerCuota = mesAfil - 1;
+    }
   }
 
   return (

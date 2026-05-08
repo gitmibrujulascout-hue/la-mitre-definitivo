@@ -74,12 +74,15 @@ export default function CuentaCorriente() {
       const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
       const esPrimeraVez = !b.fecha_primer_afiliacion;
       const marzoGratis = marzoEsBonificado(afiliacionAnio, esPrimeraVez);
-      // Mes desde el que el beneficiario empieza a abonar cuota (según fecha de afiliación del año)
-      // Si la afiliación tiene fecha_pago, los meses anteriores a ese mes no generan deuda
-      let mesPrimerCuota = 0; // índice en MESES (0=Enero), por defecto desde el inicio
-      if (afiliacionAnio?.fecha_pago) {
-        const [, mesAfil] = afiliacionAnio.fecha_pago.split('T')[0].split('-').map(Number);
-        mesPrimerCuota = mesAfil - 1; // convertir a índice 0-based
+      // Mes desde el que el beneficiario empieza a abonar cuota.
+      // Solo aplica si tiene fecha_primer_afiliacion en el año en curso (se incorporó este año).
+      // En ese caso, los meses anteriores a su incorporación no generan deuda.
+      let mesPrimerCuota = 0; // por defecto, desde el inicio del año
+      if (b.fecha_primer_afiliacion) {
+        const [anioAfil, mesAfil] = b.fecha_primer_afiliacion.split('T')[0].split('-').map(Number);
+        if (anioAfil === anio) {
+          mesPrimerCuota = mesAfil - 1; // índice 0-based (Enero=0)
+        }
       }
 
       const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter((m, idx) => {
