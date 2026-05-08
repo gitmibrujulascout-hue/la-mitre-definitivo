@@ -37,6 +37,11 @@ function callUrl(raw) {
   return `tel:${num}`;
 }
 
+function normalize(str) {
+  if (!str) return '';
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 function calcEdad(fecha) {
   if (!fecha) return null;
   return differenceInYears(new Date(), new Date(fecha));
@@ -94,8 +99,8 @@ export default function FichaEmergencia() {
       encontrados = await base44.entities.Beneficiario.filter({ dni: query.trim() });
     } else {
       const todos = await base44.entities.Beneficiario.list();
-      const q = query.trim().toLowerCase();
-      encontrados = todos.filter(b => b.activo !== false && b.nombre?.toLowerCase().includes(q));
+      const q = normalize(query.trim());
+      encontrados = todos.filter(b => b.activo !== false && normalize(b.nombre).includes(q));
     }
 
     const activos = encontrados.filter(b => b.activo !== false);
