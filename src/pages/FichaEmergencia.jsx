@@ -28,7 +28,7 @@ function whatsappUrl(raw) {
   const num = formatPhone(raw);
   if (!num) return null;
   const full = num.startsWith('54') ? num : `54${num}`;
-  return `https://web.whatsapp.com/send?phone=${full}`;
+  return `https://api.whatsapp.com/send?phone=${full}`;
 }
 
 function callUrl(raw) {
