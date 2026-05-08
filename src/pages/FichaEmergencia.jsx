@@ -98,9 +98,9 @@ export default function FichaEmergencia() {
     if (esDni) {
       encontrados = await base44.entities.Beneficiario.filter({ dni: query.trim() });
     } else {
-      const todos = await base44.entities.Beneficiario.list();
+      const todos = await base44.entities.Beneficiario.filter({ activo: true });
       const q = normalize(query.trim());
-      encontrados = todos.filter(b => b.activo !== false && normalize(b.nombre).includes(q));
+      encontrados = todos.filter(b => normalize(b.nombre).includes(q));
     }
 
     const activos = encontrados.filter(b => b.activo !== false);
