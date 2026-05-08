@@ -596,6 +596,23 @@ export default function Afiliaciones() {
   const countNoPagan = beneficiariosActivos.filter(b => !b.fecha_primer_afiliacion).length;
   const countPagan = beneficiariosActivos.length - countNoPagan;
 
+  // Monto adeudado: sin afiliar que deben pagar + pagos parciales
+  const montoAdeudado = useMemo(() => {
+    let total = 0;
+    beneficiariosActivos.forEach(b => {
+      if (!b.fecha_primer_afiliacion) return; // primera vez, no pagan
+      const afil = mapAfiliados[b.id];
+      if (!afil) {
+        // Sin afiliar: deben el monto completo (usamos el default)
+        total += MONTO_SEGURO_DEFAULT;
+      } else if (!afil.es_primera_vez) {
+        // Pago parcial
+        total += Math.max(0, (afil.monto || 0) - (afil.monto_pagado || afil.monto || 0));
+      }
+    });
+    return total;
+  }, [beneficiariosActivos, mapAfiliados]);
+
   return (
     <div>
       <PageHeader title="Afiliaciones" description={`Registro de afiliaciones y seguros — ${anio}`}>
@@ -614,7 +631,7 @@ export default function Afiliaciones() {
       </PageHeader>
 
       {/* Resumen */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
         <Card>
           <CardContent className="pt-4 pb-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
@@ -656,6 +673,17 @@ export default function Afiliaciones() {
             <div>
               <p className="text-xs text-muted-foreground">Recaudado</p>
               <p className="text-xl font-bold text-blue-600">{formatMoney(totalRecaudado)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Adeudado</p>
+              <p className="text-xl font-bold text-orange-600">{formatMoney(montoAdeudado)}</p>
             </div>
           </CardContent>
         </Card>
