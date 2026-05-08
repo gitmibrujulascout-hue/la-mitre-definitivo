@@ -32,6 +32,13 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
   const mesesPagados = pagosAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []));
   const marzoGratis = marzoEsBonificado(afiliacion, esPrimeraVezAfiliacion);
 
+  // Mes desde el que comienza a abonar (basado en fecha de afiliación del año)
+  let mesPrimerCuota = 0;
+  if (afiliacion?.fecha_pago) {
+    const [, mesAfil] = afiliacion.fecha_pago.split('T')[0].split('-').map(Number);
+    mesPrimerCuota = mesAfil - 1;
+  }
+
   return (
     <div>
       <Button variant="ghost" onClick={onBack} className="mb-4">
@@ -129,21 +136,22 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
       {/* Grilla de meses */}
       <h3 className="font-semibold mb-3">Cuotas {anio}</h3>
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-6">
-        {MESES.map(mes => {
+        {MESES.map((mes, idx) => {
           const pago = pagosAnio.find(p => (p.meses || [p.mes]).includes(mes));
           const pagado = !!pago;
           const sinCuota = MESES_SIN_CUOTA.includes(mes);
           const bonificado = mes === 'Marzo' && marzoGratis;
+          const antesDeInicio = idx < mesPrimerCuota;
 
           return (
             <Card key={mes} className={cn(
               'p-3 text-center transition-all',
-              sinCuota ? 'bg-slate-50 border-slate-200 opacity-50' :
+              sinCuota || antesDeInicio ? 'bg-slate-50 border-slate-200 opacity-50' :
               beneficiario.becado || bonificado ? 'bg-amber-50 border-amber-200' :
               pagado ? 'bg-green-50 border-green-200' : 'bg-muted/50'
             )}>
               <p className="text-xs font-medium text-muted-foreground">{mes.substring(0, 3)}</p>
-              {sinCuota ? (
+              {sinCuota || antesDeInicio ? (
                 <p className="text-xs text-slate-400 mt-1">—</p>
               ) : beneficiario.becado ? (
                 <Award className="w-5 h-5 text-amber-500 mx-auto mt-1" />
