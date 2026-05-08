@@ -20,6 +20,7 @@ import Afiliaciones from '@/pages/Afiliaciones';
 import AgenteScout from '@/pages/AgenteScout';
 import ReporteBeneficiarios from '@/pages/ReporteBeneficiarios';
 import DirectorioEmergencias from '@/pages/DirectorioEmergencias';
+import FichaEmergencia from '@/pages/FichaEmergencia';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, user } = useAuth();
@@ -72,6 +73,7 @@ const AuthenticatedApp = () => {
         <Route path="/directorio-emergencias" element={<DirectorioEmergencias />} />
       </Route>
       <Route path="/estado-cuenta" element={<EstadoCuenta />} />
+      <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
