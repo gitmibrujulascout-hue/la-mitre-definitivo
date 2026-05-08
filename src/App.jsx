@@ -44,11 +44,12 @@ const AuthenticatedApp = () => {
     }
   }
 
-  // Redirect non-admin users to estado-cuenta only
+  // Redirect non-admin users to estado-cuenta / ficha-emergencia only
   if (user && user.role !== 'admin') {
     return (
       <Routes>
         <Route path="/estado-cuenta" element={<EstadoCuenta />} />
+        <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
         <Route path="*" element={<EstadoCuenta />} />
       </Routes>
     );
@@ -73,6 +74,7 @@ const AuthenticatedApp = () => {
         <Route path="/directorio-emergencias" element={<DirectorioEmergencias />} />
       </Route>
       <Route path="/estado-cuenta" element={<EstadoCuenta />} />
+      <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
@@ -87,7 +89,6 @@ function App() {
         <Router>
           <Routes>
             <Route path="/estado-cuenta" element={<EstadoCuenta />} />
-            <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
             <Route path="/*" element={<AuthenticatedApp />} />
           </Routes>
         </Router>
