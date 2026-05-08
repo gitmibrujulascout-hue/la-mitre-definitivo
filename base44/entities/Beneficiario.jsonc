@@ -152,6 +152,42 @@
     "detalle_discapacidad": {
       "type": "string",
       "description": "Descripci\u00f3n de la discapacidad"
+    },
+    "alergias": {
+      "type": "string",
+      "description": "Alergias conocidas (alimentos, medicamentos, etc.)"
+    },
+    "condicion_medica": {
+      "type": "string",
+      "description": "Condiciones m\u00e9dicas o enfermedades cr\u00f3nicas relevantes"
+    },
+    "medicacion_habitual": {
+      "type": "string",
+      "description": "Medicaci\u00f3n habitual que toma"
+    },
+    "obra_social": {
+      "type": "string",
+      "description": "Obra social / prepaga"
+    },
+    "numero_obra_social": {
+      "type": "string",
+      "description": "N\u00famero de afiliado obra social"
+    },
+    "contacto_emergencia_nombre": {
+      "type": "string",
+      "description": "Nombre del contacto de emergencia"
+    },
+    "contacto_emergencia_telefono": {
+      "type": "string",
+      "description": "Tel\u00e9fono del contacto de emergencia"
+    },
+    "contacto_emergencia_relacion": {
+      "type": "string",
+      "description": "Relaci\u00f3n con el contacto de emergencia"
+    },
+    "observaciones_salud": {
+      "type": "string",
+      "description": "Observaciones de salud adicionales"
     }
   },
   "required": [

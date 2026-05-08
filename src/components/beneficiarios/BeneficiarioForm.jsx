@@ -20,6 +20,10 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
     grupo_familiar: '', fecha_primer_afiliacion: '',
     provincia: '', localidad: '', calle: '', codigo_postal: '', nacionalidad: '',
     sexo: '', estado_civil: '', estudios: '', titulo: '', discapacidad: '', detalle_discapacidad: '',
+    alergias: '', condicion_medica: '', medicacion_habitual: '',
+    obra_social: '', numero_obra_social: '',
+    contacto_emergencia_nombre: '', contacto_emergencia_telefono: '', contacto_emergencia_relacion: '',
+    observaciones_salud: '',
   });
 
   useEffect(() => {
@@ -148,6 +152,7 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
             <TabsTrigger value="basico" className="flex-1">Básico</TabsTrigger>
             <TabsTrigger value="scout" className="flex-1">Scout</TabsTrigger>
             <TabsTrigger value="personal" className="flex-1">Personal</TabsTrigger>
+            <TabsTrigger value="salud" className="flex-1">⚕ Salud</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basico" className="space-y-4 pt-4">
@@ -413,6 +418,56 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                 <Label>Detalle discapacidad</Label>
                 <Input value={form.detalle_discapacidad || ''} onChange={e => update('detalle_discapacidad', e.target.value)} />
               </div>
+            </div>
+
+          </TabsContent>
+
+          <TabsContent value="salud" className="space-y-4 pt-4">
+            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
+              Esta información es confidencial y se usa en caso de emergencia durante actividades.
+            </div>
+            <div>
+              <Label>Alergias</Label>
+              <Input value={form.alergias || ''} onChange={e => update('alergias', e.target.value)} placeholder="Alimentos, medicamentos, picaduras..." />
+            </div>
+            <div>
+              <Label>Condición médica</Label>
+              <Input value={form.condicion_medica || ''} onChange={e => update('condicion_medica', e.target.value)} placeholder="Asma, diabetes, epilepsia..." />
+            </div>
+            <div>
+              <Label>Medicación habitual</Label>
+              <Input value={form.medicacion_habitual || ''} onChange={e => update('medicacion_habitual', e.target.value)} placeholder="Nombre y dosis" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Obra social / Prepaga</Label>
+                <Input value={form.obra_social || ''} onChange={e => update('obra_social', e.target.value)} placeholder="OSDE, Swiss Medical..." />
+              </div>
+              <div>
+                <Label>Nº afiliado obra social</Label>
+                <Input value={form.numero_obra_social || ''} onChange={e => update('numero_obra_social', e.target.value)} />
+              </div>
+            </div>
+            <div className="pt-2 border-t">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Contacto de emergencia designado</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label>Nombre</Label>
+                  <Input value={form.contacto_emergencia_nombre || ''} onChange={e => update('contacto_emergencia_nombre', e.target.value)} placeholder="Nombre completo" />
+                </div>
+                <div>
+                  <Label>Relación</Label>
+                  <Input value={form.contacto_emergencia_relacion || ''} onChange={e => update('contacto_emergencia_relacion', e.target.value)} placeholder="Mamá, Papá..." />
+                </div>
+                <div>
+                  <Label>Teléfono</Label>
+                  <Input value={form.contacto_emergencia_telefono || ''} onChange={e => update('contacto_emergencia_telefono', e.target.value)} placeholder="351-..." />
+                </div>
+              </div>
+            </div>
+            <div>
+              <Label>Observaciones de salud</Label>
+              <Input value={form.observaciones_salud || ''} onChange={e => update('observaciones_salud', e.target.value)} placeholder="Cualquier dato relevante para emergencias" />
             </div>
           </TabsContent>
 
