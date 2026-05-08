@@ -104,6 +104,16 @@
       "default": true,
       "description": "Si est\u00e1 activo"
     },
+    "fecha_baja": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha en que dej\u00f3 de asistir (baja temporal). A partir de este mes no se generan deudas de cuota."
+    },
+    "fecha_reingreso": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de reingreso tras una baja temporal."
+    },
     "fecha_primer_afiliacion": {
       "type": "string",
       "format": "date",

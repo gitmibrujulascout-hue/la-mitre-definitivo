@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, CheckCircle2, AlertCircle, Award, User, Plus } from 'lucide-react';
+import { Search, CheckCircle2, AlertCircle, Award, User, Plus, UserX } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
@@ -24,6 +24,7 @@ export default function CuentaCorriente() {
   const [filterRama, setFilterRama] = useState('todas');
   const [filterEstado, setFilterEstado] = useState('todos');
   const [filterAfiliacion, setFilterAfiliacion] = useState('todos');
+  const [filterActivo, setFilterActivo] = useState('activos');
   const [selectedBen, setSelectedBen] = useState(null);
   const [anio, setAnio] = useState(new Date().getFullYear());
   const [showPagoForm, setShowPagoForm] = useState(false);
@@ -51,8 +52,8 @@ export default function CuentaCorriente() {
 
   // Solo calcular deudas desde 2026 en adelante
   const AÑO_INICIO = 2026;
-  // Incluir a todos los activos: beneficiarios con cuota + adultos (Voluntario/Educador) que puedan tener deuda de afiliación
-  const activos = beneficiarios.filter(b => b.activo !== false);
+  // Incluir a todos (activos e inactivos): los inactivos pueden tener deuda histórica
+  const activos = beneficiarios;
 
   const cuentas = useMemo(() => {
     return activos.map(b => {
@@ -85,10 +86,23 @@ export default function CuentaCorriente() {
         }
       }
 
+      // Mes de baja: si el beneficiario está inactivo y tiene fecha_baja en este año,
+      // los meses a partir de ese mes no generan deuda
+      let mesUltimoCuota = 11; // por defecto, hasta Diciembre
+      if (b.activo === false && b.fecha_baja) {
+        const [anioBaja, mesBaja] = b.fecha_baja.split('T')[0].split('-').map(Number);
+        if (anioBaja === anio) {
+          mesUltimoCuota = mesBaja - 2; // índice del último mes que DEBE pagar (mes baja - 1)
+        } else if (anioBaja < anio) {
+          mesUltimoCuota = -1; // dado de baja antes de este año → no debe nada
+        }
+      }
+
       const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter((m, idx) => {
         if (MESES_SIN_CUOTA.includes(m)) return false;
         if (m === 'Marzo' && marzoGratis) return false;
         if (idx < mesPrimerCuota) return false; // meses anteriores al inicio no generan deuda
+        if (idx > mesUltimoCuota) return false; // meses posteriores a la baja no generan deuda
         return true;
       });
       const cuotaIndividual = getCuotaBeneficiario(b, activos);
@@ -148,7 +162,12 @@ export default function CuentaCorriente() {
       (filterAfiliacion === 'primeraVez' && c.esPrimeraVezAfiliacion);
     // Ocultar adultos sin deuda de afiliación para no saturar la lista
     if (esAdulto && !tieneDeudaAfil) return false;
-    return matchSearch && matchDni && matchRama && matchEstado && matchAfiliacion;
+    // Filtro de activo/inactivo
+    const esInactivo = c.activo === false;
+    const matchActivo = filterActivo === 'todos' ||
+      (filterActivo === 'activos' && !esInactivo) ||
+      (filterActivo === 'inactivos' && esInactivo);
+    return matchSearch && matchDni && matchRama && matchEstado && matchAfiliacion && matchActivo;
   });
 
   const alDiaCount = filtered.filter(c => c.alDia).length;
@@ -202,6 +221,14 @@ export default function CuentaCorriente() {
               <SelectItem value="primeraVez">Primera vez</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={filterActivo} onValueChange={setFilterActivo}>
+            <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="activos">Solo activos</SelectItem>
+              <SelectItem value="inactivos">Solo inactivos</SelectItem>
+              <SelectItem value="todos">Todos</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={anio.toString()} onValueChange={v => setAnio(parseInt(v))}>
             <SelectTrigger className="w-full sm:w-28"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -234,9 +261,17 @@ export default function CuentaCorriente() {
                   className="cursor-pointer hover:bg-muted/30"
                 >
                   <TableCell className="font-medium" onClick={() => setSelectedBen(c)}>
-                    <div>{c.nombre}</div>
+                    <div className="flex items-center gap-2">
+                      {c.nombre}
+                      {c.activo === false && (
+                        <Badge className="bg-slate-100 text-slate-500 border-slate-300 border text-xs"><UserX className="w-3 h-3 mr-1" />Inactivo</Badge>
+                      )}
+                    </div>
                     {c.tieneDescuentoHermanos && (
                       <span className="text-xs text-blue-600 font-normal">Hermanos · {formatMoney(c.cuotaIndividual)}/mes</span>
+                    )}
+                    {c.activo === false && c.fecha_baja && (
+                      <span className="text-xs text-slate-400">Baja: {c.fecha_baja.split('T')[0]}</span>
                     )}
                   </TableCell>
                   <TableCell onClick={() => setSelectedBen(c)}><RamaBadge rama={c.rama} /></TableCell>

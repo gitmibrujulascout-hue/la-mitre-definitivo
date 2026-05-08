@@ -350,6 +350,45 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                 />
               </div>
             )}
+
+            {/* Baja temporal */}
+            <div className={`p-3 rounded-lg border space-y-3 ${form.activo === false ? 'border-red-200 bg-red-50' : 'border-border bg-muted/30'}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Activo en el grupo</p>
+                  <p className="text-xs text-muted-foreground">Si está inactivo no genera deudas de cuota</p>
+                </div>
+                <Switch
+                  checked={form.activo !== false}
+                  onCheckedChange={v => {
+                    update('activo', v);
+                    if (v) {
+                      // Reingreso: limpiar fecha de baja y registrar reingreso
+                      update('fecha_baja', '');
+                      update('fecha_reingreso', new Date().toISOString().split('T')[0]);
+                    } else {
+                      // Baja: registrar fecha de hoy por defecto
+                      update('fecha_baja', new Date().toISOString().split('T')[0]);
+                      update('fecha_reingreso', '');
+                    }
+                  }}
+                />
+              </div>
+              {form.activo === false && (
+                <div>
+                  <Label>Fecha de baja</Label>
+                  <Input
+                    type="date"
+                    value={form.fecha_baja || ''}
+                    onChange={e => update('fecha_baja', e.target.value)}
+                  />
+                  <p className="text-xs text-red-600 mt-1">A partir de este mes no se generarán deudas de cuota</p>
+                </div>
+              )}
+              {form.activo !== false && form.fecha_reingreso && (
+                <p className="text-xs text-green-600">Reingresó el {form.fecha_reingreso}</p>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="personal" className="space-y-4 pt-4">
