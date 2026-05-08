@@ -22,21 +22,8 @@ import ReporteBeneficiarios from '@/pages/ReporteBeneficiarios';
 import DirectorioEmergencias from '@/pages/DirectorioEmergencias';
 import FichaEmergencia from '@/pages/FichaEmergencia.jsx';
 
-const PUBLIC_ROUTES = ['/estado-cuenta', '/ficha-emergencia'];
-
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, user } = useAuth();
-
-  const isPublicRoute = PUBLIC_ROUTES.some(r => window.location.pathname.startsWith(r));
-
-  if (isPublicRoute) {
-    return (
-      <Routes>
-        <Route path="/estado-cuenta" element={<EstadoCuenta />} />
-        <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
-      </Routes>
-    );
-  }
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -98,7 +85,11 @@ function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
-          <AuthenticatedApp />
+          <Routes>
+            <Route path="/estado-cuenta" element={<EstadoCuenta />} />
+            <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
+            <Route path="/*" element={<AuthenticatedApp />} />
+          </Routes>
         </Router>
         <Toaster />
       </QueryClientProvider>
