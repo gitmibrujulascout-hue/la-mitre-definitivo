@@ -74,22 +74,36 @@ const ContactBtn = ({ href, icon: Icon, label, colorClass }) => (
 );
 
 export default function FichaEmergencia() {
-  const [dni, setDni] = useState('');
+  const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [beneficiario, setBeneficiario] = useState(null);
+  const [resultados, setResultados] = useState([]);
   const [noEncontrado, setNoEncontrado] = useState(false);
 
   const buscar = async () => {
-    if (!dni.trim()) return;
+    if (!query.trim()) return;
     setLoading(true);
     setNoEncontrado(false);
     setBeneficiario(null);
+    setResultados([]);
 
-    const resultados = await base44.entities.Beneficiario.filter({ dni: dni.trim() });
-    const encontrado = resultados.find(b => b.activo !== false);
+    const esDni = /^\d+$/.test(query.trim());
+    let encontrados = [];
 
-    if (encontrado) {
-      setBeneficiario(encontrado);
+    if (esDni) {
+      encontrados = await base44.entities.Beneficiario.filter({ dni: query.trim() });
+    } else {
+      const todos = await base44.entities.Beneficiario.list();
+      const q = query.trim().toLowerCase();
+      encontrados = todos.filter(b => b.activo !== false && b.nombre?.toLowerCase().includes(q));
+    }
+
+    const activos = encontrados.filter(b => b.activo !== false);
+
+    if (activos.length === 1) {
+      setBeneficiario(activos[0]);
+    } else if (activos.length > 1) {
+      setResultados(activos);
     } else {
       setNoEncontrado(true);
     }
@@ -107,7 +121,7 @@ export default function FichaEmergencia() {
           <Heart className="w-7 h-7 text-red-600" />
         </div>
         <h1 className="text-2xl font-bold">Ficha de Emergencias</h1>
-        <p className="text-sm text-muted-foreground mt-1">Ingresá tu DNI para ver tus datos de contacto y salud</p>
+        <p className="text-sm text-muted-foreground mt-1">Ingresá tu nombre o DNI para ver tus datos de contacto y salud</p>
       </div>
 
       {/* Buscador */}
@@ -116,23 +130,44 @@ export default function FichaEmergencia() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Número de DNI..."
-              value={dni}
-              onChange={e => setDni(e.target.value)}
+              placeholder="Nombre o número de DNI..."
+              value={query}
+              onChange={e => { setQuery(e.target.value); setBeneficiario(null); setResultados([]); setNoEncontrado(false); }}
               onKeyDown={e => e.key === 'Enter' && buscar()}
               className="pl-9"
-              type="number"
             />
           </div>
-          <Button onClick={buscar} disabled={loading || !dni.trim()}>
+          <Button onClick={buscar} disabled={loading || !query.trim()}>
             {loading ? 'Buscando...' : 'Consultar'}
           </Button>
         </div>
 
         {noEncontrado && (
           <p className="text-sm text-destructive mt-3 text-center">
-            No se encontró ningún miembro activo con ese DNI.
+            No se encontró ningún miembro activo con ese nombre o DNI.
           </p>
+        )}
+
+        {/* Lista de resultados múltiples */}
+        {resultados.length > 1 && (
+          <div className="mt-3 rounded-xl border bg-white shadow-sm overflow-hidden">
+            <p className="text-xs text-muted-foreground px-4 py-2 border-b">Se encontraron varios miembros. Seleccioná uno:</p>
+            {resultados.map(r => (
+              <button
+                key={r.id}
+                onClick={() => { setBeneficiario(r); setResultados([]); }}
+                className="w-full text-left px-4 py-3 hover:bg-muted transition-colors border-b last:border-b-0 flex items-center gap-3"
+              >
+                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-sm flex-shrink-0">
+                  {r.nombre?.[0] || '?'}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{r.nombre}</p>
+                  <p className="text-xs text-muted-foreground">{[r.rama, r.dni ? `DNI ${r.dni}` : null].filter(Boolean).join(' · ')}</p>
+                </div>
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
