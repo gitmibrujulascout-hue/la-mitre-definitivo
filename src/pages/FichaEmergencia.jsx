@@ -19,6 +19,11 @@ const RAMA_COLORS = {
   Educador: 'bg-slate-100 text-slate-800 border-slate-300',
 };
 
+function normalize(str) {
+  if (!str) return '';
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 function formatPhone(raw) {
   if (!raw) return null;
   return raw.replace(/\D/g, '');
@@ -35,11 +40,6 @@ function callUrl(raw) {
   const num = formatPhone(raw);
   if (!num) return null;
   return `tel:${num}`;
-}
-
-function normalize(str) {
-  if (!str) return '';
-  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
 
 function calcEdad(fecha) {
@@ -96,10 +96,10 @@ export default function FichaEmergencia() {
     let encontrados = [];
 
     if (esDni) {
-      encontrados = await base44.entities.Beneficiario.filter({ dni: query.trim() });
+      encontrados = await base44.entities.Beneficiario.filter({ dni: query.trim() }, '-created_date', 10);
     } else {
-      const todos = await base44.entities.Beneficiario.filter({ activo: true });
       const q = normalize(query.trim());
+      const todos = await base44.entities.Beneficiario.filter({ activo: true }, 'nombre', 1000);
       encontrados = todos.filter(b => normalize(b.nombre).includes(q));
     }
 

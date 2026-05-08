@@ -20,7 +20,7 @@ import Afiliaciones from '@/pages/Afiliaciones';
 import AgenteScout from '@/pages/AgenteScout';
 import ReporteBeneficiarios from '@/pages/ReporteBeneficiarios';
 import DirectorioEmergencias from '@/pages/DirectorioEmergencias';
-import FichaEmergencia from '@/pages/FichaEmergencia';
+import FichaEmergencia from '@/pages/FichaEmergencia.jsx';
 
 const PUBLIC_ROUTES = ['/estado-cuenta', '/ficha-emergencia'];
 
@@ -29,7 +29,6 @@ const AuthenticatedApp = () => {
 
   const isPublicRoute = PUBLIC_ROUTES.some(r => window.location.pathname.startsWith(r));
 
-  // Always render public routes without auth checks
   if (isPublicRoute) {
     return (
       <Routes>
@@ -87,7 +86,6 @@ const AuthenticatedApp = () => {
         <Route path="/directorio-emergencias" element={<DirectorioEmergencias />} />
       </Route>
       <Route path="/estado-cuenta" element={<EstadoCuenta />} />
-      <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
