@@ -11,7 +11,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
 import PagoForm from '@/components/pagos/PagoForm';
-import { RAMAS, MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado } from '@/lib/ramaUtils';
+import { RAMAS, TODOS_LOS_ROLES, MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado } from '@/lib/ramaUtils';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 
 const CUOTA_EFECTIVO_REF = CUOTA_EFECTIVO;
@@ -23,6 +23,7 @@ export default function CuentaCorriente() {
   const [filterDni, setFilterDni] = useState('');
   const [filterRama, setFilterRama] = useState('todas');
   const [filterEstado, setFilterEstado] = useState('todos');
+  const [filterAfiliacion, setFilterAfiliacion] = useState('todos');
   const [selectedBen, setSelectedBen] = useState(null);
   const [anio, setAnio] = useState(new Date().getFullYear());
   const [showPagoForm, setShowPagoForm] = useState(false);
@@ -48,10 +49,10 @@ export default function CuentaCorriente() {
     queryFn: () => base44.entities.Afiliacion.list('-fecha_pago', 500),
   });
 
-  // Solo mostrar en Cuenta Corriente a los que abonen cuota (excluir voluntarios)
   // Solo calcular deudas desde 2026 en adelante
   const AÑO_INICIO = 2026;
-  const activos = beneficiarios.filter(b => b.activo !== false && b.tipo !== 'Voluntario' && !['Voluntario', 'Educador'].includes(b.rama));
+  // Incluir a todos los activos: beneficiarios con cuota + adultos (Voluntario/Educador) que puedan tener deuda de afiliación
+  const activos = beneficiarios.filter(b => b.activo !== false);
 
   const cuentas = useMemo(() => {
     return activos.map(b => {
@@ -135,10 +136,20 @@ export default function CuentaCorriente() {
       (filterEstado === 'alDia' && c.alDia) || 
       (filterEstado === 'debe' && !c.alDia && !c.becado) || 
       (filterEstado === 'becado' && c.becado);
-    return matchSearch && matchDni && matchRama && matchEstado;
+    const esAdulto = ['Voluntario', 'Educador'].includes(c.rama) || c.tipo === 'Voluntario';
+    const tieneDeudaAfil = c.saldoAfiliacion < 0;
+    const matchAfiliacion = filterAfiliacion === 'todos' ||
+      (filterAfiliacion === 'conDeuda' && tieneDeudaAfil) ||
+      (filterAfiliacion === 'afiliado' && c.afiliacionAnio && !tieneDeudaAfil) ||
+      (filterAfiliacion === 'sinAfiliar' && !c.afiliacionAnio && !c.esPrimeraVezAfiliacion) ||
+      (filterAfiliacion === 'primeraVez' && c.esPrimeraVezAfiliacion);
+    // Ocultar adultos sin deuda de afiliación para no saturar la lista
+    if (esAdulto && !tieneDeudaAfil) return false;
+    return matchSearch && matchDni && matchRama && matchEstado && matchAfiliacion;
   });
 
   const alDiaCount = filtered.filter(c => c.alDia).length;
+  const conDeudaCount = filtered.filter(c => !c.alDia && !c.becado).length;
 
   if (selectedBen) {
     const cuenta = cuentas.find(c => c.id === selectedBen.id);
@@ -149,7 +160,7 @@ export default function CuentaCorriente() {
 
   return (
     <div>
-      <PageHeader title="Cuenta Corriente" description={`${alDiaCount}/${filtered.length} al día`}>
+      <PageHeader title="Cuenta Corriente" description={`${alDiaCount} al día · ${conDeudaCount} con deuda`}>
         <Button onClick={() => { setPagoPreselected(null); setShowPagoForm(true); }}>
           <Plus className="w-4 h-4 mr-2" />Registrar pago
         </Button>
@@ -166,7 +177,7 @@ export default function CuentaCorriente() {
             <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="todas">Todas las ramas</SelectItem>
-              {RAMAS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+              {TODOS_LOS_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterEstado} onValueChange={setFilterEstado}>
@@ -176,6 +187,16 @@ export default function CuentaCorriente() {
               <SelectItem value="alDia">Al día</SelectItem>
               <SelectItem value="debe">Debe</SelectItem>
               <SelectItem value="becado">Becado</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterAfiliacion} onValueChange={setFilterAfiliacion}>
+            <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Toda afiliación</SelectItem>
+              <SelectItem value="conDeuda">Con deuda afiliación</SelectItem>
+              <SelectItem value="afiliado">Afiliado al día</SelectItem>
+              <SelectItem value="sinAfiliar">Sin afiliar</SelectItem>
+              <SelectItem value="primeraVez">Primera vez</SelectItem>
             </SelectContent>
           </Select>
           <Select value={anio.toString()} onValueChange={v => setAnio(parseInt(v))}>
