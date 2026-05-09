@@ -16,26 +16,8 @@ export const MONTO_SEGURO_AFILIACION = 42000;
 // Crea el Pago y el MovimientoBanco en paralelo.
 // ──────────────────────────────────────────────
 export async function registrarPagos(pagos) {
-  // Crear todos los pagos en paralelo
+  // Solo crea los pagos — la Caja los lee directamente de la entidad Pago
   const pagoCreados = await Promise.all(pagos.map(p => base44.entities.Pago.create(p)));
-
-  // Crear los movimientos de banco correspondientes en paralelo
-  await Promise.all(pagoCreados.map((pago, i) => {
-    const origen = pagos[i].tipo_pago === 'Campamento' ? 'Pago campamento' : 'Pago cuota';
-    return base44.entities.MovimientoBanco.create({
-      fecha: pagos[i].fecha_pago || new Date().toISOString().split('T')[0],
-      tipo: 'Ingreso',
-      concepto: origen === 'Pago campamento'
-        ? `Pago campamento: ${pagos[i].campamento_nombre || ''} — ${pagos[i].beneficiario_nombre || ''}`
-        : `Cuota ${(pagos[i].meses || []).join(', ')} ${pagos[i].anio} — ${pagos[i].beneficiario_nombre || ''}`,
-      monto: pagos[i].monto,
-      cuenta: pagos[i].destino || (pagos[i].forma_pago === 'Transferencia' ? 'Banco' : 'Caja'),
-      origen,
-      referencia_id: pago.id,
-      observaciones: pagos[i].observaciones || '',
-    });
-  }));
-
   return pagoCreados;
 }
 
@@ -44,20 +26,8 @@ export async function registrarPagos(pagos) {
 // Crea el Gasto y el MovimientoBanco en paralelo.
 // ──────────────────────────────────────────────
 export async function registrarGasto(data) {
-  const gasto = await base44.entities.Gasto.create(data);
-
-  await base44.entities.MovimientoBanco.create({
-    fecha: data.fecha || new Date().toISOString().split('T')[0],
-    tipo: 'Egreso',
-    concepto: `Gasto: ${data.descripcion}${data.proveedor ? ` — ${data.proveedor}` : ''}`,
-    monto: data.monto,
-    cuenta: data.destino || (data.forma_pago === 'Transferencia' ? 'Banco' : 'Caja'),
-    origen: 'Gasto',
-    referencia_id: gasto.id,
-    observaciones: data.observaciones || '',
-  });
-
-  return gasto;
+  // Solo crea el gasto — la Caja lo lee directamente de la entidad Gasto
+  return base44.entities.Gasto.create(data);
 }
 
 // ──────────────────────────────────────────────
