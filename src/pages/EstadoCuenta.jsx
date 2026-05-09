@@ -55,11 +55,11 @@ export default function EstadoCuenta() {
     return beneficiarios.find(b => b.dni === dniBuscado.trim()) || null;
   }, [dniBuscado, beneficiarios]);
 
-  // Grupo familiar (mismo grupo_familiar)
+  // Grupo familiar (mismo grupo_familiar) — incluye inactivos para no perder resultados
   const grupoFamiliar = useMemo(() => {
     if (!beneficiarioEncontrado?.grupo_familiar) return [beneficiarioEncontrado].filter(Boolean);
     return beneficiarios.filter(
-      b => b.grupo_familiar === beneficiarioEncontrado.grupo_familiar && b.activo !== false
+      b => b.grupo_familiar === beneficiarioEncontrado.grupo_familiar
     );
   }, [beneficiarioEncontrado, beneficiarios]);
 
