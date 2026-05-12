@@ -17,12 +17,12 @@ export default function Dashboard() {
 
   const { data: pagos = [] } = useQuery({
     queryKey: ['pagos'],
-    queryFn: () => base44.entities.Pago.list()
+    queryFn: () => base44.entities.Pago.list('-fecha_pago', 2000)
   });
 
   const { data: gastos = [] } = useQuery({
     queryKey: ['gastos'],
-    queryFn: () => base44.entities.Gasto.list()
+    queryFn: () => base44.entities.Gasto.list('-fecha', 2000)
   });
 
   const { data: movimientosExtra = [] } = useQuery({
