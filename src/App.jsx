@@ -88,7 +88,6 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <Routes>
-            <Route path="/estado-cuenta" element={<EstadoCuenta />} />
             <Route path="/*" element={<AuthenticatedApp />} />
           </Routes>
         </Router>
