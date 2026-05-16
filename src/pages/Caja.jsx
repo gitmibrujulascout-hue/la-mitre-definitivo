@@ -10,13 +10,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownLeft, Trash2, Upload } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownLeft, Trash2, Upload, FileText } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import ImportMovimientosBancoDialog from '@/components/caja/ImportMovimientosBancoDialog';
 import CajaChicaPanel from '@/components/caja/CajaChicaPanel';
+import ReporteCajaDialog from '@/components/caja/ReporteCajaDialog';
 
 function MovimientoManualDialog({ open, onClose, cuentaDestino }) {
   const [form, setForm] = useState({
@@ -101,6 +102,7 @@ export default function Caja() {
   const [tab, setTab] = useState('caja');
   const [showNuevo, setShowNuevo] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showReporte, setShowReporte] = useState(false);
   const [anio, setAnio] = useState(new Date().getFullYear().toString());
   const [mostrarTodos, setMostrarTodos] = useState(false);
   const queryClient = useQueryClient();
@@ -211,6 +213,9 @@ export default function Caja() {
             <Upload className="w-4 h-4 mr-2" />Importar PDF banco
           </Button>
         )}
+        <Button variant="outline" onClick={() => setShowReporte(true)}>
+          <FileText className="w-4 h-4 mr-2" />Generar reporte
+        </Button>
         <Button onClick={() => setShowNuevo(true)}>
           <Plus className="w-4 h-4 mr-2" />Movimiento manual
         </Button>
@@ -334,6 +339,9 @@ export default function Caja() {
       )}
       {showImport && (
         <ImportMovimientosBancoDialog open onClose={() => setShowImport(false)} />
+      )}
+      {showReporte && (
+        <ReporteCajaDialog open onClose={() => setShowReporte(false)} cuentaInicial={tab === 'caja' ? 'Caja' : 'Banco'} />
       )}
     </div>
   );
