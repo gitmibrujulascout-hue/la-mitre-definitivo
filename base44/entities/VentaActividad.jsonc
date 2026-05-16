@@ -34,6 +34,20 @@
       "type": "number",
       "description": "Monto que va al grupo"
     },
+    "comprador_nombre": {
+      "type": "string",
+      "description": "Nombre de la persona externa que compr\u00f3 (quien retira el pedido)"
+    },
+    "entregado": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si el pedido ya fue entregado al comprador"
+    },
+    "fecha_entrega": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha en que se realiz\u00f3 la entrega"
+    },
     "acreditado": {
       "type": "boolean",
       "default": false,

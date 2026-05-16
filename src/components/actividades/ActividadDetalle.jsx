@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Pencil, Plus, Trash2, TrendingUp, DollarSign, Gift, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Trash2, TrendingUp, DollarSign, Gift, CheckCircle2, PackageCheck, Package } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import VentaForm from '@/components/actividades/VentaForm';
@@ -48,9 +48,26 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['gastos-actividad', actividad.id] }),
   });
 
+  const marcarEntregadoMut = useMutation({
+    mutationFn: ({ id, entregado }) => base44.entities.VentaActividad.update(id, {
+      entregado,
+      fecha_entrega: entregado ? new Date().toISOString().split('T')[0] : null,
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ventas-actividad', actividad.id] }),
+  });
+
+  // Gastos generales asociados a esta actividad (desde entidad Gasto)
+  const { data: gastosGenerales = [] } = useQuery({
+    queryKey: ['gastos-general-actividad', actividad.id],
+    queryFn: () => base44.entities.Gasto.filter({ actividad_id: actividad.id }),
+  });
+
+  const totalGastosGenerales = gastosGenerales.reduce((s, g) => s + (g.monto || 0), 0);
+  const totalGastosCombinados = totalGastos + totalGastosGenerales;
+  const gananciaReal = totalVentas - totalGastosCombinados;
+
   const totalVentas = ventas.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
   const totalGastos = gastosAct.reduce((s, g) => s + (g.monto || 0), 0);
-  const gananciaReal = totalVentas - totalGastos;
   const creditosAcreditados = creditos.length > 0;
 
   const getBen = (id) => beneficiarios.find(b => b.id === id);
@@ -79,14 +96,19 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
       </div>
 
       {/* Resumen financiero */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <Card className="p-3 text-center">
           <p className="text-xs text-muted-foreground">Total recaudado</p>
           <p className="text-xl font-bold text-green-600">{formatMoney(totalVentas)}</p>
         </Card>
         <Card className="p-3 text-center">
-          <p className="text-xs text-muted-foreground">Gastos de producción</p>
+          <p className="text-xs text-muted-foreground">Gastos producción</p>
           <p className="text-xl font-bold text-red-500">{formatMoney(totalGastos)}</p>
+        </Card>
+        <Card className="p-3 text-center">
+          <p className="text-xs text-muted-foreground">Gastos generales</p>
+          <p className="text-xl font-bold text-red-400">{formatMoney(totalGastosGenerales)}</p>
+          {totalGastosGenerales > 0 && <p className="text-xs text-muted-foreground">desde Gastos</p>}
         </Card>
         <Card className={`p-3 text-center col-span-2 sm:col-span-1 ${gananciaReal >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
           <p className="text-xs text-muted-foreground">Ganancia neta</p>
@@ -96,6 +118,11 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
 
       {/* Info distribución */}
       <div className="flex gap-2 mb-4 flex-wrap">
+        {actividad.precio_venta_unitario > 0 && (
+          <Badge className="bg-green-100 text-green-700 border-green-200 border">
+            Precio unitario: {formatMoney(actividad.precio_venta_unitario)}
+          </Badge>
+        )}
         <Badge variant="outline">Beneficiario: {actividad.porcentaje_beneficiario || 50}%</Badge>
         <Badge variant="outline">Grupo: {actividad.porcentaje_grupo || 50}%</Badge>
         {actividad.ramas_participantes?.length > 0 && (
@@ -150,23 +177,45 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
               const pct = totalVentas > 0 ? Math.round((v.monto_recaudado / totalVentas) * 100) : 0;
               const creditoEst = gananciaReal > 0 ? Math.round(gananciaReal * (actividad.porcentaje_beneficiario || 50) / 100 * pct / 100 * 100) / 100 : 0;
               return (
-                <div key={v.id} className="flex items-center justify-between py-2.5 border-b last:border-0 text-sm gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{ben?.nombre || v.beneficiario_nombre}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {v.cantidad_vendida > 0 && `${v.cantidad_vendida} uds · `}Recaudó {formatMoney(v.monto_recaudado)} ({pct}%)
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {gananciaReal > 0 && (
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Crédito est.</p>
-                        <p className="font-semibold text-primary">{formatMoney(creditoEst)}</p>
+                <div key={v.id} className={`py-2.5 border-b last:border-0 text-sm ${v.entregado ? 'opacity-60' : ''}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-medium truncate">{ben?.nombre || v.beneficiario_nombre}</p>
+                        {v.entregado && <span className="text-xs text-green-600 font-medium bg-green-50 px-1.5 py-0.5 rounded">✓ Entregado</span>}
                       </div>
-                    )}
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteVentaMut.mutate(v.id)}>
-                      <Trash2 className="w-3 h-3 text-muted-foreground" />
-                    </Button>
+                      <p className="text-xs text-muted-foreground">
+                        {v.cantidad_vendida > 0 && `${v.cantidad_vendida} uds · `}{formatMoney(v.monto_recaudado)} ({pct}%)
+                      </p>
+                      {v.comprador_nombre && (
+                        <p className="text-xs text-amber-700 mt-0.5">
+                          🛍️ Retira: <span className="font-medium">{v.comprador_nombre}</span>
+                          {v.entregado && v.fecha_entrega && ` · ${v.fecha_entrega}`}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {gananciaReal > 0 && (
+                        <div className="text-right mr-1">
+                          <p className="text-xs text-muted-foreground">Crédito est.</p>
+                          <p className="font-semibold text-primary text-xs">{formatMoney(creditoEst)}</p>
+                        </div>
+                      )}
+                      {v.comprador_nombre && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-7 w-7 ${v.entregado ? 'text-green-600' : 'text-muted-foreground'}`}
+                          title={v.entregado ? 'Marcar como NO entregado' : 'Marcar como entregado'}
+                          onClick={() => marcarEntregadoMut.mutate({ id: v.id, entregado: !v.entregado })}
+                        >
+                          {v.entregado ? <PackageCheck className="w-4 h-4" /> : <Package className="w-4 h-4" />}
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteVentaMut.mutate(v.id)}>
+                        <Trash2 className="w-3 h-3 text-muted-foreground" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );

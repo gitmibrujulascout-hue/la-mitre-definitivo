@@ -19,6 +19,8 @@ const DEFAULT = {
   fecha: new Date().toISOString().split('T')[0],
   estado: 'Planificada',
   tipo_producto: '',
+  precio_venta_unitario: '',
+  precio_costo_unitario: '',
   porcentaje_grupo: 50,
   porcentaje_beneficiario: 50,
   ramas_participantes: [],
@@ -78,6 +80,8 @@ export default function ActividadForm({ open, onClose, onSaved, initialData, ben
     if (!form.nombre || !form.fecha) return;
     mutation.mutate({
       ...form,
+      precio_venta_unitario: parseFloat(form.precio_venta_unitario) || 0,
+      precio_costo_unitario: parseFloat(form.precio_costo_unitario) || 0,
       porcentaje_grupo: parseFloat(form.porcentaje_grupo) || 50,
       porcentaje_beneficiario: parseFloat(form.porcentaje_beneficiario) || 50,
     });
@@ -114,6 +118,25 @@ export default function ActividadForm({ open, onClose, onSaved, initialData, ben
             <div className="col-span-2">
               <Label>Producto / Tipo de actividad</Label>
               <Input value={form.tipo_producto} onChange={e => update('tipo_producto', e.target.value)} placeholder="Ej: Empanadas, Rifa, Reventa de chocolates" />
+            </div>
+            <div>
+              <Label>Precio de venta unitario</Label>
+              <Input
+                type="number"
+                value={form.precio_venta_unitario}
+                onChange={e => update('precio_venta_unitario', e.target.value)}
+                placeholder="$ por unidad"
+              />
+              <p className="text-xs text-muted-foreground mt-1">El monto se calculará automáticamente al cargar las ventas</p>
+            </div>
+            <div>
+              <Label>Precio de costo unitario (opcional)</Label>
+              <Input
+                type="number"
+                value={form.precio_costo_unitario}
+                onChange={e => update('precio_costo_unitario', e.target.value)}
+                placeholder="$ por unidad"
+              />
             </div>
             <div className="col-span-2">
               <Label>Descripción / Observaciones</Label>

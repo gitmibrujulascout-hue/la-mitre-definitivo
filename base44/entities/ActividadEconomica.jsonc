@@ -31,7 +31,15 @@
     },
     "precio_venta_unitario": {
       "type": "number",
-      "description": "Precio de venta por unidad"
+      "description": "Precio de venta por unidad (definido de antemano)"
+    },
+    "precio_costo_unitario": {
+      "type": "number",
+      "description": "Precio de costo por unidad (opcional)"
+    },
+    "precio_adultos_unitario": {
+      "type": "number",
+      "description": "Precio unitario para adultos/voluntarios (si difiere)"
     },
     "cantidad_total": {
       "type": "number",

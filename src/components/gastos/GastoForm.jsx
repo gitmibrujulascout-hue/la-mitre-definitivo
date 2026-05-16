@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { base44 } from '@/api/base44Client';
 import { registrarGasto, actualizarGasto } from '@/lib/registros';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { formatMoney } from '@/lib/ramaUtils';
 import { Upload, Loader2, Sparkles, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,6 +24,11 @@ export default function GastoForm({ open, onClose, initialData }) {
     queryFn: () => base44.entities.Campamento.list(),
     select: data => data.filter(c => c.nombre),
   });
+  const { data: actividades = [] } = useQuery({
+    queryKey: ['actividades'],
+    queryFn: () => base44.entities.ActividadEconomica.list('-fecha', 100),
+    select: data => data.filter(a => a.estado !== 'Finalizada'),
+  });
   const [form, setForm] = useState(initialData ? {
     descripcion: initialData.descripcion || '',
     monto: initialData.monto || '',
@@ -36,10 +42,13 @@ export default function GastoForm({ open, onClose, initialData }) {
     destino: initialData.destino || '',
     campamento_id: initialData.campamento_id || '',
     campamento_nombre: initialData.campamento_nombre || '',
+    actividad_id: initialData.actividad_id || '',
+    actividad_nombre: initialData.actividad_nombre || '',
   } : {
     descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0],
     categoria: '', proveedor: '', numero_factura: '', archivo_url: '', observaciones: '',
     forma_pago: '', destino: '', campamento_id: '', campamento_nombre: '',
+    actividad_id: '', actividad_nombre: '',
   });
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -120,11 +129,13 @@ export default function GastoForm({ open, onClose, initialData }) {
     if (!form.descripcion || !form.monto) return;
     const destino = form.forma_pago === 'Transferencia' ? 'Banco' : 'Caja';
     const camp = campamentos.find(c => c.id === form.campamento_id);
+    const activ = actividades.find(a => a.id === form.actividad_id);
     const data = {
       ...form,
       monto: parseFloat(form.monto),
       destino,
       campamento_nombre: camp?.nombre || '',
+      actividad_nombre: activ?.nombre || '',
     };
     if (isEditing) updateMutation.mutate(data);
     else createMutation.mutate(data);
@@ -218,6 +229,23 @@ export default function GastoForm({ open, onClose, initialData }) {
                   <SelectItem value="ninguno">Sin campamento</SelectItem>
                   {campamentos.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {actividades.length > 0 && (
+            <div>
+              <Label>Asociar a actividad económica (opcional)</Label>
+              <Select
+                value={form.actividad_id || 'ninguna'}
+                onValueChange={v => update('actividad_id', v === 'ninguna' ? '' : v)}
+              >
+                <SelectTrigger><SelectValue placeholder="Sin actividad" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ninguna">Sin actividad</SelectItem>
+                  {actividades.map(a => (
+                    <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

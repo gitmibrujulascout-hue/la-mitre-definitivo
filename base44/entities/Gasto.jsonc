@@ -64,6 +64,14 @@
       "type": "string",
       "description": "Nombre del campamento asociado"
     },
+    "actividad_id": {
+      "type": "string",
+      "description": "ID de la actividad econ\u00f3mica asociada (opcional)"
+    },
+    "actividad_nombre": {
+      "type": "string",
+      "description": "Nombre de la actividad econ\u00f3mica asociada"
+    },
     "observaciones": {
       "type": "string",
       "description": "Notas adicionales"
