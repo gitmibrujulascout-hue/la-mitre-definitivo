@@ -62,12 +62,10 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
     queryFn: () => base44.entities.Gasto.filter({ actividad_id: actividad.id }),
   });
 
-  const totalGastosGenerales = gastosGenerales.reduce((s, g) => s + (g.monto || 0), 0);
-  const totalGastosCombinados = totalGastos + totalGastosGenerales;
-  const gananciaReal = totalVentas - totalGastosCombinados;
-
   const totalVentas = ventas.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
   const totalGastos = gastosAct.reduce((s, g) => s + (g.monto || 0), 0);
+  const totalGastosGenerales = gastosGenerales.reduce((s, g) => s + (g.monto || 0), 0);
+  const gananciaReal = totalVentas - totalGastos - totalGastosGenerales;
   const creditosAcreditados = creditos.length > 0;
 
   const getBen = (id) => beneficiarios.find(b => b.id === id);
