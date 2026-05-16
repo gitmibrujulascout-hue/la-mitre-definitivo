@@ -17,17 +17,17 @@ export default function Dashboard() {
 
   const { data: pagos = [] } = useQuery({
     queryKey: ['pagos'],
-    queryFn: () => base44.entities.Pago.list('-fecha_pago', 2000)
+    queryFn: () => base44.entities.Pago.list('-fecha_pago', 5000)
   });
 
   const { data: gastos = [] } = useQuery({
     queryKey: ['gastos'],
-    queryFn: () => base44.entities.Gasto.list('-fecha', 2000)
+    queryFn: () => base44.entities.Gasto.list('-fecha', 5000)
   });
 
   const { data: movimientosExtra = [] } = useQuery({
     queryKey: ['movimientos_banco'],
-    queryFn: () => base44.entities.MovimientoBanco.list('-fecha', 500),
+    queryFn: () => base44.entities.MovimientoBanco.list('-fecha', 2000),
   });
 
   const navigate = useNavigate();
@@ -58,7 +58,8 @@ export default function Dashboard() {
     const calcular = (cuenta) => {
       const ingresosPagos = pagos.filter(p => destinoPago(p) === cuenta).reduce((s, p) => s + (p.monto || 0), 0);
       const egresosGastos = gastos.filter(g => destinoGasto(g) === cuenta).reduce((s, g) => s + (g.monto || 0), 0);
-      const movs = movimientosExtra.filter(m => (m.cuenta || 'Caja') === cuenta);
+      // Solo movimientos manuales (igual que Caja)
+      const movs = movimientosExtra.filter(m => (m.cuenta || 'Caja') === cuenta && m.origen === 'Manual');
       const ingresosExtra = movs.filter(m => m.tipo === 'Ingreso').reduce((s, m) => s + (m.monto || 0), 0);
       const egresosExtra = movs.filter(m => m.tipo === 'Egreso').reduce((s, m) => s + (m.monto || 0), 0);
       const ingresos = ingresosPagos + ingresosExtra;
