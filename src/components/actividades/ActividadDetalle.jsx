@@ -11,6 +11,7 @@ import VentaForm from '@/components/actividades/VentaForm';
 import GastoActividadForm from '@/components/actividades/GastoActividadForm';
 import DistribuirCreditosDialog from '@/components/actividades/DistribuirCreditosDialog';
 import ReporteVentasDialog from '@/components/actividades/ReporteVentasDialog';
+import ProductosActividadPanel from '@/components/actividades/ProductosActividadPanel';
 
 const ESTADO_COLORS = {
   Planificada: 'bg-blue-100 text-blue-700 border-blue-200 border',
@@ -125,11 +126,6 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
 
       {/* Info distribución */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {actividad.precio_venta_unitario > 0 && (
-          <Badge className="bg-green-100 text-green-700 border-green-200 border">
-            Precio unitario: {formatMoney(actividad.precio_venta_unitario)}
-          </Badge>
-        )}
         <Badge variant="outline">Beneficiario: {actividad.porcentaje_beneficiario || 50}%</Badge>
         <Badge variant="outline">Grupo: {actividad.porcentaje_grupo || 50}%</Badge>
         {actividad.ramas_participantes?.length > 0 && (
@@ -163,6 +159,11 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
         </Card>
       )}
 
+      {/* Productos / Precios */}
+      <div className="mb-6">
+        <ProductosActividadPanel actividad={actividad} />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Ventas por beneficiario */}
         <Card>
@@ -192,7 +193,8 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                         {v.entregado && <span className="text-xs text-green-600 font-medium bg-green-50 px-1.5 py-0.5 rounded">✓ Entregado</span>}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {v.cantidad_vendida > 0 && `${v.cantidad_vendida} uds · `}{formatMoney(v.monto_recaudado)} ({pct}%)
+                        {v.producto_nombre && <span className="text-primary/80 font-medium">{v.producto_nombre} · </span>}
+                        {v.cantidad_vendida > 0 && `${v.cantidad_vendida}${v.es_promo ? ' promo(s)' : ' uds'} · `}{formatMoney(v.monto_recaudado)} ({pct}%)
                       </p>
                       {v.comprador_nombre && (
                         <p className="text-xs text-amber-700 mt-0.5">

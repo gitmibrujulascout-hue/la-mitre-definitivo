@@ -100,8 +100,9 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
               <tr className="bg-muted/60">
                 <th className="text-left p-2 font-semibold text-xs uppercase text-muted-foreground border-b-2 border-border">#</th>
                 <th className="text-left p-2 font-semibold text-xs uppercase text-muted-foreground border-b-2 border-border">Vendedor</th>
+                <th className="text-left p-2 font-semibold text-xs uppercase text-muted-foreground border-b-2 border-border">Producto</th>
                 <th className="text-left p-2 font-semibold text-xs uppercase text-muted-foreground border-b-2 border-border">Quien retira</th>
-                <th className="text-center p-2 font-semibold text-xs uppercase text-muted-foreground border-b-2 border-border">Uds.</th>
+                <th className="text-center p-2 font-semibold text-xs uppercase text-muted-foreground border-b-2 border-border">Cant.</th>
                 <th className="text-right p-2 font-semibold text-xs uppercase text-muted-foreground border-b-2 border-border">Monto</th>
                 <th className="text-center p-2 font-semibold text-xs uppercase text-muted-foreground border-b-2 border-border">Estado</th>
               </tr>
@@ -111,6 +112,12 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
                 <tr key={v.id} className={`border-b ${v.entregado ? 'opacity-70' : ''} ${i % 2 === 1 ? 'bg-muted/20' : ''}`}>
                   <td className="p-2 text-muted-foreground text-xs">{i + 1}</td>
                   <td className="p-2 font-medium">{v.beneficiario_nombre}</td>
+                  <td className="p-2 text-xs">
+                    {v.producto_nombre
+                      ? <span className="font-medium text-primary/80">{v.producto_nombre}{v.es_promo ? ` (promo ${v.cantidad_promo}x)` : ''}</span>
+                      : <span className="text-muted-foreground italic">—</span>
+                    }
+                  </td>
                   <td className="p-2">
                     {v.comprador_nombre
                       ? <span className="retira text-amber-700 font-medium">🛍️ {v.comprador_nombre}</span>
@@ -118,7 +125,9 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
                     }
                   </td>
                   <td className="p-2 text-center">
-                    {v.cantidad_vendida > 0 ? v.cantidad_vendida : <span className="text-muted-foreground">—</span>}
+                    {v.cantidad_vendida > 0
+                      ? <span>{v.cantidad_vendida}{v.es_promo ? <span className="text-xs text-muted-foreground ml-0.5">p</span> : ''}</span>
+                      : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="p-2 text-right font-semibold text-green-600">{formatMoney(v.monto_recaudado || 0)}</td>
                   <td className="p-2 text-center">
@@ -138,7 +147,7 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
               ))}
               {/* Fila total */}
               <tr className="bg-green-50 border-t-2 border-green-300 font-bold">
-                <td colSpan={3} className="p-2 text-sm font-bold">TOTAL</td>
+                <td colSpan={4} className="p-2 text-sm font-bold">TOTAL</td>
                 <td className="p-2 text-center font-bold">{totalUnidades || '—'}</td>
                 <td className="p-2 text-right font-bold text-green-700 text-base">{formatMoney(totalRecaudado)}</td>
                 <td className="p-2 text-center text-xs text-muted-foreground">

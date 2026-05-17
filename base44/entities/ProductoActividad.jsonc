@@ -1,0 +1,66 @@
+{
+  "name": "ProductoActividad",
+  "type": "object",
+  "properties": {
+    "actividad_id": {
+      "type": "string",
+      "description": "ID de la actividad econ\u00f3mica"
+    },
+    "actividad_nombre": {
+      "type": "string",
+      "description": "Nombre de la actividad"
+    },
+    "nombre": {
+      "type": "string",
+      "description": "Nombre del producto (ej: Empanada de carne, Torta, Promo 2x1)"
+    },
+    "descripcion": {
+      "type": "string",
+      "description": "Descripci\u00f3n adicional (opcional)"
+    },
+    "es_promo": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si es una promoci\u00f3n por cantidad (ej: 2 por $X)"
+    },
+    "cantidad_promo": {
+      "type": "number",
+      "description": "Cantidad incluida en la promo (ej: 2 si es 2x$900). Solo aplica si es_promo=true"
+    },
+    "precio_venta": {
+      "type": "number",
+      "description": "Precio de venta unitario (o precio total de la promo si es_promo=true)"
+    },
+    "precio_costo": {
+      "type": "number",
+      "description": "Precio de costo unitario (opcional)"
+    },
+    "orden": {
+      "type": "number",
+      "description": "Orden de visualizaci\u00f3n",
+      "default": 0
+    }
+  },
+  "required": [
+    "actividad_id",
+    "nombre",
+    "precio_venta"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

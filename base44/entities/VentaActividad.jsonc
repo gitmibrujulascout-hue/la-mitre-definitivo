@@ -18,17 +18,38 @@
       "type": "string",
       "description": "Nombre del beneficiario"
     },
+    "producto_id": {
+      "type": "string",
+      "description": "ID del producto/promo vendido"
+    },
+    "producto_nombre": {
+      "type": "string",
+      "description": "Nombre del producto/promo al momento de la venta"
+    },
+    "precio_unitario_aplicado": {
+      "type": "number",
+      "description": "Precio de venta aplicado en esta venta (snapshot del precio del producto)"
+    },
+    "es_promo": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si esta venta corresponde a una promo por cantidad"
+    },
+    "cantidad_promo": {
+      "type": "number",
+      "description": "Cantidad de unidades f\u00edsicas incluidas en la promo (si aplica)"
+    },
     "cantidad_vendida": {
       "type": "number",
-      "description": "Cantidad de unidades vendidas por este beneficiario"
+      "description": "Cantidad de unidades (o cantidad de promos) vendidas por este beneficiario"
     },
     "monto_recaudado": {
       "type": "number",
-      "description": "Monto total recaudado por este beneficiario"
+      "description": "Monto total recaudado por este beneficiario en esta venta"
     },
     "credito_beneficiario": {
       "type": "number",
-      "description": "Cr\u00e9dito que se acredita al beneficiario (monto_recaudado * porcentaje_beneficiario / 100)"
+      "description": "Cr\u00e9dito que se acredita al beneficiario"
     },
     "credito_grupo": {
       "type": "number",
