@@ -69,6 +69,25 @@
       "format": "date",
       "description": "Fecha en que se realiz\u00f3 la entrega"
     },
+    "estado_rendicion": {
+      "type": "string",
+      "enum": [
+        "Sin rendir",
+        "Parcial",
+        "Rendido"
+      ],
+      "default": "Sin rendir",
+      "description": "Estado de la rendici\u00f3n del dinero por parte del vendedor"
+    },
+    "monto_rendido": {
+      "type": "number",
+      "description": "Monto efectivamente rendido por el vendedor (puede ser parcial)"
+    },
+    "fecha_rendicion": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha en que se realiz\u00f3 la rendici\u00f3n (total o parcial)"
+    },
     "acreditado": {
       "type": "boolean",
       "default": false,

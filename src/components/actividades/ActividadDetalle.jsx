@@ -4,14 +4,15 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Pencil, Plus, Trash2, TrendingUp, DollarSign, Gift, CheckCircle2, PackageCheck, Package, FileText } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Trash2, TrendingUp, DollarSign, Gift, CheckCircle2, PackageCheck, Package, FileText, Banknote } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import VentaForm from '@/components/actividades/VentaForm';
 import GastoActividadForm from '@/components/actividades/GastoActividadForm';
 import DistribuirCreditosDialog from '@/components/actividades/DistribuirCreditosDialog';
-import ReporteVentasDialog from '@/components/actividades/ReporteVentasDialog';
+import ReporteVentasDialog from '@/components/actividades/ReporteVentasDialog.jsx';
 import ProductosActividadPanel from '@/components/actividades/ProductosActividadPanel';
+import RendicionDialog from '@/components/actividades/RendicionDialog';
 
 const ESTADO_COLORS = {
   Planificada: 'bg-blue-100 text-blue-700 border-blue-200 border',
@@ -24,6 +25,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
   const [showGastoForm, setShowGastoForm] = useState(false);
   const [showDistribuir, setShowDistribuir] = useState(false);
   const [showReporte, setShowReporte] = useState(false);
+  const [ventaRendicion, setVentaRendicion] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: ventas = [] } = useQuery({
@@ -202,6 +204,12 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                           {v.entregado && v.fecha_entrega && ` · ${v.fecha_entrega}`}
                         </p>
                       )}
+                      {/* Rendición */}
+                      {v.estado_rendicion && v.estado_rendicion !== 'Sin rendir' && (
+                        <p className={`text-xs mt-0.5 font-medium ${v.estado_rendicion === 'Rendido' ? 'text-green-600' : 'text-amber-600'}`}>
+                          💰 {v.estado_rendicion === 'Rendido' ? 'Rendido' : `Parcial: ${formatMoney(v.monto_rendido || 0)} · Saldo: ${formatMoney((v.monto_recaudado||0)-(v.monto_rendido||0))}`}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {gananciaReal > 0 && (
@@ -210,6 +218,19 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                           <p className="font-semibold text-primary text-xs">{formatMoney(creditoEst)}</p>
                         </div>
                       )}
+                      {/* Botón rendición */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-7 w-7 ${
+                          v.estado_rendicion === 'Rendido' ? 'text-green-600' :
+                          v.estado_rendicion === 'Parcial' ? 'text-amber-500' : 'text-muted-foreground'
+                        }`}
+                        title="Registrar rendición de dinero"
+                        onClick={() => setVentaRendicion(v)}
+                      >
+                        <Banknote className="w-4 h-4" />
+                      </Button>
                       {v.comprador_nombre && (
                         <Button
                           variant="ghost"
@@ -308,6 +329,14 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
           actividad={actividad}
           ventas={ventas}
           onClose={() => setShowReporte(false)}
+        />
+      )}
+      {ventaRendicion && (
+        <RendicionDialog
+          open
+          venta={ventaRendicion}
+          actividadId={actividad.id}
+          onClose={() => setVentaRendicion(null)}
         />
       )}
       {showDistribuir && (
