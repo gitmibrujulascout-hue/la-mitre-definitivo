@@ -78,55 +78,51 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
   const getBen = (id) => beneficiarios.find(b => b.id === id);
 
   const buildWhatsAppMsg = (v) => {
-    const saldo = (v.monto_recaudado || 0) - (v.monto_rendido || 0);
-    const hasSaldo = v.estado_rendicion !== 'Rendido' && saldo > 0;
+    // Agrupar TODOS los pedidos de este beneficiario
+    const pedidosBen = ventas.filter(x => x.beneficiario_id === v.beneficiario_id);
+    const montoTotal = pedidosBen.reduce((s, x) => s + (x.monto_recaudado || 0), 0);
+    const montoRendidoTotal = pedidosBen.reduce((s, x) => s + (x.monto_rendido || (x.estado_rendicion === 'Rendido' ? x.monto_recaudado : 0) || 0), 0);
+    const saldoTotal = montoTotal - montoRendidoTotal;
+    const todoRendido = pedidosBen.every(x => x.estado_rendicion === 'Rendido');
+    const hayParcial = pedidosBen.some(x => x.estado_rendicion === 'Parcial');
 
     let lineas = [];
-    lineas.push(`🔔 *Resumen de pedido - ${actividad.nombre}*`);
+    lineas.push(`🔔 *Resumen de pedidos - ${actividad.nombre}*`);
     lineas.push(`👤 Vendedor/a: *${v.beneficiario_nombre}*`);
     lineas.push('');
-    lineas.push(`📦 *Detalle del pedido:*`);
-    lineas.push(`• Producto: ${v.producto_nombre || actividad.tipo_producto || '—'}`);
-    if (v.es_promo && v.cantidad_promo) {
-      lineas.push(`• Cantidad: ${v.cantidad_vendida} promo(s) de ${v.cantidad_promo} uds c/u`);
-    } else {
-      lineas.push(`• Cantidad: ${v.cantidad_vendida} unidad(es)`);
-    }
-    lineas.push(`• Monto total: *$${(v.monto_recaudado || 0).toLocaleString('es-AR')}*`);
-    if (v.comprador_nombre) {
-      lineas.push(`• Retira: ${v.comprador_nombre}`);
-      lineas.push(`• Entrega: ${v.entregado ? `✅ Entregado${v.fecha_entrega ? ` el ${v.fecha_entrega}` : ''}` : '⏳ Pendiente de entrega'}`);
-    }
+    lineas.push(`📦 *Detalle de los pedidos (${pedidosBen.length}):*`);
+    pedidosBen.forEach((p, i) => {
+      const cantDesc = p.es_promo && p.cantidad_promo
+        ? `${p.cantidad_vendida} promo(s) de ${p.cantidad_promo} uds`
+        : `${p.cantidad_vendida} unidad(es)`;
+      lineas.push(`${i + 1}. *${p.producto_nombre || actividad.tipo_producto || 'Producto'}* — ${cantDesc} — $${(p.monto_recaudado || 0).toLocaleString('es-AR')}`);
+      if (p.comprador_nombre) {
+        lineas.push(`   🛍️ Retira: ${p.comprador_nombre} · ${p.entregado ? `✅ Entregado${p.fecha_entrega ? ` el ${p.fecha_entrega}` : ''}` : '⏳ Pendiente'}`);
+      }
+    });
     lineas.push('');
     lineas.push(`💰 *Estado del pago:*`);
-    if (v.estado_rendicion === 'Rendido') {
+    lineas.push(`• Total a abonar: *$${montoTotal.toLocaleString('es-AR')}*`);
+    if (todoRendido) {
       lineas.push(`✅ Pago recibido completo. ¡Muchas gracias!`);
-    } else if (v.estado_rendicion === 'Parcial') {
-      lineas.push(`⚠️ Pago parcial recibido: $${(v.monto_rendido || 0).toLocaleString('es-AR')}`);
-      lineas.push(`📌 *Saldo pendiente: $${saldo.toLocaleString('es-AR')}*`);
-      lineas.push(`⏰ Fecha límite de pago: *23 de mayo inclusive*`);
+    } else if (hayParcial || montoRendidoTotal > 0) {
+      lineas.push(`⚠️ Recibido hasta ahora: $${montoRendidoTotal.toLocaleString('es-AR')}`);
+      lineas.push(`📌 *Saldo pendiente: $${saldoTotal.toLocaleString('es-AR')}*`);
+      lineas.push(`⏰ Fecha límite: *23 de mayo inclusive*`);
     } else {
-      lineas.push(`📌 *Monto a abonar: $${(v.monto_recaudado || 0).toLocaleString('es-AR')}*`);
-      lineas.push(`⏰ Fecha límite de pago: *23 de mayo inclusive*`);
+      lineas.push(`📌 *Monto a abonar: $${montoTotal.toLocaleString('es-AR')}*`);
+      lineas.push(`⏰ Fecha límite: *23 de mayo inclusive*`);
     }
     lineas.push('');
     lineas.push(`¡Gracias por participar! 🙏`);
 
     const msg = lineas.join('\n');
     const ben = getBen(v.beneficiario_id);
-    // Limpiar el número: sacar espacios, guiones, paréntesis y agregar código de país Argentina si no lo tiene
     const rawPhone = ben?.telefono_contacto || '';
     const digits = rawPhone.replace(/\D/g, '');
-    // Si empieza con 0, quitar el 0 y agregar 54; si ya empieza con 54, dejarlo; si no tiene prefijo, agregar 54
     let phone = '';
     if (digits.length >= 8) {
-      if (digits.startsWith('54')) {
-        phone = digits;
-      } else if (digits.startsWith('0')) {
-        phone = '54' + digits.slice(1);
-      } else {
-        phone = '54' + digits;
-      }
+      phone = digits.startsWith('54') ? digits : digits.startsWith('0') ? '54' + digits.slice(1) : '54' + digits;
     }
     const base = phone ? `https://web.whatsapp.com/send?phone=${phone}&text=` : `https://web.whatsapp.com/send?text=`;
     return base + encodeURIComponent(msg);
@@ -239,89 +235,106 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
               <Button size="sm" onClick={() => setShowVentaForm(true)}><Plus className="w-3 h-3 mr-1" />Agregar</Button>
             </div>
           </CardHeader>
-          <CardContent className="pt-0 max-h-80 overflow-y-auto space-y-0">
+          <CardContent className="pt-0 max-h-[32rem] overflow-y-auto space-y-0">
             {ventas.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 Registrá cuánto vendió cada participante al finalizar la actividad
               </p>
-            ) : ventas.map(v => {
-              const ben = getBen(v.beneficiario_id);
-              const pct = totalVentas > 0 ? Math.round((v.monto_recaudado / totalVentas) * 100) : 0;
-              const creditoEst = gananciaReal > 0 ? Math.round(gananciaReal * (actividad.porcentaje_beneficiario || 50) / 100 * pct / 100 * 100) / 100 : 0;
-              return (
-                <div key={v.id} className={`py-2.5 border-b last:border-0 text-sm ${v.entregado ? 'opacity-60' : ''}`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-medium truncate">{ben?.nombre || v.beneficiario_nombre}</p>
-                        {v.entregado && <span className="text-xs text-green-600 font-medium bg-green-50 px-1.5 py-0.5 rounded">✓ Entregado</span>}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {v.producto_nombre && <span className="text-primary/80 font-medium">{v.producto_nombre} · </span>}
-                        {v.cantidad_vendida > 0 && `${v.cantidad_vendida}${v.es_promo ? ' promo(s)' : ' uds'} · `}{formatMoney(v.monto_recaudado)} ({pct}%)
-                      </p>
-                      {v.comprador_nombre && (
-                        <p className="text-xs text-amber-700 mt-0.5">
-                          🛍️ Retira: <span className="font-medium">{v.comprador_nombre}</span>
-                          {v.entregado && v.fecha_entrega && ` · ${v.fecha_entrega}`}
-                        </p>
-                      )}
-                      {/* Rendición */}
-                      {v.estado_rendicion && v.estado_rendicion !== 'Sin rendir' && (
-                        <p className={`text-xs mt-0.5 font-medium ${v.estado_rendicion === 'Rendido' ? 'text-green-600' : 'text-amber-600'}`}>
-                          💰 {v.estado_rendicion === 'Rendido' ? 'Rendido' : `Parcial: ${formatMoney(v.monto_rendido || 0)} · Saldo: ${formatMoney((v.monto_recaudado||0)-(v.monto_rendido||0))}`}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {gananciaReal > 0 && (
-                        <div className="text-right mr-1">
-                          <p className="text-xs text-muted-foreground">Crédito est.</p>
-                          <p className="font-semibold text-primary text-xs">{formatMoney(creditoEst)}</p>
+            ) : (() => {
+              // Agrupar por beneficiario
+              const grupos = {};
+              ventas.forEach(v => {
+                const key = v.beneficiario_id || v.beneficiario_nombre;
+                if (!grupos[key]) grupos[key] = { ben: getBen(v.beneficiario_id), nombre: v.beneficiario_nombre, pedidos: [] };
+                grupos[key].pedidos.push(v);
+              });
+              return Object.values(grupos).map(({ ben, nombre, pedidos }) => {
+                const montoGrupo = pedidos.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
+                const pctGrupo = totalVentas > 0 ? Math.round((montoGrupo / totalVentas) * 100) : 0;
+                const creditoEstGrupo = gananciaReal > 0 ? Math.round(gananciaReal * (actividad.porcentaje_beneficiario || 50) / 100 * pctGrupo / 100) : 0;
+                const rendicionGrupo = pedidos.every(v => v.estado_rendicion === 'Rendido') ? 'Rendido'
+                  : pedidos.some(v => v.estado_rendicion === 'Parcial' || v.estado_rendicion === 'Rendido') ? 'Parcial' : 'Sin rendir';
+                const montoRendidoGrupo = pedidos.reduce((s, v) => s + (v.monto_rendido || (v.estado_rendicion === 'Rendido' ? v.monto_recaudado : 0) || 0), 0);
+                return (
+                  <div key={nombre} className="border-b last:border-0">
+                    {/* Cabecera del vendedor */}
+                    <div className="flex items-center justify-between gap-2 py-2 bg-muted/30 px-2 rounded-sm">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-semibold text-sm truncate">{ben?.nombre || nombre}</p>
+                          <span className="text-xs text-muted-foreground">({pedidos.length} pedido{pedidos.length > 1 ? 's' : ''})</span>
+                          <span className="text-xs font-semibold text-green-700">{formatMoney(montoGrupo)} ({pctGrupo}%)</span>
+                          {rendicionGrupo !== 'Sin rendir' && (
+                            <span className={`text-xs font-medium ${rendicionGrupo === 'Rendido' ? 'text-green-600' : 'text-amber-600'}`}>
+                              💰 {rendicionGrupo === 'Rendido' ? 'Rendido' : `Parcial: ${formatMoney(montoRendidoGrupo)}`}
+                            </span>
+                          )}
                         </div>
-                      )}
-                      {/* Botón WhatsApp */}
-                      <a
-                        href={buildWhatsAppMsg(v)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Enviar resumen del pedido por WhatsApp"
-                        className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-green-50 text-green-600 hover:text-green-700 transition-colors"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                      </a>
-                      {/* Botón rendición */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={`h-7 w-7 ${
-                          v.estado_rendicion === 'Rendido' ? 'text-green-600' :
-                          v.estado_rendicion === 'Parcial' ? 'text-amber-500' : 'text-muted-foreground'
-                        }`}
-                        title="Registrar rendición de dinero"
-                        onClick={() => setVentaRendicion(v)}
-                      >
-                        <Banknote className="w-4 h-4" />
-                      </Button>
-                      {v.comprador_nombre && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={`h-7 w-7 ${v.entregado ? 'text-green-600' : 'text-muted-foreground'}`}
-                          title={v.entregado ? 'Marcar como NO entregado' : 'Marcar como entregado'}
-                          onClick={() => marcarEntregadoMut.mutate({ id: v.id, entregado: !v.entregado })}
+                        {gananciaReal > 0 && <p className="text-xs text-primary">Crédito est.: {formatMoney(creditoEstGrupo)}</p>}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <a
+                          href={buildWhatsAppMsg(pedidos[0])}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Enviar resumen completo por WhatsApp"
+                          className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-green-50 text-green-600 hover:text-green-700 transition-colors"
                         >
-                          {v.entregado ? <PackageCheck className="w-4 h-4" /> : <Package className="w-4 h-4" />}
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteVentaMut.mutate(v.id)}>
-                        <Trash2 className="w-3 h-3 text-muted-foreground" />
-                      </Button>
+                          <MessageCircle className="w-4 h-4" />
+                        </a>
+                      </div>
                     </div>
+                    {/* Sub-filas de cada pedido */}
+                    {pedidos.map(v => (
+                      <div key={v.id} className={`flex items-center justify-between gap-2 py-1.5 pl-4 pr-2 text-xs ${v.entregado ? 'opacity-60' : ''}`}>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-muted-foreground">
+                            <span className="font-medium text-foreground/80">{v.producto_nombre || actividad.tipo_producto || '—'}</span>
+                            {' · '}{v.cantidad_vendida}{v.es_promo ? ' promo(s)' : ' uds'}
+                            {' · '}<span className="font-semibold text-green-700">{formatMoney(v.monto_recaudado)}</span>
+                            {v.entregado && <span className="ml-1.5 text-green-600">✓ Entregado</span>}
+                          </p>
+                          {v.comprador_nombre && (
+                            <p className="text-amber-700">
+                              🛍️ {v.comprador_nombre}
+                              {v.entregado && v.fecha_entrega && ` · ${v.fecha_entrega}`}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-6 w-6 ${
+                              v.estado_rendicion === 'Rendido' ? 'text-green-600' :
+                              v.estado_rendicion === 'Parcial' ? 'text-amber-500' : 'text-muted-foreground'
+                            }`}
+                            title="Registrar rendición"
+                            onClick={() => setVentaRendicion(v)}
+                          >
+                            <Banknote className="w-3.5 h-3.5" />
+                          </Button>
+                          {v.comprador_nombre && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={`h-6 w-6 ${v.entregado ? 'text-green-600' : 'text-muted-foreground'}`}
+                              title={v.entregado ? 'Marcar como NO entregado' : 'Marcar como entregado'}
+                              onClick={() => marcarEntregadoMut.mutate({ id: v.id, entregado: !v.entregado })}
+                            >
+                              {v.entregado ? <PackageCheck className="w-3.5 h-3.5" /> : <Package className="w-3.5 h-3.5" />}
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteVentaMut.mutate(v.id)}>
+                            <Trash2 className="w-3 h-3 text-muted-foreground" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </CardContent>
         </Card>
 

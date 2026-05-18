@@ -238,14 +238,14 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-muted/60">
-                <th className="text-left p-2 text-xs uppercase text-muted-foreground border-b-2 border-border w-6">#</th>
-                <th className="text-left p-2 text-xs uppercase text-muted-foreground border-b-2 border-border">Producto</th>
-                <th className="text-left p-2 text-xs uppercase text-muted-foreground border-b-2 border-border">Quien retira</th>
-                <th className="text-center p-2 text-xs uppercase text-muted-foreground border-b-2 border-border">Cant.</th>
-                <th className="text-right p-2 text-xs uppercase text-muted-foreground border-b-2 border-border">Monto</th>
-                <th className="text-center p-2 text-xs uppercase text-muted-foreground border-b-2 border-border">Entrega</th>
-                <th className="text-center p-2 text-xs uppercase text-muted-foreground border-b-2 border-border">Rendición</th>
-                <th className="text-right p-2 text-xs uppercase text-muted-foreground border-b-2 border-border">Saldo</th>
+                <th className="text-left px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border w-6">#</th>
+                <th className="text-left px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border">Producto</th>
+                <th className="text-left px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border">Quien retira</th>
+                <th className="text-center px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border">Cant.</th>
+                <th className="text-right px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border">Monto</th>
+                <th className="text-center px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border">Entrega</th>
+                <th className="text-center px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border">Rendición</th>
+                <th className="text-right px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border">Saldo</th>
               </tr>
             </thead>
             <tbody>
@@ -257,84 +257,84 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
                   <React.Fragment key={nombre}>
                     {/* Fila del vendedor */}
                     <tr className="vendedor-row bg-primary/5 border-t border-primary/20">
-                      <td colSpan={4} className="p-2 font-bold text-sm text-primary">
-                        {nombre}
-                      </td>
-                      <td className="p-2 text-right font-bold text-green-700">{formatMoney(subtotal)}</td>
-                      <td />
-                      <td className="p-2 text-center text-xs font-semibold">
-                        {subSaldo <= 0
-                          ? <span className="text-green-700">✓ Todo rendido</span>
-                          : <span className="text-amber-700">Saldo: {formatMoney(subSaldo)}</span>
-                        }
-                      </td>
-                      <td className="p-2 text-right font-bold text-red-600 text-xs">
-                        {subSaldo > 0 ? formatMoney(subSaldo) : '—'}
-                      </td>
+                     <td colSpan={4} className="px-2 py-1 font-bold text-sm text-primary">
+                       {nombre}
+                     </td>
+                     <td className="px-2 py-1 text-right font-bold text-green-700">{formatMoney(subtotal)}</td>
+                     <td />
+                     <td className="px-2 py-1 text-center text-xs font-semibold">
+                       {subSaldo <= 0
+                         ? <span className="text-green-700">✓ Todo rendido</span>
+                         : <span className="text-amber-700">Saldo: {formatMoney(subSaldo)}</span>
+                       }
+                     </td>
+                     <td className="px-2 py-1 text-right font-bold text-red-600 text-xs">
+                       {subSaldo > 0 ? formatMoney(subSaldo) : '—'}
+                     </td>
                     </tr>
                     {/* Filas de pedidos del vendedor */}
                     {vv.map(v => {
-                      rowNum++;
-                      const rend = getRendicion(v);
-                      const saldo = getSaldo(v);
-                      const rendidoEfectivo = v.monto_rendido || (v.estado_rendicion === 'Rendido' ? v.monto_recaudado : 0) || 0;
-                      return (
-                        <tr key={v.id} className="sub-row border-b">
-                          <td className="p-2 text-muted-foreground text-xs pl-4">{rowNum}</td>
-                          <td className="p-2 pl-6 text-xs">
-                            {v.producto_nombre
-                              ? <span className="font-medium text-primary/80">{v.producto_nombre}{v.es_promo ? ` (${v.cantidad_promo}x)` : ''}</span>
-                              : <span className="text-muted-foreground italic">—</span>}
-                          </td>
-                          <td className="p-2 pl-6">
-                            {v.comprador_nombre
-                              ? <span className="text-amber-700 font-medium">🛍️ {v.comprador_nombre}</span>
-                              : <span className="text-muted-foreground text-xs italic">—</span>}
-                          </td>
-                          <td className="p-2 text-center">
-                            {v.cantidad_vendida > 0 ? v.cantidad_vendida : '—'}
-                          </td>
-                          <td className="p-2 text-right font-semibold text-green-600">
-                            {formatMoney(v.monto_recaudado || 0)}
-                          </td>
-                          <td className="p-2 text-center">
-                            {v.entregado
-                              ? <span className="inline-flex items-center gap-1 text-green-700 text-xs font-semibold">
-                                  <PackageCheck className="w-3 h-3" />✓
-                                </span>
-                              : <span className="inline-flex items-center gap-1 text-amber-700 text-xs">
-                                  <Package className="w-3 h-3" />⏳
-                                </span>}
-                          </td>
-                          <td className="p-2 text-center">
-                            <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded border ${rend.color} ${rend.bg} ${rend.border}`}>
-                              {rend.label}
-                              {v.estado_rendicion === 'Parcial' && rendidoEfectivo > 0 && (
-                                <span className="ml-1 font-normal">({formatMoney(rendidoEfectivo)})</span>
-                              )}
-                            </span>
-                          </td>
-                          <td className="p-2 text-right text-xs font-bold">
-                            {saldo > 0
-                              ? <span className="text-red-600">{formatMoney(saldo)}</span>
-                              : <span className="text-green-600">—</span>}
-                          </td>
-                        </tr>
-                      );
+                     rowNum++;
+                     const rend = getRendicion(v);
+                     const saldo = getSaldo(v);
+                     const rendidoEfectivo = v.monto_rendido || (v.estado_rendicion === 'Rendido' ? v.monto_recaudado : 0) || 0;
+                     return (
+                       <tr key={v.id} className="sub-row border-b">
+                         <td className="px-2 py-0.5 text-muted-foreground text-xs pl-4">{rowNum}</td>
+                         <td className="px-2 py-0.5 pl-6 text-xs">
+                           {v.producto_nombre
+                             ? <span className="font-medium text-primary/80">{v.producto_nombre}{v.es_promo ? ` (${v.cantidad_promo}x)` : ''}</span>
+                             : <span className="text-muted-foreground italic">—</span>}
+                         </td>
+                         <td className="px-2 py-0.5 pl-6">
+                           {v.comprador_nombre
+                             ? <span className="text-amber-700 font-medium">🛍️ {v.comprador_nombre}</span>
+                             : <span className="text-muted-foreground text-xs italic">—</span>}
+                         </td>
+                         <td className="px-2 py-0.5 text-center">
+                           {v.cantidad_vendida > 0 ? v.cantidad_vendida : '—'}
+                         </td>
+                         <td className="px-2 py-0.5 text-right font-semibold text-green-600">
+                           {formatMoney(v.monto_recaudado || 0)}
+                         </td>
+                         <td className="px-2 py-0.5 text-center">
+                           {v.entregado
+                             ? <span className="inline-flex items-center gap-1 text-green-700 text-xs font-semibold">
+                                 <PackageCheck className="w-3 h-3" />✓
+                               </span>
+                             : <span className="inline-flex items-center gap-1 text-amber-700 text-xs">
+                                 <Package className="w-3 h-3" />⏳
+                               </span>}
+                         </td>
+                         <td className="px-2 py-0.5 text-center">
+                           <span className={`inline-block text-xs font-semibold px-1.5 py-0 rounded border ${rend.color} ${rend.bg} ${rend.border}`}>
+                             {rend.label}
+                             {v.estado_rendicion === 'Parcial' && rendidoEfectivo > 0 && (
+                               <span className="ml-1 font-normal">({formatMoney(rendidoEfectivo)})</span>
+                             )}
+                           </span>
+                         </td>
+                         <td className="px-2 py-0.5 text-right text-xs font-bold">
+                           {saldo > 0
+                             ? <span className="text-red-600">{formatMoney(saldo)}</span>
+                             : <span className="text-green-600">—</span>}
+                         </td>
+                       </tr>
+                     );
                     })}
                   </React.Fragment>
                 );
               })}
               {/* Fila total */}
               <tr className="total-row bg-green-50 border-t-2 border-green-300">
-                <td colSpan={3} className="p-2 text-sm font-bold">TOTAL GENERAL</td>
-                <td className="p-2 text-center font-bold">{totalUnidades || '—'}</td>
-                <td className="p-2 text-right font-bold text-green-700 text-base">{formatMoney(totalRecaudado)}</td>
-                <td className="p-2 text-center text-xs text-muted-foreground">
+                <td colSpan={3} className="px-2 py-1 text-sm font-bold">TOTAL GENERAL</td>
+                <td className="px-2 py-1 text-center font-bold">{totalUnidades || '—'}</td>
+                <td className="px-2 py-1 text-right font-bold text-green-700 text-base">{formatMoney(totalRecaudado)}</td>
+                <td className="px-2 py-1 text-center text-xs text-muted-foreground">
                   {entregadas}✓ / {pendientes}⏳
                 </td>
-                <td className="p-2 text-center text-xs font-bold text-blue-700">{formatMoney(totalRendido)}</td>
-                <td className="p-2 text-right font-bold text-red-600 text-sm">
+                <td className="px-2 py-1 text-center text-xs font-bold text-blue-700">{formatMoney(totalRendido)}</td>
+                <td className="px-2 py-1 text-right font-bold text-red-600 text-sm">
                   {totalSaldo > 0 ? formatMoney(totalSaldo) : '—'}
                 </td>
               </tr>
