@@ -241,7 +241,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                 Registrá cuánto vendió cada participante al finalizar la actividad
               </p>
             ) : (() => {
-              // Agrupar por beneficiario
+              // Nivel 1: agrupar por beneficiario
               const grupos = {};
               ventas.forEach(v => {
                 const key = v.beneficiario_id || v.beneficiario_nombre;
@@ -255,6 +255,16 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                 const rendicionGrupo = pedidos.every(v => v.estado_rendicion === 'Rendido') ? 'Rendido'
                   : pedidos.some(v => v.estado_rendicion === 'Parcial' || v.estado_rendicion === 'Rendido') ? 'Parcial' : 'Sin rendir';
                 const montoRendidoGrupo = pedidos.reduce((s, v) => s + (v.monto_rendido || (v.estado_rendicion === 'Rendido' ? v.monto_recaudado : 0) || 0), 0);
+
+                // Nivel 2: agrupar pedidos de este vendedor por comprador
+                const porComprador = {};
+                pedidos.forEach(v => {
+                  const cKey = v.comprador_nombre?.trim() || '__sin_comprador__';
+                  if (!porComprador[cKey]) porComprador[cKey] = { comprador: v.comprador_nombre?.trim() || '', items: [] };
+                  porComprador[cKey].items.push(v);
+                });
+                const compradorGroups = Object.values(porComprador);
+
                 return (
                   <div key={nombre} className="border-b last:border-0">
                     {/* Cabecera del vendedor */}
@@ -262,7 +272,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="font-semibold text-sm truncate">{ben?.nombre || nombre}</p>
-                          <span className="text-xs text-muted-foreground">({pedidos.length} pedido{pedidos.length > 1 ? 's' : ''})</span>
+                          <span className="text-xs text-muted-foreground">({compradorGroups.length} pedido{compradorGroups.length > 1 ? 's' : ''})</span>
                           <span className="text-xs font-semibold text-green-700">{formatMoney(montoGrupo)} ({pctGrupo}%)</span>
                           {rendicionGrupo !== 'Sin rendir' && (
                             <span className={`text-xs font-medium ${rendicionGrupo === 'Rendido' ? 'text-green-600' : 'text-amber-600'}`}>
@@ -284,53 +294,70 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                         </a>
                       </div>
                     </div>
-                    {/* Sub-filas de cada pedido */}
-                    {pedidos.map(v => (
-                      <div key={v.id} className={`flex items-center justify-between gap-2 py-1.5 pl-4 pr-2 text-xs ${v.entregado ? 'opacity-60' : ''}`}>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-muted-foreground">
-                            <span className="font-medium text-foreground/80">{v.producto_nombre || actividad.tipo_producto || '—'}</span>
-                            {' · '}{v.cantidad_vendida}{v.es_promo ? ' promo(s)' : ' uds'}
-                            {' · '}<span className="font-semibold text-green-700">{formatMoney(v.monto_recaudado)}</span>
-                            {v.entregado && <span className="ml-1.5 text-green-600">✓ Entregado</span>}
-                          </p>
-                          {v.comprador_nombre && (
-                            <p className="text-amber-700">
-                              🛍️ {v.comprador_nombre}
-                              {v.entregado && v.fecha_entrega && ` · ${v.fecha_entrega}`}
-                            </p>
-                          )}
+
+                    {/* Pedidos agrupados por comprador */}
+                    {compradorGroups.map(({ comprador, items }) => {
+                      const montoPedido = items.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
+                      const todoEntregado = items.every(v => v.entregado);
+                      const rendicionPedido = items.every(v => v.estado_rendicion === 'Rendido') ? 'Rendido'
+                        : items.some(v => v.estado_rendicion === 'Parcial' || v.estado_rendicion === 'Rendido') ? 'Parcial' : 'Sin rendir';
+                      const cKey = comprador || '__sin_comprador__';
+                      return (
+                        <div key={cKey} className="pl-3 pr-2 py-1.5 border-t border-dashed border-border/50">
+                          {/* Cabecera del pedido (comprador) */}
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
+                              {comprador
+                                ? <span className="text-xs font-semibold text-amber-700">🛍️ {comprador}</span>
+                                : <span className="text-xs text-muted-foreground italic">Sin comprador</span>}
+                              <span className="text-xs font-semibold text-green-700">{formatMoney(montoPedido)}</span>
+                              {todoEntregado
+                                ? <span className="text-xs text-green-600">✓ Entregado</span>
+                                : comprador && <span className="text-xs text-amber-600">⏳ Pendiente</span>}
+                              {rendicionPedido !== 'Sin rendir' && (
+                                <span className={`text-xs font-medium ${rendicionPedido === 'Rendido' ? 'text-green-600' : 'text-amber-600'}`}>
+                                  · 💰 {rendicionPedido}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              {/* Rendición sobre la primera línea del pedido */}
+                              <Button
+                                variant="ghost" size="icon"
+                                className={`h-6 w-6 ${rendicionPedido === 'Rendido' ? 'text-green-600' : rendicionPedido === 'Parcial' ? 'text-amber-500' : 'text-muted-foreground'}`}
+                                title="Registrar rendición"
+                                onClick={() => setVentaRendicion(items[0])}
+                              >
+                                <Banknote className="w-3.5 h-3.5" />
+                              </Button>
+                              {comprador && (
+                                <Button
+                                  variant="ghost" size="icon"
+                                  className={`h-6 w-6 ${todoEntregado ? 'text-green-600' : 'text-muted-foreground'}`}
+                                  title={todoEntregado ? 'Marcar todo como NO entregado' : 'Marcar todo como entregado'}
+                                  onClick={() => items.forEach(v => marcarEntregadoMut.mutate({ id: v.id, entregado: !todoEntregado }))}
+                                >
+                                  {todoEntregado ? <PackageCheck className="w-3.5 h-3.5" /> : <Package className="w-3.5 h-3.5" />}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          {/* Líneas de productos dentro del pedido */}
+                          {items.map(v => (
+                            <div key={v.id} className="flex items-center justify-between gap-1 py-0.5 pl-3">
+                              <p className="text-xs text-muted-foreground flex-1 min-w-0">
+                                <span className="font-medium text-foreground/80">{v.producto_nombre || actividad.tipo_producto || '—'}</span>
+                                {' · '}{v.cantidad_vendida}{v.es_promo ? ' promo(s)' : ' uds'}
+                                {' · '}<span className="text-green-700">{formatMoney(v.monto_recaudado)}</span>
+                              </p>
+                              <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => deleteVentaMut.mutate(v.id)}>
+                                <Trash2 className="w-3 h-3 text-muted-foreground" />
+                              </Button>
+                            </div>
+                          ))}
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={`h-6 w-6 ${
-                              v.estado_rendicion === 'Rendido' ? 'text-green-600' :
-                              v.estado_rendicion === 'Parcial' ? 'text-amber-500' : 'text-muted-foreground'
-                            }`}
-                            title="Registrar rendición"
-                            onClick={() => setVentaRendicion(v)}
-                          >
-                            <Banknote className="w-3.5 h-3.5" />
-                          </Button>
-                          {v.comprador_nombre && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className={`h-6 w-6 ${v.entregado ? 'text-green-600' : 'text-muted-foreground'}`}
-                              title={v.entregado ? 'Marcar como NO entregado' : 'Marcar como entregado'}
-                              onClick={() => marcarEntregadoMut.mutate({ id: v.id, entregado: !v.entregado })}
-                            >
-                              {v.entregado ? <PackageCheck className="w-3.5 h-3.5" /> : <Package className="w-3.5 h-3.5" />}
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteVentaMut.mutate(v.id)}>
-                            <Trash2 className="w-3 h-3 text-muted-foreground" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               });
