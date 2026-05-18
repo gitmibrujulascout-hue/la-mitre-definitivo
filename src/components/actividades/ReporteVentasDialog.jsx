@@ -61,47 +61,89 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
     });
   });
 
-  // ---- EXPORTAR XLS ----
+  // ---- EXPORTAR XLS (tabla HTML que Excel abre perfectamente) ----
   const handleExportXLS = () => {
-    // Construir contenido CSV-like en formato Excel (tab-separated para mejor compatibilidad)
-    const rows = [];
-    rows.push(['Reporte de Ventas - ' + actividad.nombre]);
-    rows.push(['Fecha:', actividad.fecha || '']);
-    rows.push([]);
-    rows.push(['Vendedor', 'Producto', 'Quien retira', 'Cantidad', 'Monto', 'Estado entrega', 'Estado rendición', 'Monto rendido', 'Saldo pendiente', 'Observaciones']);
+    const fmt = (n) => (n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    let rn = 0;
 
-    vendedoresOrdenados.forEach(({ nombre, ventas: vv }) => {
-      vv.forEach(v => {
+    const filas = vendedoresOrdenados.map(({ nombre, ventas: vv }) => {
+      const subtotal = vv.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
+      const subRendido = vv.reduce((s, v) => s + (v.monto_rendido || (v.estado_rendicion === 'Rendido' ? v.monto_recaudado : 0) || 0), 0);
+      const subSaldo = subtotal - subRendido;
+
+      const subFilas = vv.map(v => {
+        rn++;
+        const rendidoEfectivo = v.monto_rendido || (v.estado_rendicion === 'Rendido' ? v.monto_recaudado : 0) || 0;
         const saldo = getSaldo(v);
-        rows.push([
-          nombre,
-          v.producto_nombre || '',
-          v.comprador_nombre || '',
-          v.cantidad_vendida || 0,
-          v.monto_recaudado || 0,
-          v.entregado ? 'Entregado' : 'Pendiente',
-          v.estado_rendicion || 'Sin rendir',
-          v.monto_rendido || (v.estado_rendicion === 'Rendido' ? v.monto_recaudado : 0) || 0,
-          saldo > 0 ? saldo : 0,
-          v.observaciones || '',
-        ]);
-      });
-    });
+        return `<tr>
+          <td style="padding:5px 8px;border:1px solid #ddd;color:#888">${rn}</td>
+          <td style="padding:5px 8px 5px 20px;border:1px solid #ddd">${nombre}</td>
+          <td style="padding:5px 8px 5px 20px;border:1px solid #ddd">${v.producto_nombre || '—'}</td>
+          <td style="padding:5px 8px 5px 20px;border:1px solid #ddd">${v.comprador_nombre || '—'}</td>
+          <td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${v.cantidad_vendida || '—'}</td>
+          <td style="padding:5px 8px;border:1px solid #ddd;text-align:right">${fmt(v.monto_recaudado)}</td>
+          <td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${v.entregado ? 'Entregado' : 'Pendiente'}</td>
+          <td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${v.estado_rendicion || 'Sin rendir'}</td>
+          <td style="padding:5px 8px;border:1px solid #ddd;text-align:right">${rendidoEfectivo > 0 ? fmt(rendidoEfectivo) : '—'}</td>
+          <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;color:${saldo > 0 ? '#dc2626' : '#16a34a'}">${saldo > 0 ? fmt(saldo) : '—'}</td>
+        </tr>`;
+      }).join('');
 
-    rows.push([]);
-    rows.push(['TOTAL', '', '', totalUnidades, totalRecaudado, '', '', totalRendido, totalSaldo > 0 ? totalSaldo : 0, '']);
+      const vendedorFila = `<tr style="background:#e8eeff">
+        <td colspan="4" style="padding:6px 8px;border:1px solid #b0b8e0;font-weight:bold;color:#2a3d9e">${nombre}</td>
+        <td style="padding:6px 8px;border:1px solid #b0b8e0"></td>
+        <td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:right;font-weight:bold;color:#15803d">${fmt(subtotal)}</td>
+        <td style="padding:6px 8px;border:1px solid #b0b8e0"></td>
+        <td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:center;font-weight:bold;color:${subSaldo <= 0 ? '#15803d' : '#b45309'}">${subSaldo <= 0 ? 'Todo rendido' : 'Saldo pend.'}</td>
+        <td style="padding:6px 8px;border:1px solid #b0b8e0"></td>
+        <td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:right;font-weight:bold;color:#dc2626">${subSaldo > 0 ? fmt(subSaldo) : '—'}</td>
+      </tr>`;
 
-    // Crear contenido con BOM para Excel en español
-    const csv = '\uFEFF' + rows.map(r => r.map(cell => {
-      const s = String(cell ?? '');
-      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
-    }).join(',')).join('\n');
+      return vendedorFila + subFilas;
+    }).join('');
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+      <head><meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; font-size: 11px; }
+        table { border-collapse: collapse; width: 100%; }
+        th { background: #f3f4f6; padding: 7px 8px; border: 1px solid #ccc; font-size: 10px; text-transform: uppercase; text-align: left; }
+      </style>
+      </head>
+      <body>
+        <h2 style="font-family:Arial;font-size:16px;margin-bottom:2px">${actividad.nombre}</h2>
+        <p style="font-family:Arial;font-size:11px;color:#666;margin-bottom:16px">
+          ${actividad.tipo_producto ? actividad.tipo_producto + ' · ' : ''}Fecha: ${actividad.fecha || ''}
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Vendedor</th><th>Producto</th><th>Quien retira</th>
+              <th>Cant.</th><th>Monto</th><th>Entrega</th>
+              <th>Rendición</th><th>Monto rendido</th><th>Saldo pendiente</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filas}
+            <tr style="background:#dcfce7;font-weight:bold">
+              <td colspan="4" style="padding:7px 8px;border:1px solid #86efac">TOTAL GENERAL</td>
+              <td style="padding:7px 8px;border:1px solid #86efac;text-align:center">${totalUnidades || '—'}</td>
+              <td style="padding:7px 8px;border:1px solid #86efac;text-align:right;color:#15803d">${fmt(totalRecaudado)}</td>
+              <td style="padding:7px 8px;border:1px solid #86efac"></td>
+              <td style="padding:7px 8px;border:1px solid #86efac;text-align:center;color:#1d4ed8">${fmt(totalRendido)}</td>
+              <td style="padding:7px 8px;border:1px solid #86efac"></td>
+              <td style="padding:7px 8px;border:1px solid #86efac;text-align:right;color:#dc2626">${totalSaldo > 0 ? fmt(totalSaldo) : '—'}</td>
+            </tr>
+          </tbody>
+        </table>
+      </body></html>`;
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ventas_${actividad.nombre.replace(/\s+/g, '_')}.csv`;
+    a.download = `ventas_${actividad.nombre.replace(/\s+/g, '_')}.xls`;
     a.click();
     URL.revokeObjectURL(url);
   };

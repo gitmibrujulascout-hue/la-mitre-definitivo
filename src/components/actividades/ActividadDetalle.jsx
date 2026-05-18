@@ -13,6 +13,7 @@ import DistribuirCreditosDialog from '@/components/actividades/DistribuirCredito
 import ReporteVentasDialog from '@/components/actividades/ReporteVentasDialog.jsx';
 import ProductosActividadPanel from '@/components/actividades/ProductosActividadPanel';
 import RendicionDialog from '@/components/actividades/RendicionDialog';
+import RendicionMasivaDialog from '@/components/actividades/RendicionMasivaDialog';
 
 const ESTADO_COLORS = {
   Planificada: 'bg-blue-100 text-blue-700 border-blue-200 border',
@@ -26,6 +27,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
   const [showDistribuir, setShowDistribuir] = useState(false);
   const [showReporte, setShowReporte] = useState(false);
   const [ventaRendicion, setVentaRendicion] = useState(null);
+  const [showRendicionMasiva, setShowRendicionMasiva] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: ventas = [] } = useQuery({
@@ -97,9 +99,14 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
         </div>
         <div className="flex gap-2">
           {ventas.length > 0 && (
-            <Button onClick={() => setShowReporte(true)} variant="outline">
-              <FileText className="w-4 h-4 mr-2" />Reporte de ventas
-            </Button>
+            <>
+              <Button onClick={() => setShowRendicionMasiva(true)} variant="outline">
+                <Banknote className="w-4 h-4 mr-2" />Rendición masiva
+              </Button>
+              <Button onClick={() => setShowReporte(true)} variant="outline">
+                <FileText className="w-4 h-4 mr-2" />Reporte de ventas
+              </Button>
+            </>
           )}
           <Button onClick={onEdit} variant="outline"><Pencil className="w-4 h-4 mr-2" />Editar</Button>
         </div>
@@ -337,6 +344,14 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
           venta={ventaRendicion}
           actividadId={actividad.id}
           onClose={() => setVentaRendicion(null)}
+        />
+      )}
+      {showRendicionMasiva && (
+        <RendicionMasivaDialog
+          open
+          ventas={ventas}
+          actividadId={actividad.id}
+          onClose={() => setShowRendicionMasiva(false)}
         />
       )}
       {showDistribuir && (
