@@ -113,7 +113,23 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
     lineas.push(`¡Gracias por participar! 🙏`);
 
     const msg = lineas.join('\n');
-    return `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    const ben = getBen(v.beneficiario_id);
+    // Limpiar el número: sacar espacios, guiones, paréntesis y agregar código de país Argentina si no lo tiene
+    const rawPhone = ben?.telefono_contacto || '';
+    const digits = rawPhone.replace(/\D/g, '');
+    // Si empieza con 0, quitar el 0 y agregar 54; si ya empieza con 54, dejarlo; si no tiene prefijo, agregar 54
+    let phone = '';
+    if (digits.length >= 8) {
+      if (digits.startsWith('54')) {
+        phone = digits;
+      } else if (digits.startsWith('0')) {
+        phone = '54' + digits.slice(1);
+      } else {
+        phone = '54' + digits;
+      }
+    }
+    const base = phone ? `https://web.whatsapp.com/send?phone=${phone}&text=` : `https://web.whatsapp.com/send?text=`;
+    return base + encodeURIComponent(msg);
   };
 
   const invalidateAll = () => {
