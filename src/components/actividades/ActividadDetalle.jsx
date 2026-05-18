@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Pencil, Plus, Trash2, TrendingUp, DollarSign, Gift, CheckCircle2, PackageCheck, Package, FileText, Banknote } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Trash2, TrendingUp, DollarSign, Gift, CheckCircle2, PackageCheck, Package, FileText, Banknote, MessageCircle } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import VentaForm from '@/components/actividades/VentaForm';
@@ -76,6 +76,45 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
   const creditosAcreditados = creditos.length > 0;
 
   const getBen = (id) => beneficiarios.find(b => b.id === id);
+
+  const buildWhatsAppMsg = (v) => {
+    const saldo = (v.monto_recaudado || 0) - (v.monto_rendido || 0);
+    const hasSaldo = v.estado_rendicion !== 'Rendido' && saldo > 0;
+
+    let lineas = [];
+    lineas.push(`🔔 *Resumen de pedido - ${actividad.nombre}*`);
+    lineas.push(`👤 Vendedor/a: *${v.beneficiario_nombre}*`);
+    lineas.push('');
+    lineas.push(`📦 *Detalle del pedido:*`);
+    lineas.push(`• Producto: ${v.producto_nombre || actividad.tipo_producto || '—'}`);
+    if (v.es_promo && v.cantidad_promo) {
+      lineas.push(`• Cantidad: ${v.cantidad_vendida} promo(s) de ${v.cantidad_promo} uds c/u`);
+    } else {
+      lineas.push(`• Cantidad: ${v.cantidad_vendida} unidad(es)`);
+    }
+    lineas.push(`• Monto total: *$${(v.monto_recaudado || 0).toLocaleString('es-AR')}*`);
+    if (v.comprador_nombre) {
+      lineas.push(`• Retira: ${v.comprador_nombre}`);
+      lineas.push(`• Entrega: ${v.entregado ? `✅ Entregado${v.fecha_entrega ? ` el ${v.fecha_entrega}` : ''}` : '⏳ Pendiente de entrega'}`);
+    }
+    lineas.push('');
+    lineas.push(`💰 *Estado del pago:*`);
+    if (v.estado_rendicion === 'Rendido') {
+      lineas.push(`✅ Pago recibido completo. ¡Muchas gracias!`);
+    } else if (v.estado_rendicion === 'Parcial') {
+      lineas.push(`⚠️ Pago parcial recibido: $${(v.monto_rendido || 0).toLocaleString('es-AR')}`);
+      lineas.push(`📌 *Saldo pendiente: $${saldo.toLocaleString('es-AR')}*`);
+      lineas.push(`⏰ Fecha límite de pago: *23 de mayo inclusive*`);
+    } else {
+      lineas.push(`📌 *Monto a abonar: $${(v.monto_recaudado || 0).toLocaleString('es-AR')}*`);
+      lineas.push(`⏰ Fecha límite de pago: *23 de mayo inclusive*`);
+    }
+    lineas.push('');
+    lineas.push(`¡Gracias por participar! 🙏`);
+
+    const msg = lineas.join('\n');
+    return `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+  };
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['ventas-actividad', actividad.id] });
@@ -225,6 +264,16 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                           <p className="font-semibold text-primary text-xs">{formatMoney(creditoEst)}</p>
                         </div>
                       )}
+                      {/* Botón WhatsApp */}
+                      <a
+                        href={buildWhatsAppMsg(v)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Enviar resumen del pedido por WhatsApp"
+                        className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-green-50 text-green-600 hover:text-green-700 transition-colors"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                      </a>
                       {/* Botón rendición */}
                       <Button
                         variant="ghost"
