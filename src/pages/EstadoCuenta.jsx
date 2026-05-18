@@ -80,9 +80,22 @@ export default function EstadoCuenta() {
 
     const mesActual = new Date().getMonth(); // 0-indexed
     const mesesTranscurridos = anio < new Date().getFullYear() ? 12 : anio > new Date().getFullYear() ? 0 : mesActual + 1;
-    const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter(m => {
+
+    // Mes hasta el que genera deuda (si está dado de baja)
+    let mesUltimoCuota = 11;
+    if (b.activo === false && b.fecha_baja) {
+      const [anioBaja, mesBaja] = b.fecha_baja.split('T')[0].split('-').map(Number);
+      if (anioBaja === anio) {
+        mesUltimoCuota = mesBaja - 1; // mes de baja incluido (0-based)
+      } else if (anioBaja < anio) {
+        mesUltimoCuota = -1;
+      }
+    }
+
+    const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter((m, idx) => {
       if (MESES_SIN_CUOTA.includes(m)) return false;
       if (m === 'Marzo' && marzoGratis) return false;
+      if (idx > mesUltimoCuota) return false; // posteriores a la baja no generan deuda
       return true;
     });
 

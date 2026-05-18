@@ -92,7 +92,9 @@ export default function CuentaCorriente() {
       if (b.activo === false && b.fecha_baja) {
         const [anioBaja, mesBaja] = b.fecha_baja.split('T')[0].split('-').map(Number);
         if (anioBaja === anio) {
-          mesUltimoCuota = mesBaja - 2; // índice del último mes que DEBE pagar (mes baja - 1)
+          // El mes de baja es el último que genera deuda.
+          // mesBaja es 1-based (Enero=1), el array MESES es 0-based → mesBaja - 1
+          mesUltimoCuota = mesBaja - 1;
         } else if (anioBaja < anio) {
           mesUltimoCuota = -1; // dado de baja antes de este año → no debe nada
         }

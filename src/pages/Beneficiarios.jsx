@@ -14,8 +14,9 @@ import RamaBadge from '@/components/shared/RamaBadge';
 import BeneficiarioForm from '@/components/beneficiarios/BeneficiarioForm';
 import ImportBeneficiariosDialog from '@/components/beneficiarios/ImportBeneficiariosDialog';
 import BeneficiarioFichaDialog from '@/components/beneficiarios/BeneficiarioFichaDialog';
-import { TODOS_LOS_ROLES } from '@/lib/ramaUtils';
+import { TODOS_LOS_ROLES, MESES, MESES_SIN_CUOTA, getCuotaBeneficiario, esBeneficiarioConCuota, marzoEsBonificado } from '@/lib/ramaUtils';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
 export default function Beneficiarios() {
@@ -33,10 +34,22 @@ export default function Beneficiarios() {
   const [selected, setSelected] = useState([]);
   const [fichaOpen, setFichaOpen] = useState(null);
 
+  const [bajaConDeudaDialog, setBajaConDeudaDialog] = useState(null); // { data, hermanosIds, mesesDeudores, cuota }
   const queryClient = useQueryClient();
+
   const { data: beneficiarios = [], isLoading } = useQuery({
     queryKey: ['beneficiarios'],
     queryFn: () => base44.entities.Beneficiario.list(),
+  });
+
+  const { data: pagos = [] } = useQuery({
+    queryKey: ['pagos'],
+    queryFn: () => base44.entities.Pago.list('-created_date', 500),
+  });
+
+  const { data: afiliaciones = [] } = useQuery({
+    queryKey: ['afiliaciones'],
+    queryFn: () => base44.entities.Afiliacion.list('-fecha_pago', 500),
   });
 
   const createMutation = useMutation({
@@ -109,11 +122,29 @@ export default function Beneficiarios() {
     toast.success(`${selected.length} beneficiarios eliminados`);
   };
 
-  const handleSave = async (data, hermanosIds = []) => {
+  const doSave = async (data, hermanosIds = [], condonarDeuda = false) => {
     if (editing) {
       await base44.entities.Beneficiario.update(editing.id, data);
     } else {
       await base44.entities.Beneficiario.create(data);
+    }
+
+    // Si se condonan deudas: registrar un pago de $0 marcando los meses adeudados como "perdonados"
+    // En realidad registramos los meses deudores como pagados con monto 0 y forma "Crédito actividad" para que el saldo quede en 0
+    if (condonarDeuda && editing && bajaConDeudaDialog?.mesesDeudores?.length > 0) {
+      const anio = new Date().getFullYear();
+      await base44.entities.Pago.create({
+        beneficiario_id: editing.id,
+        beneficiario_nombre: data.nombre,
+        tipo_pago: 'Cuota',
+        meses: bajaConDeudaDialog.mesesDeudores,
+        anio,
+        forma_pago: 'Efectivo',
+        destino: 'Caja',
+        monto: 0,
+        fecha_pago: new Date().toISOString().split('T')[0],
+        observaciones: 'Deuda condonada por baja del beneficiario',
+      });
     }
 
     // Actualizar grupo_familiar en los hermanos seleccionados
@@ -122,7 +153,7 @@ export default function Beneficiarios() {
         hermanosIds.map(id => base44.entities.Beneficiario.update(id, { grupo_familiar: data.grupo_familiar }))
       );
     }
-    // Si se des-vincularon hermanos (tenían el mismo grupo y no están en la lista), limpiarles el grupo
+    // Si se des-vincularon hermanos, limpiarles el grupo
     if (editing && editing.grupo_familiar) {
       const exHermanos = beneficiarios.filter(b =>
         b.id !== editing.id &&
@@ -135,8 +166,48 @@ export default function Beneficiarios() {
     }
 
     queryClient.invalidateQueries({ queryKey: ['beneficiarios'] });
+    queryClient.invalidateQueries({ queryKey: ['pagos'] });
+    setBajaConDeudaDialog(null);
     if (editing) { setEditing(null); toast.success('Beneficiario actualizado'); }
     else { setShowForm(false); toast.success('Beneficiario creado'); }
+  };
+
+  const handleSave = async (data, hermanosIds = []) => {
+    // Detectar si es una baja (antes estaba activo, ahora no)
+    const esNuevaBaja = editing && editing.activo !== false && data.activo === false;
+    if (esNuevaBaja && esBeneficiarioConCuota(editing)) {
+      // Calcular meses adeudados del año actual
+      const anio = new Date().getFullYear();
+      const mesActual = new Date().getMonth(); // 0-based
+      const pagosDelBen = pagos.filter(p => p.beneficiario_id === editing.id && p.anio === anio && p.tipo_pago !== 'Campamento');
+      const mesesPagados = new Set(pagosDelBen.flatMap(p => p.meses || (p.mes ? [p.mes] : [])));
+      const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === editing.id && Number(a.anio) === anio);
+      const esPrimeraVez = !editing.fecha_primer_afiliacion;
+      const marzoGratis = marzoEsBonificado(afiliacionAnio, esPrimeraVez);
+
+      // Mes hasta el que genera deuda según la fecha de baja indicada
+      let mesUltimoCuota = 11;
+      if (data.fecha_baja) {
+        const [, mesBaja] = data.fecha_baja.split('T')[0].split('-').map(Number);
+        mesUltimoCuota = mesBaja - 1;
+      } else {
+        mesUltimoCuota = mesActual;
+      }
+
+      const mesesDeudores = MESES.slice(0, mesUltimoCuota + 1).filter((m, idx) => {
+        if (MESES_SIN_CUOTA.includes(m)) return false;
+        if (m === 'Marzo' && marzoGratis) return false;
+        if (mesesPagados.has(m)) return false;
+        return true;
+      });
+
+      if (mesesDeudores.length > 0) {
+        const cuota = getCuotaBeneficiario(editing, beneficiarios);
+        setBajaConDeudaDialog({ data, hermanosIds, mesesDeudores, cuota });
+        return; // Esperar decisión del usuario
+      }
+    }
+    await doSave(data, hermanosIds, false);
   };
 
   return (
@@ -290,6 +361,39 @@ export default function Beneficiarios() {
       {editing && <BeneficiarioForm open onClose={() => setEditing(null)} onSave={handleSave} initialData={editing} todosBeneficiarios={beneficiarios} />}
       {showImport && <ImportBeneficiariosDialog open onClose={() => setShowImport(false)} />}
       {fichaOpen && <BeneficiarioFichaDialog open onClose={() => setFichaOpen(null)} beneficiario={fichaOpen} />}
+
+      {/* Diálogo de condonación de deuda al dar de baja */}
+      {bajaConDeudaDialog && (
+        <Dialog open onOpenChange={() => setBajaConDeudaDialog(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Baja con cuotas adeudadas</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <p className="text-sm text-muted-foreground">
+                El beneficiario tiene <strong>{bajaConDeudaDialog.mesesDeudores.length} cuota(s) sin pagar</strong> del año en curso:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {bajaConDeudaDialog.mesesDeudores.map(m => (
+                  <span key={m} className="px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs font-medium">{m}</span>
+                ))}
+              </div>
+              <p className="text-sm font-semibold text-red-600">
+                Total adeudado: ${(bajaConDeudaDialog.mesesDeudores.length * bajaConDeudaDialog.cuota).toLocaleString('es-AR')}
+              </p>
+              <p className="text-sm text-muted-foreground">¿Desea condonar (perdonar) esta deuda al dar la baja?</p>
+            </div>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => doSave(bajaConDeudaDialog.data, bajaConDeudaDialog.hermanosIds, false)}>
+                No, mantener deuda
+              </Button>
+              <Button variant="destructive" onClick={() => doSave(bajaConDeudaDialog.data, bajaConDeudaDialog.hermanosIds, true)}>
+                Sí, condonar deuda
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
