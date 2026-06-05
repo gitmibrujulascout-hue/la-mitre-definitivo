@@ -518,7 +518,7 @@ export default function EstadoCuenta() {
                 return (
                   <div>
                     <h3 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                      <Gift className="w-4 h-4 text-primary" /> Créditos por actividades
+                      <Gift className="w-4 h-4 text-primary" /> Créditos por actividades económicas
                     </h3>
                     <div className="space-y-2">
                       {Object.values(porActividad).map(({ nombre, items }) => {
