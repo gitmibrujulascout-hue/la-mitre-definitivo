@@ -152,8 +152,8 @@ export default function EstadoCuenta() {
       saldoAfiliacion = montoPagadoAfiliacion - montoDebidoAfiliacion;
     }
 
-    // Saldo real total
-    const saldo = saldoCuotas + saldoCamp + totalCreditos + saldoAfiliacion;
+    // Saldo real total (los créditos NO se computan hasta que se apliquen a un pago)
+    const saldo = saldoCuotas + saldoCamp + saldoAfiliacion;
 
     return {
       pagosAnio,
