@@ -507,25 +507,37 @@ export default function EstadoCuenta() {
 
 
 
-              {/* Créditos */}
-              {cuenta.creditosDisp.length > 0 && (
-                <div>
-                  <h3 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                    <Gift className="w-4 h-4 text-primary" /> Créditos por actividades
-                  </h3>
-                  <div className="space-y-2">
-                    {cuenta.creditosDisp.map(cr => (
-                      <Card key={cr.id} className="p-4 bg-primary/5 border-primary/20 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium">{cr.actividad_nombre}</p>
-                          <p className="text-xs text-muted-foreground">Acreditado el {cr.fecha}</p>
-                        </div>
-                        <p className="text-lg font-bold text-primary">{formatMoney(cr.monto_disponible)}</p>
-                      </Card>
-                    ))}
+              {/* Créditos agrupados por actividad */}
+              {cuenta.creditosDisp.length > 0 && (() => {
+                const porActividad = {};
+                cuenta.creditosDisp.forEach(cr => {
+                  const key = cr.actividad_id || cr.actividad_nombre || 'Sin actividad';
+                  if (!porActividad[key]) porActividad[key] = { nombre: cr.actividad_nombre || 'Sin actividad', items: [] };
+                  porActividad[key].items.push(cr);
+                });
+                return (
+                  <div>
+                    <h3 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                      <Gift className="w-4 h-4 text-primary" /> Créditos por actividades
+                    </h3>
+                    <div className="space-y-2">
+                      {Object.values(porActividad).map(({ nombre, items }) => {
+                        const total = items.reduce((s, cr) => s + (cr.monto_disponible || 0), 0);
+                        const fechaMin = items.map(cr => cr.fecha).filter(Boolean).sort()[0];
+                        return (
+                          <Card key={nombre} className="p-4 bg-primary/5 border-primary/20 flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium">{nombre}</p>
+                              {fechaMin && <p className="text-xs text-muted-foreground">Acreditado el {fechaMin}</p>}
+                            </div>
+                            <p className="text-lg font-bold text-primary">{formatMoney(total)}</p>
+                          </Card>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
 
 
