@@ -178,7 +178,19 @@ export default function EstadoCuenta() {
   const loading = loadingBen || loadingPagos;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 relative overflow-hidden">
+      {/* Background logo */}
+      <div 
+        className="fixed inset-0 pointer-events-none opacity-10"
+        style={{
+          backgroundImage: 'url(https://media.base44.com/images/public/69f1ed5d29db0dc5bc7e0ef8/136be520e_LogoScoutLaMitreperfil21.png)',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: '600px 600px'
+        }}
+      />
+      
+      <div className="relative z-10">
       {/* Header */}
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-3xl mx-auto px-4 py-5 flex items-center gap-3">
@@ -547,6 +559,7 @@ export default function EstadoCuenta() {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );
