@@ -52,11 +52,11 @@ export default function CuentaCorriente() {
 
   // Solo calcular deudas desde 2026 en adelante
   const AÑO_INICIO = 2026;
-  // Incluir a todos (activos e inactivos): los inactivos pueden tener deuda histórica
-  const activos = beneficiarios;
+  // Para cálculo de descuento hermanos: solo activos (inactivos no cuentan como hermanos que pagan)
+  const activos = beneficiarios.filter(b => b.activo !== false);
 
   const cuentas = useMemo(() => {
-    return activos.map(b => {
+    return beneficiarios.map(b => {
       const pagosDelBen = pagos.filter(p => p.beneficiario_id === b.id && p.anio === anio);
       const mesesPagados = pagosDelBen
         .filter(p => p.tipo_pago !== 'Campamento')

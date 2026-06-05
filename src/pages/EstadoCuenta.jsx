@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Search, CheckCircle2, XCircle, Award, Tent, Gift, AlertCircle,
-  User, Phone, Mail, Calendar, Hash, ShieldCheck
+  User, Phone, Mail, Calendar, Hash, ShieldCheck, UserX, UserCheck
 } from 'lucide-react';
 import RamaBadge from '@/components/shared/RamaBadge';
 import {
@@ -91,11 +91,18 @@ export default function EstadoCuenta() {
         mesUltimoCuota = -1;
       }
     }
+    // Mes desde el que vuelve a generar deuda (si reingresó)
+    let mesPrimerCuotaReingreso = 0;
+    if (b.fecha_reingreso && b.activo !== false) {
+      const [anioReingreso, mesReingreso] = b.fecha_reingreso.split('T')[0].split('-').map(Number);
+      if (anioReingreso === anio) mesPrimerCuotaReingreso = mesReingreso - 1;
+    }
 
     const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter((m, idx) => {
       if (MESES_SIN_CUOTA.includes(m)) return false;
       if (m === 'Marzo' && marzoGratis) return false;
       if (idx > mesUltimoCuota) return false; // posteriores a la baja no generan deuda
+      if (mesPrimerCuotaReingreso > 0 && idx < mesPrimerCuotaReingreso) return false; // anteriores al reingreso
       return true;
     });
 
@@ -230,6 +237,17 @@ export default function EstadoCuenta() {
                       <h2 className="text-xl font-bold">{b.nombre}</h2>
                       <div className="flex flex-wrap items-center gap-2 mt-1.5">
                         <RamaBadge rama={b.rama} />
+                        {b.activo === false && (
+                          <Badge className="bg-red-100 text-red-700 border-red-300 border">
+                            <UserX className="w-3 h-3 mr-1" />Dado de baja
+                            {b.fecha_baja && <span className="ml-1">· {b.fecha_baja.split('T')[0]}</span>}
+                          </Badge>
+                        )}
+                        {b.fecha_reingreso && b.activo !== false && (
+                          <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">
+                            <UserCheck className="w-3 h-3 mr-1" />Reingresó {b.fecha_reingreso}
+                          </Badge>
+                        )}
                         {b.becado && (
                           <Badge className="bg-amber-100 text-amber-700 border-amber-300 border">
                             <Award className="w-3 h-3 mr-1" />Becado
@@ -396,22 +414,37 @@ export default function EstadoCuenta() {
                     const pagado = !!pago;
                     const sinCuota = MESES_SIN_CUOTA.includes(mes);
                     const bonificado = mes === 'Marzo' && cuenta.marzoGratis;
-                    // Un mes genera deuda si ya transcurrió y no está pagado ni bonificado
                     const mesIdx = MESES.indexOf(mes);
-                    const mesActualIdx = new Date().getMonth(); // 0=Enero
+                    const mesActualIdx = new Date().getMonth();
                     const yaTranscurrioEsteAnio = anio < new Date().getFullYear() || mesIdx <= mesActualIdx;
-                    const esDeuda = !sinCuota && !b.becado && !bonificado && !pagado && yaTranscurrioEsteAnio && esBeneficiarioConCuota(b);
+
+                    // ¿Este mes no genera deuda por baja?
+                    let esBaja = false;
+                    if (b.activo === false && b.fecha_baja) {
+                      const [anioBaja, mesBajaNum] = b.fecha_baja.split('T')[0].split('-').map(Number);
+                      if (anioBaja === anio && mesIdx > mesBajaNum - 1) esBaja = true;
+                      if (anioBaja < anio) esBaja = true;
+                    }
+                    if (b.fecha_reingreso && b.activo !== false) {
+                      const [anioReingreso, mesReingresoNum] = b.fecha_reingreso.split('T')[0].split('-').map(Number);
+                      if (anioReingreso === anio && mesIdx < mesReingresoNum - 1) esBaja = true;
+                    }
+
+                    const esDeuda = !sinCuota && !b.becado && !bonificado && !pagado && !esBaja && yaTranscurrioEsteAnio && esBeneficiarioConCuota(b);
                     return (
                      <Card key={mes} className={cn(
                        'p-2.5 text-center',
                        sinCuota ? 'bg-slate-50 border-slate-200 opacity-40' :
+                       esBaja ? 'bg-slate-100 border-slate-300 opacity-60' :
                        b.becado || bonificado ? 'bg-amber-50 border-amber-200' :
                        pagado ? 'bg-green-50 border-green-200' :
                        esDeuda ? 'bg-red-100 border-red-400' : 'bg-slate-50 border-slate-200'
                      )}>
-                       <p className={cn("text-xs font-medium", esDeuda ? "text-red-700 font-bold" : "text-muted-foreground")}>{mes.substring(0, 3)}</p>
+                       <p className={cn("text-xs font-medium", esDeuda ? "text-red-700 font-bold" : esBaja ? "text-slate-400" : "text-muted-foreground")}>{mes.substring(0, 3)}</p>
                        {sinCuota ? (
                          <p className="text-xs text-slate-300 mt-1">—</p>
+                       ) : esBaja ? (
+                         <UserX className="w-4 h-4 text-slate-400 mx-auto mt-1" title="De baja" />
                        ) : b.becado ? (
                          <Award className="w-4 h-4 text-amber-500 mx-auto mt-1" />
                        ) : bonificado && !pagado ? (
