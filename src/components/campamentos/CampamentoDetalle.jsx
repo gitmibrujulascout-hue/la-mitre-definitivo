@@ -57,19 +57,37 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, on
   const total = ninos.length + adultos.length;
 
   const handlePrint = () => {
+    const autorizadosSet = new Set(campamento.autorizaciones_ids || []);
+    // Mapa beneficiario_id -> monto pagado para este campamento
+    const pagosMap = {};
+    (pagos || []).forEach(p => {
+      if (p.tipo_pago === 'Campamento' && p.campamento_id === campamento.id) {
+        pagosMap[p.beneficiario_id] = (pagosMap[p.beneficiario_id] || 0) + (p.monto || 0);
+      }
+    });
+
     let contador = 0;
     const ramasHtml = ninosPorRama.map(([rama, lista]) => {
       const rows = lista.map(b => {
         contador++;
-        return `<tr><td>${contador}</td><td>${b.nombre}</td><td>${b.dni || ''}</td><td></td></tr>`;
+        const autorizo = autorizadosSet.has(b.id) ? '✓' : '';
+        const montoPagado = pagosMap[b.id] ? `$${pagosMap[b.id].toLocaleString('es-AR')}` : '';
+        const autorizClass = autorizadosSet.has(b.id) ? 'style="color:green;font-weight:bold;text-align:center"' : 'style="text-align:center"';
+        const pagoClass = pagosMap[b.id] ? 'style="color:green;font-weight:bold;text-align:center"' : 'style="text-align:center"';
+        return `<tr>
+          <td>${contador}</td>
+          <td>${b.nombre}</td>
+          <td>${b.dni || ''}</td>
+          <td ${autorizClass}>${autorizo}</td>
+          <td ${pagoClass}>${montoPagado}</td>
+        </tr>`;
       }).join('');
-      const config = RAMA_CONFIG[rama];
       return `
         <div class="rama-titulo" style="background:${rama === 'Lobatos' ? '#fef9c3' : rama === 'Tropa' ? '#dcfce7' : rama === 'KM' ? '#dbeafe' : rama === 'Rovers' ? '#fee2e2' : '#f1f5f9'}">
           ${rama} (${lista.length})
         </div>
         <table>
-          <thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th>Firma / Pago</th></tr></thead>
+          <thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th style="text-align:center;width:80px">Autorización</th><th style="text-align:center;width:90px">Pago</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       `;
