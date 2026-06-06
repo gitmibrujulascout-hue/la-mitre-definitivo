@@ -4,11 +4,12 @@ import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Users } from 'lucide-react';
+import { Plus, Trash2, Users, Tent } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import PagoForm from '@/components/pagos/PagoForm';
 import PagoMasivoDialog from '@/components/pagos/PagoMasivoDialog';
+import PagoMasivoCampamentoDialog from '@/components/pagos/PagoMasivoCampamentoDialog';
 import { formatMoney } from '@/lib/ramaUtils';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -16,6 +17,7 @@ import { toast } from 'sonner';
 export default function Pagos() {
   const [showForm, setShowForm] = useState(false);
   const [showMasivo, setShowMasivo] = useState(false);
+  const [showMasivoCamp, setShowMasivoCamp] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: pagos = [], isLoading } = useQuery({
@@ -38,6 +40,7 @@ export default function Pagos() {
   return (
     <div>
       <PageHeader title="Pagos" description="Registro de cuotas mensuales">
+        <Button variant="outline" onClick={() => setShowMasivoCamp(true)}><Tent className="w-4 h-4 mr-2" />Masivo campamento</Button>
         <Button variant="outline" onClick={() => setShowMasivo(true)}><Users className="w-4 h-4 mr-2" />Registro masivo</Button>
         <Button onClick={() => setShowForm(true)}><Plus className="w-4 h-4 mr-2" />Registrar Pago</Button>
       </PageHeader>
@@ -92,6 +95,7 @@ export default function Pagos() {
 
       {showForm && <PagoForm open onClose={() => setShowForm(false)} beneficiarios={beneficiarios} />}
       {showMasivo && <PagoMasivoDialog open onClose={() => setShowMasivo(false)} beneficiarios={beneficiarios} />}
+      {showMasivoCamp && <PagoMasivoCampamentoDialog open onClose={() => setShowMasivoCamp(false)} beneficiarios={beneficiarios} />}
     </div>
   );
 }
