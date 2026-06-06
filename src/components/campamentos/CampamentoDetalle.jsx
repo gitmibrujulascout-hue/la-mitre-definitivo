@@ -6,12 +6,25 @@ import { ArrowLeft, Pencil, Printer, MapPin, Calendar, Users } from 'lucide-reac
 import RamaBadge from '@/components/shared/RamaBadge';
 import { formatMoney, RAMA_CONFIG, RAMAS } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
+import AutorizacionesPanel from './AutorizacionesPanel';
+import { differenceInYears, parseISO } from 'date-fns';
 
 // Orden canónico de ramas
 const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 
 export default function CampamentoDetalle({ campamento, beneficiarios, pagos, onBack, onEdit }) {
   const getBen = (id) => beneficiarios.find(b => b.id === id);
+
+  const menoresCount = useMemo(() =>
+    (campamento.beneficiarios_ids || [])
+      .map(getBen).filter(Boolean)
+      .filter(b => {
+        if (!b.fecha_nacimiento) return true;
+        return differenceInYears(new Date(), parseISO(b.fecha_nacimiento)) < 18;
+      }).length,
+    [campamento, beneficiarios]
+  );
+  const autorizacionesCount = (campamento.autorizaciones_ids || []).length;
 
   const ninos = useMemo(() =>
     (campamento.beneficiarios_ids || []).map(getBen).filter(Boolean),
@@ -143,6 +156,12 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, on
           <p className="text-2xl font-bold">{formatMoney(campamento.costo_por_persona)}</p>
           <p className="text-xs text-muted-foreground">Costo/niño</p>
         </Card>
+        <Card className="p-4 text-center">
+          <p className={cn('text-2xl font-bold', autorizacionesCount === menoresCount && menoresCount > 0 ? 'text-green-600' : 'text-amber-500')}>
+            {autorizacionesCount}/{menoresCount}
+          </p>
+          <p className="text-xs text-muted-foreground">Autorizaciones</p>
+        </Card>
       </div>
 
       {/* Ramas badges */}
@@ -154,6 +173,10 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, on
           )}
         </div>
       )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <AutorizacionesPanel campamento={campamento} beneficiarios={beneficiarios} />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Niños agrupados por rama */}

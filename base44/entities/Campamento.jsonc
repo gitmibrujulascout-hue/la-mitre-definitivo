@@ -50,6 +50,13 @@
       },
       "description": "IDs de adultos/voluntarios que asisten"
     },
+    "autorizaciones_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs de beneficiarios menores de 18 a\u00f1os que entregaron la autorizaci\u00f3n familiar"
+    },
     "ubicacion": {
       "type": "string",
       "description": "Ubicaci\u00f3n del campamento"
