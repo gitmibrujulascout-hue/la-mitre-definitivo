@@ -7,12 +7,13 @@ import RamaBadge from '@/components/shared/RamaBadge';
 import { formatMoney, RAMA_CONFIG, RAMAS } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import AutorizacionesPanel from './AutorizacionesPanel';
+import BalanceCampamento from './BalanceCampamento';
 import { differenceInYears, parseISO } from 'date-fns';
 
 // Orden canónico de ramas
 const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 
-export default function CampamentoDetalle({ campamento, beneficiarios, pagos, onBack, onEdit }) {
+export default function CampamentoDetalle({ campamento, beneficiarios, pagos, gastos, onBack, onEdit }) {
   const getBen = (id) => beneficiarios.find(b => b.id === id);
 
   const menoresCount = useMemo(() =>
@@ -194,6 +195,7 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, on
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <AutorizacionesPanel campamento={campamento} beneficiarios={beneficiarios} />
+        <BalanceCampamento campamento={campamento} pagos={pagos} gastos={gastos} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

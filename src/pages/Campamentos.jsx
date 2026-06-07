@@ -37,6 +37,11 @@ export default function Campamentos() {
     queryFn: () => base44.entities.Pago.list('-created_date', 500),
   });
 
+  const { data: gastos = [] } = useQuery({
+    queryKey: ['gastos'],
+    queryFn: () => base44.entities.Gasto.list('-fecha', 500),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: id => base44.entities.Campamento.delete(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['campamentos'] }); toast.success('Campamento eliminado'); },
@@ -62,6 +67,7 @@ export default function Campamentos() {
           campamento={campamentoActualizado}
           beneficiarios={beneficiarios}
           pagos={pagos}
+          gastos={gastos}
           onBack={() => setViewingCamp(null)}
           onEdit={() => { setEditingCamp(campamentoActualizado); }}
         />
