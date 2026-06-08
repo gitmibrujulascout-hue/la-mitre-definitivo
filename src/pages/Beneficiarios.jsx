@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye, MessageCircle, AlertCircle, HeartPulse } from 'lucide-react';
+import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye, MessageCircle, AlertCircle, HeartPulse, Bell } from 'lucide-react';
 import ImportarFichaSaludDialog from '@/components/beneficiarios/ImportarFichaSaludDialog';
+import RevisionSolicitudesSaludDialog from '@/components/beneficiarios/RevisionSolicitudesSaludDialog';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import BeneficiarioForm from '@/components/beneficiarios/BeneficiarioForm';
@@ -37,6 +38,7 @@ export default function Beneficiarios() {
   const [fichasSaludOpen, setFichasSaludOpen] = useState(null);
 
   const [bajaConDeudaDialog, setBajaConDeudaDialog] = useState(null); // { data, hermanosIds, mesesDeudores, cuota }
+  const [showRevisionSalud, setShowRevisionSalud] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: beneficiarios = [], isLoading } = useQuery({
@@ -53,6 +55,12 @@ export default function Beneficiarios() {
     queryKey: ['afiliaciones'],
     queryFn: () => base44.entities.Afiliacion.list('-fecha_pago', 500),
   });
+
+  const { data: solicitudesSalud = [] } = useQuery({
+    queryKey: ['solicitudes_salud'],
+    queryFn: () => base44.entities.SolicitudCambioSalud.list('-created_date', 100),
+  });
+  const solicitudesPendientes = solicitudesSalud.filter(s => s.estado === 'Pendiente');
 
   const createMutation = useMutation({
     mutationFn: data => base44.entities.Beneficiario.create(data),
@@ -215,6 +223,13 @@ export default function Beneficiarios() {
   return (
     <div>
       <PageHeader title="Beneficiarios" description="Gestión de miembros del grupo scout">
+        {solicitudesPendientes.length > 0 && (
+          <Button variant="outline" className="relative border-amber-400 text-amber-700 hover:bg-amber-50" onClick={() => setShowRevisionSalud(true)}>
+            <Bell className="w-4 h-4 mr-2" />
+            Revisar cambios de salud
+            <span className="ml-2 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">{solicitudesPendientes.length}</span>
+          </Button>
+        )}
         <Button variant="outline" onClick={exportarCSV}>
           <Download className="w-4 h-4 mr-2" />Exportar
         </Button>
@@ -371,6 +386,14 @@ export default function Beneficiarios() {
       {showImport && <ImportBeneficiariosDialog open onClose={() => setShowImport(false)} />}
       {fichaOpen && <BeneficiarioFichaDialog open onClose={() => setFichaOpen(null)} beneficiario={fichaOpen} />}
       {fichasSaludOpen && <ImportarFichaSaludDialog open onClose={() => setFichasSaludOpen(null)} beneficiario={fichasSaludOpen} />}
+      {showRevisionSalud && (
+        <RevisionSolicitudesSaludDialog
+          open
+          onClose={() => setShowRevisionSalud(false)}
+          solicitudes={solicitudesSalud}
+          beneficiarios={beneficiarios}
+        />
+      )}
 
       {/* Diálogo de condonación de deuda al dar de baja */}
       {bajaConDeudaDialog && (

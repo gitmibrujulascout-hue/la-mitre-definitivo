@@ -1,0 +1,54 @@
+{
+  "name": "SolicitudCambioSalud",
+  "type": "object",
+  "properties": {
+    "beneficiario_id": {
+      "type": "string",
+      "description": "ID del beneficiario"
+    },
+    "beneficiario_nombre": {
+      "type": "string",
+      "description": "Nombre del beneficiario (para f\u00e1cil visualizaci\u00f3n)"
+    },
+    "datos_propuestos": {
+      "type": "object",
+      "description": "Datos de salud propuestos por la familia (JSON con los campos modificados)"
+    },
+    "estado": {
+      "type": "string",
+      "enum": [
+        "Pendiente",
+        "Aprobada",
+        "Rechazada"
+      ],
+      "default": "Pendiente",
+      "description": "Estado de la solicitud"
+    },
+    "observaciones_admin": {
+      "type": "string",
+      "description": "Comentario del admin al aprobar/rechazar"
+    }
+  },
+  "required": [
+    "beneficiario_id",
+    "datos_propuestos"
+  ],
+  "rls": {
+    "create": {},
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

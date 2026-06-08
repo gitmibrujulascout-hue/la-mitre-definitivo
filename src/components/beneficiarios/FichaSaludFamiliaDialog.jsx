@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import { HeartPulse } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 const FIELDS = [
   { key: 'grupo_sanguineo', label: 'Grupo sanguíneo', placeholder: 'Ej: A, B, AB, O' },
@@ -36,13 +36,17 @@ function buildForm(b) {
 
 export default function FichaSaludFamiliaDialog({ open, onClose, beneficiario, onSaved }) {
   const [form, setForm] = useState(() => buildForm(beneficiario));
-  const queryClient = useQueryClient();
 
-  const updateMutation = useMutation({
-    mutationFn: (data) => base44.entities.Beneficiario.update(beneficiario.id, data),
+  const enviarMutation = useMutation({
+    mutationFn: (datos_propuestos) =>
+      base44.entities.SolicitudCambioSalud.create({
+        beneficiario_id: beneficiario.id,
+        beneficiario_nombre: beneficiario.nombre,
+        datos_propuestos,
+        estado: 'Pendiente',
+      }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['beneficiarios'] });
-      toast.success('Información de salud guardada. ¡Gracias!');
+      toast.success('¡Información enviada! Un responsable del grupo revisará y confirmará los datos en breve.');
       onClose();
       if (onSaved) onSaved();
     },
@@ -51,14 +55,18 @@ export default function FichaSaludFamiliaDialog({ open, onClose, beneficiario, o
   const handleChange = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
   const handleSave = () => {
-    const toSave = {};
+    const toSend = {};
     FIELDS.forEach(({ key, type }) => {
       const val = form[key];
       if (val && val.trim() !== '') {
-        toSave[key] = type === 'number' ? parseFloat(val) : val.trim();
+        toSend[key] = type === 'number' ? parseFloat(val) : val.trim();
       }
     });
-    updateMutation.mutate(toSave);
+    if (Object.keys(toSend).length === 0) {
+      toast.error('Completá al menos un campo antes de enviar.');
+      return;
+    }
+    enviarMutation.mutate(toSend);
   };
 
   return (
@@ -70,7 +78,7 @@ export default function FichaSaludFamiliaDialog({ open, onClose, beneficiario, o
             Información médica — {beneficiario?.nombre}
           </DialogTitle>
           <p className="text-sm text-muted-foreground pt-1">
-            Esta información es confidencial y solo la ven los responsables del grupo. Completá los campos que correspondan y guardá.
+            Esta información es confidencial y solo la ven los responsables del grupo. Completá los campos y enviá — un responsable revisará y confirmará los cambios.
           </p>
         </DialogHeader>
 
@@ -91,8 +99,8 @@ export default function FichaSaludFamiliaDialog({ open, onClose, beneficiario, o
 
         <DialogFooter className="gap-2 pt-2">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={updateMutation.isPending}>
-            {updateMutation.isPending ? 'Guardando...' : 'Guardar información'}
+          <Button onClick={handleSave} disabled={enviarMutation.isPending}>
+            {enviarMutation.isPending ? 'Enviando...' : 'Enviar para revisión'}
           </Button>
         </DialogFooter>
       </DialogContent>
