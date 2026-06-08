@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { differenceInYears } from 'date-fns';
+import { SALUD_FIELDS } from '@/lib/saludFields';
 
 const RAMAS = ['Todas', 'Lobatos', 'Tropa', 'KM', 'Rovers', 'Voluntario', 'Educador'];
 
@@ -157,10 +158,7 @@ function BeneficiarioDetalleModal({ b, onClose }) {
     );
   };
 
-  const hasHealthData = b.alergias || b.condicion_medica || b.medicacion_habitual ||
-    b.obra_social || b.numero_obra_social || b.discapacidad || b.detalle_discapacidad ||
-    b.observaciones_salud || b.grupo_sanguineo || b.peso_kg || b.talla_m ||
-    b.regimen_dietario || b.anticoagulacion || b.salud_mental;
+  const hasHealthData = SALUD_FIELDS.some(f => b[f.key] != null && b[f.key] !== '');
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -190,39 +188,24 @@ function BeneficiarioDetalleModal({ b, onClose }) {
 
         <div className="space-y-4 mt-2">
 
-          {/* Alerta médica destacada */}
-          {(b.alergias || b.condicion_medica || b.medicacion_habitual) && (
+          {/* Alerta médica — todos los campos de salud con valor */}
+          {SALUD_FIELDS.some(f => b[f.key] != null && b[f.key] !== '') && (
             <div className="rounded-lg border-2 border-amber-400 bg-amber-50 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-5 h-5 text-amber-600" />
-                <h3 className="font-bold text-amber-800">⚠ ATENCIÓN MÉDICA</h3>
+                <h3 className="font-bold text-amber-800">Datos de salud</h3>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {b.alergias && (
-                  <div>
-                    <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Alergias</p>
-                    <p className="text-sm font-medium text-amber-900">{b.alergias}</p>
-                  </div>
-                )}
-                {b.condicion_medica && (
-                  <div>
-                    <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Condición médica</p>
-                    <p className="text-sm font-medium text-amber-900">{b.condicion_medica}</p>
-                  </div>
-                )}
-                {b.medicacion_habitual && (
-                  <div>
-                    <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Medicación habitual</p>
-                    <p className="text-sm font-medium text-amber-900">{b.medicacion_habitual}</p>
-                  </div>
-                )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {SALUD_FIELDS
+                  .filter(f => b[f.key] != null && b[f.key] !== '')
+                  .map(f => (
+                    <div key={f.key}>
+                      <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">{f.label}</p>
+                      <p className="text-sm font-medium text-amber-900">{String(b[f.key])}</p>
+                    </div>
+                  ))
+                }
               </div>
-              {b.observaciones_salud && (
-                <div className="mt-3 pt-3 border-t border-amber-300">
-                  <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Observaciones</p>
-                  <p className="text-sm text-amber-900">{b.observaciones_salud}</p>
-                </div>
-              )}
             </div>
           )}
 
@@ -332,34 +315,17 @@ function BeneficiarioDetalleModal({ b, onClose }) {
             </Section>
           )}
 
-          {/* Salud */}
+          {/* Salud — se muestran todos los campos con valor, sin excepción */}
           {hasHealthData && (
             <Section icon={Activity} title="Salud y cobertura" highlight={!!(b.alergias || b.condicion_medica)}>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {/* Datos físicos */}
-                {b.grupo_sanguineo && (
-                  <Field label="Grupo / Factor RH" value={`${b.grupo_sanguineo}${b.factor_rh ? ` ${b.factor_rh === 'Positivo' ? '+' : '-'}` : ''}`} />
-                )}
-                {b.peso_kg && <Field label="Peso" value={`${b.peso_kg} kg`} />}
-                {b.talla_m && <Field label="Talla" value={`${b.talla_m} m`} />}
-                {/* Alertas médicas */}
-                {b.alergias && <Field label="Alergias" value={b.alergias} className="text-amber-800" />}
-                {b.condicion_medica && <Field label="Condición médica" value={b.condicion_medica} className="text-amber-800" />}
-                {b.medicacion_habitual && <Field label="Medicación habitual" value={b.medicacion_habitual} className="text-amber-800" />}
-                {b.regimen_dietario && <Field label="Régimen dietario" value={b.regimen_dietario} />}
-                {b.anticoagulacion && <Field label="Anticoagulación" value={b.anticoagulacion} className="text-amber-800" />}
-                {b.salud_mental && <Field label="Salud mental" value={b.salud_mental} />}
-                {/* Cobertura */}
-                <Field label="Obra social / Prepaga" value={b.obra_social} />
-                <Field label="Nº afiliado" value={b.numero_obra_social} />
-                {b.discapacidad && <Field label="Discapacidad / CUD" value={b.discapacidad} />}
-                {b.detalle_discapacidad && <Field label="Detalle" value={b.detalle_discapacidad} />}
+                {SALUD_FIELDS
+                  .filter(f => b[f.key] != null && b[f.key] !== '')
+                  .map(f => (
+                    <Field key={f.key} label={f.label} value={String(b[f.key])} />
+                  ))
+                }
               </div>
-              {b.observaciones_salud && (
-                <div className="mt-2 pt-2 border-t">
-                  <Field label="Observaciones de salud" value={b.observaciones_salud} />
-                </div>
-              )}
             </Section>
           )}
 

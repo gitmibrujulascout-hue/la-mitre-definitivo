@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { differenceInYears } from 'date-fns';
+import { SALUD_FIELDS } from '@/lib/saludFields';
 
 const RAMA_COLORS = {
   Lobatos: 'bg-yellow-100 text-yellow-800 border-yellow-300',
@@ -202,57 +203,24 @@ export default function FichaEmergencia() {
             </div>
           </div>
 
-          {/* ALERTA MÉDICA */}
-          {(b.alergias || b.condicion_medica || b.medicacion_habitual || b.regimen_dietario || b.anticoagulacion || b.salud_mental) && (
+          {/* TODOS LOS DATOS DE SALUD — se muestran todos los campos que tengan valor */}
+          {SALUD_FIELDS.some(f => b[f.key] != null && b[f.key] !== '') && (
             <div className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-5 h-5 text-amber-600" />
-                <h3 className="font-bold text-amber-800">⚠ ATENCIÓN MÉDICA</h3>
+                <h3 className="font-bold text-amber-800">Datos de salud</h3>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {b.alergias && (
-                  <div>
-                    <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Alergias</p>
-                    <p className="text-sm font-medium text-amber-900">{b.alergias}</p>
-                  </div>
-                )}
-                {b.condicion_medica && (
-                  <div>
-                    <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Condición médica</p>
-                    <p className="text-sm font-medium text-amber-900">{b.condicion_medica}</p>
-                  </div>
-                )}
-                {b.medicacion_habitual && (
-                  <div>
-                    <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Medicación habitual</p>
-                    <p className="text-sm font-medium text-amber-900">{b.medicacion_habitual}</p>
-                  </div>
-                )}
-                {b.regimen_dietario && (
-                  <div>
-                    <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Régimen dietario</p>
-                    <p className="text-sm font-medium text-amber-900">{b.regimen_dietario}</p>
-                  </div>
-                )}
-                {b.anticoagulacion && (
-                  <div>
-                    <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Anticoagulación</p>
-                    <p className="text-sm font-medium text-amber-900">{b.anticoagulacion}</p>
-                  </div>
-                )}
-                {b.salud_mental && (
-                  <div>
-                    <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Salud mental</p>
-                    <p className="text-sm font-medium text-amber-900">{b.salud_mental}</p>
-                  </div>
-                )}
+                {SALUD_FIELDS
+                  .filter(f => b[f.key] != null && b[f.key] !== '')
+                  .map(f => (
+                    <div key={f.key}>
+                      <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">{f.label}</p>
+                      <p className="text-sm font-medium text-amber-900">{String(b[f.key])}</p>
+                    </div>
+                  ))
+                }
               </div>
-              {b.observaciones_salud && (
-                <div className="mt-3 pt-3 border-t border-amber-300">
-                  <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Observaciones</p>
-                  <p className="text-sm text-amber-900">{b.observaciones_salud}</p>
-                </div>
-              )}
             </div>
           )}
 
@@ -337,25 +305,7 @@ export default function FichaEmergencia() {
             </Section>
           )}
 
-          {/* Salud completa */}
-          {(b.grupo_sanguineo || b.peso_kg || b.talla_m || b.obra_social || b.numero_obra_social || b.discapacidad) && (
-            <Section icon={Activity} title="Salud y cobertura médica">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {b.grupo_sanguineo && (
-                  <Field
-                    label="Grupo / Factor RH"
-                    value={`${b.grupo_sanguineo}${b.factor_rh ? ` ${b.factor_rh === 'Positivo' ? '+' : '-'}` : ''}`}
-                  />
-                )}
-                {b.peso_kg && <Field label="Peso" value={`${b.peso_kg} kg`} />}
-                {b.talla_m && <Field label="Talla" value={`${b.talla_m} m`} />}
-                <Field label="Obra social / Prepaga" value={b.obra_social} />
-                <Field label="Nº afiliado" value={b.numero_obra_social} />
-                {b.discapacidad && <Field label="Discapacidad / CUD" value={b.discapacidad} />}
-                {b.detalle_discapacidad && <Field label="Detalle discapacidad" value={b.detalle_discapacidad} />}
-              </div>
-            </Section>
-          )}
+
 
         </div>
       )}
