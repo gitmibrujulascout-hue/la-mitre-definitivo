@@ -203,13 +203,13 @@ export default function FichaEmergencia() {
           </div>
 
           {/* ALERTA MÉDICA */}
-          {(b.alergias || b.condicion_medica || b.medicacion_habitual) && (
+          {(b.alergias || b.condicion_medica || b.medicacion_habitual || b.regimen_dietario || b.anticoagulacion || b.salud_mental) && (
             <div className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-5 h-5 text-amber-600" />
                 <h3 className="font-bold text-amber-800">⚠ ATENCIÓN MÉDICA</h3>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {b.alergias && (
                   <div>
                     <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Alergias</p>
@@ -226,6 +226,24 @@ export default function FichaEmergencia() {
                   <div>
                     <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Medicación habitual</p>
                     <p className="text-sm font-medium text-amber-900">{b.medicacion_habitual}</p>
+                  </div>
+                )}
+                {b.regimen_dietario && (
+                  <div>
+                    <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Régimen dietario</p>
+                    <p className="text-sm font-medium text-amber-900">{b.regimen_dietario}</p>
+                  </div>
+                )}
+                {b.anticoagulacion && (
+                  <div>
+                    <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Anticoagulación</p>
+                    <p className="text-sm font-medium text-amber-900">{b.anticoagulacion}</p>
+                  </div>
+                )}
+                {b.salud_mental && (
+                  <div>
+                    <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Salud mental</p>
+                    <p className="text-sm font-medium text-amber-900">{b.salud_mental}</p>
                   </div>
                 )}
               </div>
@@ -319,14 +337,22 @@ export default function FichaEmergencia() {
             </Section>
           )}
 
-          {/* Salud */}
-          {(b.obra_social || b.numero_obra_social || b.discapacidad) && (
-            <Section icon={Activity} title="Cobertura médica">
+          {/* Salud completa */}
+          {(b.grupo_sanguineo || b.peso_kg || b.talla_m || b.obra_social || b.numero_obra_social || b.discapacidad) && (
+            <Section icon={Activity} title="Salud y cobertura médica">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {b.grupo_sanguineo && (
+                  <Field
+                    label="Grupo / Factor RH"
+                    value={`${b.grupo_sanguineo}${b.factor_rh ? ` ${b.factor_rh === 'Positivo' ? '+' : '-'}` : ''}`}
+                  />
+                )}
+                {b.peso_kg && <Field label="Peso" value={`${b.peso_kg} kg`} />}
+                {b.talla_m && <Field label="Talla" value={`${b.talla_m} m`} />}
                 <Field label="Obra social / Prepaga" value={b.obra_social} />
                 <Field label="Nº afiliado" value={b.numero_obra_social} />
-                {b.discapacidad && <Field label="Discapacidad" value={b.discapacidad} />}
-                {b.detalle_discapacidad && <Field label="Detalle" value={b.detalle_discapacidad} />}
+                {b.discapacidad && <Field label="Discapacidad / CUD" value={b.discapacidad} />}
+                {b.detalle_discapacidad && <Field label="Detalle discapacidad" value={b.detalle_discapacidad} />}
               </div>
             </Section>
           )}
