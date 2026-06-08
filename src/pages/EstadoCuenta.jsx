@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Search, CheckCircle2, XCircle, Award, Tent, Gift, AlertCircle,
-  User, Phone, Mail, Calendar, Hash, ShieldCheck, UserX, UserCheck
+  User, Phone, Mail, Calendar, Hash, ShieldCheck, UserX, UserCheck, HeartPulse, Pencil
 } from 'lucide-react';
+import FichaSaludFamiliaDialog from '@/components/beneficiarios/FichaSaludFamiliaDialog';
 import RamaBadge from '@/components/shared/RamaBadge';
 import {
   MESES, MESES_SIN_CUOTA,
@@ -22,6 +23,7 @@ const AÑO_INICIO = 2026;
 export default function EstadoCuenta() {
   const [dniInput, setDniInput] = useState('');
   const [dniBuscado, setDniBuscado] = useState('');
+  const [editandoSalud, setEditandoSalud] = useState(null); // beneficiario seleccionado
   const [anio] = useState(new Date().getFullYear());
 
   const { data: beneficiarios = [], isLoading: loadingBen } = useQuery({
@@ -553,6 +555,52 @@ export default function EstadoCuenta() {
 
 
 
+              {/* Información médica */}
+              <Card className="p-5 border border-primary/20">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <HeartPulse className="w-4 h-4 text-primary" />
+                    <h3 className="font-semibold text-sm">Información médica</h3>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setEditandoSalud(b)}>
+                    <Pencil className="w-3 h-3 mr-1.5" />
+                    {b.grupo_sanguineo || b.alergias || b.obra_social ? 'Actualizar' : 'Completar'}
+                  </Button>
+                </div>
+                {(b.grupo_sanguineo || b.alergias || b.condicion_medica || b.medicacion_habitual || b.obra_social || b.contacto_emergencia_nombre) ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm pl-1">
+                    {b.grupo_sanguineo && (
+                      <div><span className="text-muted-foreground text-xs">Grupo / RH: </span>
+                        <span className="font-medium">{b.grupo_sanguineo}{b.factor_rh ? ` (${b.factor_rh === 'Positivo' ? '+' : '-'})` : ''}</span></div>
+                    )}
+                    {b.alergias && (
+                      <div><span className="text-muted-foreground text-xs">Alergias: </span>
+                        <span className="font-medium">{b.alergias}</span></div>
+                    )}
+                    {b.condicion_medica && (
+                      <div><span className="text-muted-foreground text-xs">Afección: </span>
+                        <span className="font-medium">{b.condicion_medica}</span></div>
+                    )}
+                    {b.medicacion_habitual && (
+                      <div><span className="text-muted-foreground text-xs">Medicación: </span>
+                        <span className="font-medium">{b.medicacion_habitual}</span></div>
+                    )}
+                    {b.obra_social && (
+                      <div><span className="text-muted-foreground text-xs">Obra social: </span>
+                        <span className="font-medium">{b.obra_social}{b.numero_obra_social ? ` · ${b.numero_obra_social}` : ''}</span></div>
+                    )}
+                    {b.contacto_emergencia_nombre && (
+                      <div><span className="text-muted-foreground text-xs">Emergencia: </span>
+                        <span className="font-medium">{b.contacto_emergencia_nombre}{b.contacto_emergencia_telefono ? ` · ${b.contacto_emergencia_telefono}` : ''}</span></div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">
+                    No hay información médica cargada. Hacé clic en "Completar" para agregar los datos de salud de {b.nombre.split(' ')[0]}.
+                  </p>
+                )}
+              </Card>
+
               {grupoFamiliar.length > 1 && !esPrincipal && (
                 <div className="border-t border-dashed pt-2" />
               )}
@@ -560,7 +608,16 @@ export default function EstadoCuenta() {
           );
         })}
       </div>
+        </div>
+
+        {editandoSalud && (
+          <FichaSaludFamiliaDialog
+            open
+            beneficiario={editandoSalud}
+            onClose={() => setEditandoSalud(null)}
+            onSaved={() => setEditandoSalud(null)}
+          />
+        )}
       </div>
-    </div>
-  );
-}
+      );
+      }

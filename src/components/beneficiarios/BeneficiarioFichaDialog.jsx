@@ -4,8 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import RamaBadge from '@/components/shared/RamaBadge';
-import ImportarFichaSaludDialog from '@/components/beneficiarios/ImportarFichaSaludDialog';
-import { MapPin, User, Shield, BookOpen, Award, UserCog, HeartPulse, Upload } from 'lucide-react';
+import EditarSaludDialog from '@/components/beneficiarios/EditarSaludDialog';
+import { MapPin, User, Shield, BookOpen, Award, UserCog, HeartPulse, Pencil } from 'lucide-react';
 
 function Field({ label, value }) {
   if (!value) return null;
@@ -132,7 +132,7 @@ export default function BeneficiarioFichaDialog({ open, onClose, beneficiario: b
                 <h3 className="text-sm font-semibold text-primary">Salud</h3>
               </div>
               <Button size="sm" variant="outline" onClick={() => setImportSalud(true)}>
-                <Upload className="w-3 h-3 mr-1.5" />Importar con IA
+                <Pencil className="w-3 h-3 mr-1.5" />Editar / Importar
               </Button>
             </div>
 
@@ -168,7 +168,7 @@ export default function BeneficiarioFichaDialog({ open, onClose, beneficiario: b
     </Dialog>
 
     {importSalud && (
-      <ImportarFichaSaludDialog
+      <EditarSaludDialog
         open
         onClose={() => setImportSalud(false)}
         beneficiario={b}
