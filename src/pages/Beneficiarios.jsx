@@ -322,7 +322,7 @@ export default function Beneficiarios() {
                       {b.tipo === 'Voluntario' && (
                         <Badge className="bg-purple-100 text-purple-700 border-purple-300 border"><UserCog className="w-3 h-3 mr-1" />Voluntario</Badge>
                       )}
-                      {b.becado && !b.tipo === 'Voluntario' && (
+                      {b.becado && b.tipo !== 'Voluntario' && (
                         <Badge className="bg-amber-100 text-amber-700 border-amber-300 border"><Award className="w-3 h-3 mr-1" />Becado</Badge>
                       )}
                     </div>
