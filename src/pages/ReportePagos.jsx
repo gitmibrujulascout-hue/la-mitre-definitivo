@@ -6,9 +6,103 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Download, Filter } from 'lucide-react';
+import { FileText, Download, Filter, FileSpreadsheet } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
+import * as XLSX from 'xlsx';
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+// Obtiene el número de mes a partir del nombre
+function mesIndex(nombreMes) {
+  return MESES.findIndex(m => m.toLowerCase() === nombreMes?.toLowerCase());
+}
+
+// Último día del mes
+function ultimoDiaMes(anio, mes0) {
+  return new Date(anio, mes0 + 1, 0).getDate();
+}
+
+// Formatea fecha como "YYYY-MM-DD HH:MM:SS" (formato Excel del template)
+function fmtExcel(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d} 00:00:00`;
+}
+
+// Construye la descripción "Cuota Mes - APELLIDO, Nombre" o múltiples meses
+function buildConcepto(pago) {
+  if (pago.tipo_pago === 'Campamento') {
+    return `Campamento ${pago.campamento_nombre || ''} - ${pago.beneficiario_nombre || ''}`;
+  }
+  const meses = pago.meses?.length ? pago.meses : (pago.mes ? [pago.mes] : []);
+  const conceptoMeses = meses.length > 1
+    ? `Cuotas ${meses.join('/')} ${pago.anio}`
+    : `Cuota ${meses[0] || ''} ${pago.anio}`;
+  return `${conceptoMeses} - ${pago.beneficiario_nombre || ''}`;
+}
+
+// Calcula período facturado: primer día del primer mes → último día del último mes
+function buildPeriodo(pago) {
+  const anio = pago.anio || new Date().getFullYear();
+  const meses = pago.meses?.length ? pago.meses : (pago.mes ? [pago.mes] : []);
+
+  if (pago.tipo_pago === 'Campamento') {
+    // Para campamento usamos la fecha de pago como período de un día
+    const f = new Date((pago.fecha_pago || new Date().toISOString().split('T')[0]) + 'T12:00:00');
+    return { desde: fmtExcel(f), hasta: fmtExcel(f) };
+  }
+
+  if (meses.length === 0) {
+    const f = new Date((pago.fecha_pago || new Date().toISOString().split('T')[0]) + 'T12:00:00');
+    return { desde: fmtExcel(f), hasta: fmtExcel(f) };
+  }
+
+  const indices = meses.map(m => mesIndex(m)).filter(i => i >= 0).sort((a, b) => a - b);
+  const primerMes = indices[0];
+  const ultimoMes = indices[indices.length - 1];
+
+  const desde = new Date(anio, primerMes, 1);
+  const hasta = new Date(anio, ultimoMes, ultimoDiaMes(anio, ultimoMes));
+  return { desde: fmtExcel(desde), hasta: fmtExcel(hasta) };
+}
+
+function exportarExcel(pagosFiltrados, beneficiariosMap) {
+  const filas = pagosFiltrados.map(p => {
+    const fechaComprobante = fmtExcel(new Date((p.fecha_pago || new Date().toISOString().split('T')[0]) + 'T12:00:00'));
+    const { desde, hasta } = buildPeriodo(p);
+    const ben = beneficiariosMap[p.beneficiario_id];
+    const email = ben?.email_contacto || null;
+
+    return {
+      'Fecha Comprobante': fechaComprobante,
+      'Producto / Servicio': buildConcepto(p),
+      'Precio Unitario': p.monto || 0,
+      'Cantidad': 1,
+      'Total': p.monto || 0,
+      'Tipo': 'SERVICIO',
+      'Facturado Desde': desde,
+      'Facturado Hasta': hasta,
+      'Condicion de Venta': 'CONTADO',
+      'Condicion de IVA': 'CONSUMIDOR FINAL',
+      'CUIT o DNI (Opcional)': null,
+      'Email (Opcional)': email || null,
+    };
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(filas, {
+    header: [
+      'Fecha Comprobante','Producto / Servicio','Precio Unitario','Cantidad','Total',
+      'Tipo','Facturado Desde','Facturado Hasta','Condicion de Venta','Condicion de IVA',
+      'CUIT o DNI (Opcional)','Email (Opcional)'
+    ]
+  });
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Datos de Facturas');
+  XLSX.writeFile(wb, `facturacion_masiva_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
 
 export default function ReportePagos() {
   const hoy = new Date();
@@ -22,6 +116,17 @@ export default function ReportePagos() {
     queryKey: ['pagos'],
     queryFn: () => base44.entities.Pago.list('-fecha_pago', 1000),
   });
+
+  const { data: beneficiarios = [] } = useQuery({
+    queryKey: ['beneficiarios'],
+    queryFn: () => base44.entities.Beneficiario.list(),
+  });
+
+  const beneficiariosMap = useMemo(() => {
+    const map = {};
+    beneficiarios.forEach(b => { map[b.id] = b; });
+    return map;
+  }, [beneficiarios]);
 
   const pagosFiltrados = useMemo(() => {
     return pagos
@@ -72,10 +177,16 @@ export default function ReportePagos() {
             <p className="text-sm text-muted-foreground">Para facturación — seleccioná el período</p>
           </div>
         </div>
-        <Button onClick={handleImprimir} disabled={pagosFiltrados.length === 0}>
-          <Download className="w-4 h-4 mr-2" />
-          Exportar / Imprimir PDF
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleImprimir} disabled={pagosFiltrados.length === 0}>
+            <Download className="w-4 h-4 mr-2" />
+            Imprimir PDF
+          </Button>
+          <Button onClick={() => exportarExcel(pagosFiltrados, beneficiariosMap)} disabled={pagosFiltrados.length === 0}>
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Exportar Excel facturación
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
