@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import RamaBadge from '@/components/shared/RamaBadge';
-import { Phone, Mail, MapPin, User, Shield, BookOpen, Calendar, Award, UserCog, HeartPulse } from 'lucide-react';
+import ImportarFichaSaludDialog from '@/components/beneficiarios/ImportarFichaSaludDialog';
+import { MapPin, User, Shield, BookOpen, Award, UserCog, HeartPulse, Upload } from 'lucide-react';
 
 function Field({ label, value }) {
   if (!value) return null;
@@ -30,7 +32,12 @@ function Section({ icon: Icon, title, children }) {
 }
 
 export default function BeneficiarioFichaDialog({ open, onClose, beneficiario: b }) {
+  const [importSalud, setImportSalud] = useState(false);
   if (!b) return null;
+
+  const tieneSalud = b.alergias || b.condicion_medica || b.medicacion_habitual || b.grupo_sanguineo ||
+    b.peso_kg || b.talla_m || b.obra_social || b.observaciones_salud || b.contacto_emergencia_nombre ||
+    b.regimen_dietario || b.anticoagulacion || b.salud_mental;
 
   const edad = b.fecha_nacimiento
     ? Math.floor((new Date() - new Date(b.fecha_nacimiento)) / (365.25 * 24 * 3600 * 1000))
@@ -45,6 +52,7 @@ export default function BeneficiarioFichaDialog({ open, onClose, beneficiario: b
   const direccion = [b.calle, b.localidad, b.provincia, b.codigo_postal].filter(Boolean).join(', ');
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -116,10 +124,20 @@ export default function BeneficiarioFichaDialog({ open, onClose, beneficiario: b
           )}
 
           {/* Salud */}
-          {(b.alergias || b.condicion_medica || b.medicacion_habitual || b.grupo_sanguineo || b.peso_kg || b.talla_m || b.obra_social || b.observaciones_salud || b.contacto_emergencia_nombre || b.regimen_dietario || b.anticoagulacion || b.salud_mental) && (
-            <>
-              <Separator />
-              <Section icon={HeartPulse} title="Salud">
+          <Separator />
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <HeartPulse className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold text-primary">Salud</h3>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => setImportSalud(true)}>
+                <Upload className="w-3 h-3 mr-1.5" />Importar con IA
+              </Button>
+            </div>
+
+            {tieneSalud ? (
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 pl-6">
                 {b.grupo_sanguineo && <Field label="Grupo / Factor RH" value={`${b.grupo_sanguineo}${b.factor_rh ? ` ${b.factor_rh === 'Positivo' ? '(+)' : '(-)'}` : ''}`} />}
                 {b.peso_kg && <Field label="Peso" value={`${b.peso_kg} kg`} />}
                 {b.talla_m && <Field label="Talla" value={`${b.talla_m} m`} />}
@@ -138,11 +156,25 @@ export default function BeneficiarioFichaDialog({ open, onClose, beneficiario: b
                     <p className="text-sm font-medium whitespace-pre-wrap">{b.observaciones_salud}</p>
                   </div>
                 )}
-              </Section>
-            </>
-          )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground pl-6 italic">
+                No hay datos de salud cargados. Usá "Importar con IA" para extraer la información de los PDFs de la familia.
+              </p>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
+
+    {importSalud && (
+      <ImportarFichaSaludDialog
+        open
+        onClose={() => setImportSalud(false)}
+        beneficiario={b}
+        onSaved={() => setImportSalud(false)}
+      />
+    )}
+    </>
   );
 }
