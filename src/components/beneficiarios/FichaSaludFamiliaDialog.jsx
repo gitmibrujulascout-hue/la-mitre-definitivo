@@ -7,32 +7,7 @@ import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import { HeartPulse } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
-
-const FIELDS = [
-  { key: 'grupo_sanguineo', label: 'Grupo sanguíneo', placeholder: 'Ej: A, B, AB, O' },
-  { key: 'factor_rh', label: 'Factor RH', placeholder: 'Positivo / Negativo' },
-  { key: 'peso_kg', label: 'Peso (kg)', placeholder: 'Ej: 65', type: 'number' },
-  { key: 'talla_m', label: 'Talla (m)', placeholder: 'Ej: 1.65', type: 'number' },
-  { key: 'alergias', label: 'Alergias conocidas', placeholder: 'Alimentos, medicamentos, látex... (o "Ninguna")' },
-  { key: 'condicion_medica', label: 'Afección / Enfermedad crónica', placeholder: 'Asma, diabetes, epilepsia... (o "Ninguna")' },
-  { key: 'medicacion_habitual', label: 'Medicación habitual', placeholder: 'Nombre y dosis (o "No toma")' },
-  { key: 'regimen_dietario', label: 'Régimen dietario especial', placeholder: 'Celíaco, vegetariano, sin TACC... (o "Ninguno")' },
-  { key: 'anticoagulacion', label: 'Anticoagulación', placeholder: 'Droga utilizada (o dejar vacío si no)' },
-  { key: 'salud_mental', label: 'Salud mental', placeholder: 'Diagnóstico o tratamiento relevante (si lo hay)' },
-  { key: 'discapacidad', label: 'Discapacidad / CUD', placeholder: 'N° de certificado o descripción (si tiene)' },
-  { key: 'obra_social', label: 'Obra social / Prepaga', placeholder: 'Nombre de la cobertura' },
-  { key: 'numero_obra_social', label: 'N° de afiliado', placeholder: 'N° de credencial' },
-  { key: 'contacto_emergencia_nombre', label: 'Contacto emergencia (nombre)', placeholder: 'Nombre completo' },
-  { key: 'contacto_emergencia_telefono', label: 'Contacto emergencia (teléfono)', placeholder: 'Teléfono' },
-  { key: 'contacto_emergencia_relacion', label: 'Relación del contacto', placeholder: 'Madre, padre, tutor...' },
-  { key: 'observaciones_salud', label: 'Observaciones adicionales', placeholder: 'Cualquier dato importante que debamos saber', wide: true },
-];
-
-function buildForm(b) {
-  const f = {};
-  FIELDS.forEach(({ key }) => { f[key] = b?.[key] != null ? String(b[key]) : ''; });
-  return f;
-}
+import { SALUD_FIELDS as FIELDS, buildSaludForm as buildForm, parseSaludForm } from '@/lib/saludFields';
 
 export default function FichaSaludFamiliaDialog({ open, onClose, beneficiario, onSaved }) {
   const [form, setForm] = useState(() => buildForm(beneficiario));
@@ -55,18 +30,14 @@ export default function FichaSaludFamiliaDialog({ open, onClose, beneficiario, o
   const handleChange = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
   const handleSave = () => {
-    const toSend = {};
-    FIELDS.forEach(({ key, type }) => {
-      const val = form[key];
-      if (val && val.trim() !== '') {
-        toSend[key] = type === 'number' ? parseFloat(val) : val.trim();
-      }
-    });
-    if (Object.keys(toSend).length === 0) {
+    const toSend = parseSaludForm(form);
+    // Filtrar nulls para no enviar campos vacíos en la solicitud
+    const toSendFiltered = Object.fromEntries(Object.entries(toSend).filter(([, v]) => v != null));
+    if (Object.keys(toSendFiltered).length === 0) {
       toast.error('Completá al menos un campo antes de enviar.');
       return;
     }
-    enviarMutation.mutate(toSend);
+    enviarMutation.mutate(toSendFiltered);
   };
 
   return (
