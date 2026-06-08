@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Pencil, Printer, MapPin, Calendar, Users } from 'lucide-react';
+import { ArrowLeft, Pencil, Printer, MapPin, Calendar, Users, AlertTriangle } from 'lucide-react';
 import RamaBadge from '@/components/shared/RamaBadge';
 import { formatMoney, RAMA_CONFIG, RAMAS } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
@@ -56,6 +56,21 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
 
   const resumenRamas = ninosPorRama.map(([rama, lista]) => [rama, lista.length]);
   const total = ninos.length + adultos.length;
+
+  // Personas con alertas dietarias/médicas relevantes
+  const conAlertas = useMemo(() => {
+    const todos = [...ninos, ...adultos];
+    return todos
+      .filter(b => b.alergias || b.regimen_dietario || b.condicion_medica || b.medicacion_habitual)
+      .map(b => ({
+        nombre: b.nombre,
+        rama: b.rama || b.rama_educador || 'Adulto',
+        alergias: b.alergias,
+        regimen: b.regimen_dietario,
+        condicion: b.condicion_medica,
+        medicacion: b.medicacion_habitual,
+      }));
+  }, [ninos, adultos]);
 
   const handlePrint = () => {
     const autorizadosSet = new Set(campamento.autorizaciones_ids || []);
@@ -126,8 +141,22 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
       <div class="seccion" style="margin-top:24px">Adultos / Voluntarios (${adultos.length})</div>
       <table><thead><tr><th>#</th><th>Nombre</th><th>Rol / Rama</th><th>DNI</th><th>Pago</th></tr></thead>
       <tbody>${adultosRows}</tbody></table>` : ''}
+    ${conAlertas.length > 0 ? `
+      <div class="seccion" style="margin-top:24px;color:#b45309;border-color:#b45309">⚠ Alertas dietarias y médicas (${conAlertas.length})</div>
+      <table>
+        <thead><tr><th>Nombre</th><th>Rama / Rol</th><th>Alergias</th><th>Dieta especial</th><th>Afección médica</th><th>Medicación</th></tr></thead>
+        <tbody>${conAlertas.map(p => `<tr>
+          <td><strong>${p.nombre}</strong></td>
+          <td>${p.rama}</td>
+          <td style="color:${p.alergias ? '#b91c1c' : '#999'}">${p.alergias || '—'}</td>
+          <td style="color:${p.regimen ? '#b45309' : '#999'}">${p.regimen || '—'}</td>
+          <td>${p.condicion || '—'}</td>
+          <td>${p.medicacion || '—'}</td>
+        </tr>`).join('')}</tbody>
+      </table>` : ''}
     <div class="resumen">
       <strong>Resumen:</strong> ${resumenTexto}${adultos.length > 0 ? ` | Adultos: ${adultos.length}` : ''} | <strong>TOTAL: ${total} personas</strong>
+      ${conAlertas.length > 0 ? ` | <strong style="color:#b45309">⚠ ${conAlertas.length} persona(s) con alerta médica/dietaria</strong>` : ''}
     </div>
     </body></html>`;
 
@@ -274,6 +303,31 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
       {campamento.observaciones && (
         <Card className="mt-4 p-4">
           <p className="text-sm text-muted-foreground">{campamento.observaciones}</p>
+        </Card>
+      )}
+
+      {conAlertas.length > 0 && (
+        <Card className="mt-4 border-amber-300 bg-amber-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-amber-800">
+              <AlertTriangle className="w-4 h-4" />
+              Alertas dietarias y médicas ({conAlertas.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-2">
+            {conAlertas.map((p, i) => (
+              <div key={i} className="flex flex-wrap gap-x-6 gap-y-1 py-2 border-b border-amber-200 last:border-0 text-sm">
+                <span className="font-semibold text-amber-900 w-48 shrink-0">{p.nombre}</span>
+                <span className="text-xs text-amber-700">{p.rama}</span>
+                <div className="flex flex-wrap gap-2 mt-0.5">
+                  {p.alergias && <Badge className="bg-red-100 text-red-700 border-red-300 text-xs">🚫 Alergia: {p.alergias}</Badge>}
+                  {p.regimen && <Badge className="bg-amber-100 text-amber-700 border-amber-300 text-xs">🥗 Dieta: {p.regimen}</Badge>}
+                  {p.condicion && <Badge className="bg-blue-100 text-blue-700 border-blue-300 text-xs">🏥 {p.condicion}</Badge>}
+                  {p.medicacion && <Badge className="bg-purple-100 text-purple-700 border-purple-300 text-xs">💊 {p.medicacion}</Badge>}
+                </div>
+              </div>
+            ))}
+          </CardContent>
         </Card>
       )}
     </div>
