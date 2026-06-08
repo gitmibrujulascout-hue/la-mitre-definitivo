@@ -175,6 +175,14 @@
       "type": "string",
       "description": "Medicaci\u00f3n habitual que toma"
     },
+    "grupo_sanguineo": {
+      "type": "string",
+      "description": "Grupo sangu\u00edneo (ej: A, B, AB, O)"
+    },
+    "factor_rh": {
+      "type": "string",
+      "description": "Factor RH (Positivo o Negativo)"
+    },
     "obra_social": {
       "type": "string",
       "description": "Obra social / prepaga"

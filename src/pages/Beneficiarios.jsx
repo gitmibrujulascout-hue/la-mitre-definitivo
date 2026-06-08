@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye, MessageCircle, AlertCircle } from 'lucide-react';
+import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye, MessageCircle, AlertCircle, HeartPulse } from 'lucide-react';
+import ImportarFichaSaludDialog from '@/components/beneficiarios/ImportarFichaSaludDialog';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import BeneficiarioForm from '@/components/beneficiarios/BeneficiarioForm';
@@ -33,6 +34,7 @@ export default function Beneficiarios() {
   const [filterFuncion, setFilterFuncion] = useState('todas');
   const [selected, setSelected] = useState([]);
   const [fichaOpen, setFichaOpen] = useState(null);
+  const [fichasSaludOpen, setFichasSaludOpen] = useState(null);
 
   const [bajaConDeudaDialog, setBajaConDeudaDialog] = useState(null); // { data, hermanosIds, mesesDeudores, cuota }
   const queryClient = useQueryClient();
@@ -351,6 +353,7 @@ export default function Beneficiarios() {
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => { setEditing(b); }}><Pencil className="w-4 h-4 mr-2" />Editar</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setFichasSaludOpen(b)}><HeartPulse className="w-4 h-4 mr-2" />Importar ficha de salud</DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(b.id)}><Trash2 className="w-4 h-4 mr-2" />Eliminar</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -367,6 +370,7 @@ export default function Beneficiarios() {
       {editing && <BeneficiarioForm open onClose={() => setEditing(null)} onSave={handleSave} initialData={editing} todosBeneficiarios={beneficiarios} />}
       {showImport && <ImportBeneficiariosDialog open onClose={() => setShowImport(false)} />}
       {fichaOpen && <BeneficiarioFichaDialog open onClose={() => setFichaOpen(null)} beneficiario={fichaOpen} />}
+      {fichasSaludOpen && <ImportarFichaSaludDialog open onClose={() => setFichasSaludOpen(null)} beneficiario={fichasSaludOpen} />}
 
       {/* Diálogo de condonación de deuda al dar de baja */}
       {bajaConDeudaDialog && (

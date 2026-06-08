@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import RamaBadge from '@/components/shared/RamaBadge';
-import { Phone, Mail, MapPin, User, Shield, BookOpen, Calendar, Award, UserCog } from 'lucide-react';
+import { Phone, Mail, MapPin, User, Shield, BookOpen, Calendar, Award, UserCog, HeartPulse } from 'lucide-react';
 
 function Field({ label, value }) {
   if (!value) return null;
@@ -112,6 +112,28 @@ export default function BeneficiarioFichaDialog({ open, onClose, beneficiario: b
                   <p className="text-sm font-medium">{direccion}</p>
                 </div>
               </div>
+            </>
+          )}
+
+          {/* Salud */}
+          {(b.alergias || b.condicion_medica || b.medicacion_habitual || b.grupo_sanguineo || b.obra_social || b.observaciones_salud || b.contacto_emergencia_nombre) && (
+            <>
+              <Separator />
+              <Section icon={HeartPulse} title="Salud">
+                {b.grupo_sanguineo && <Field label="Grupo sanguíneo" value={`${b.grupo_sanguineo}${b.factor_rh ? ` / ${b.factor_rh}` : ''}`} />}
+                <Field label="Alergias" value={b.alergias} />
+                <Field label="Afección / Enf. crónica" value={b.condicion_medica} />
+                <Field label="Medicación habitual" value={b.medicacion_habitual} />
+                <Field label="Obra social" value={b.obra_social} />
+                <Field label="N° afiliado" value={b.numero_obra_social} />
+                <Field label="Contacto emergencia" value={b.contacto_emergencia_nombre ? `${b.contacto_emergencia_nombre}${b.contacto_emergencia_relacion ? ` (${b.contacto_emergencia_relacion})` : ''}${b.contacto_emergencia_telefono ? ` — ${b.contacto_emergencia_telefono}` : ''}` : null} />
+                {b.observaciones_salud && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground">Observaciones</p>
+                    <p className="text-sm font-medium whitespace-pre-wrap">{b.observaciones_salud}</p>
+                  </div>
+                )}
+              </Section>
             </>
           )}
         </div>
