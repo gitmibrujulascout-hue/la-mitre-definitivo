@@ -180,18 +180,29 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
         <>
           <h3 className="font-semibold mb-3">Campamentos</h3>
           <div className="space-y-2 mb-6">
-            {campamentos.map(c => (
-              <Card key={c.id} className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Tent className="w-5 h-5 text-primary" />
-                  <div>
-                    <p className="font-medium">{c.nombre}</p>
-                    <p className="text-xs text-muted-foreground">{c.fecha_inicio}</p>
+            {campamentos.map(c => {
+              const esAdulto = ['Voluntario', 'Educador'].includes(beneficiario.rama) || beneficiario.tipo === 'Voluntario';
+              const estaComoAdulto = esAdulto && c.adultos_ids?.includes(beneficiario.id);
+              const abona = estaComoAdulto ? c.adultos_pagan : true;
+              const costo = estaComoAdulto
+                ? (c.adultos_pagan ? (c.costo_adultos || c.costo_por_persona) : 0)
+                : c.costo_por_persona;
+              return (
+                <Card key={c.id} className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Tent className="w-5 h-5 text-primary" />
+                    <div>
+                      <p className="font-medium">{c.nombre}</p>
+                      <p className="text-xs text-muted-foreground">{c.fecha_inicio}</p>
+                    </div>
                   </div>
-                </div>
-                <p className="font-semibold text-red-500">{formatMoney(c.costo_por_persona)}</p>
-              </Card>
-            ))}
+                  {abona
+                    ? <p className="font-semibold text-red-500">{formatMoney(costo)}</p>
+                    : <p className="text-xs text-muted-foreground italic">No abona</p>
+                  }
+                </Card>
+              );
+            })}
           </div>
         </>
       )}

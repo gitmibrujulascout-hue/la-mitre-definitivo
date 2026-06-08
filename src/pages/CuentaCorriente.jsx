@@ -63,9 +63,17 @@ export default function CuentaCorriente() {
         .flatMap(p => p.meses || (p.mes ? [p.mes] : []));
       const totalPagado = pagosDelBen.reduce((s, p) => s + (p.monto || 0), 0);
 
-      // Campamentos donde participó (solo deuda si el año es >= AÑO_INICIO)
-      const campBen = campamentos.filter(c => c.beneficiarios_ids?.includes(b.id));
-      const totalCampamentos = anio >= AÑO_INICIO ? campBen.reduce((s, c) => s + (c.costo_por_persona || 0), 0) : 0;
+      // Campamentos donde participó (como niño o como adulto que paga)
+      const esAdulto = ['Voluntario', 'Educador'].includes(b.rama) || b.tipo === 'Voluntario';
+      const campBen = campamentos.filter(c =>
+        esAdulto
+          ? c.adultos_ids?.includes(b.id) && c.adultos_pagan
+          : c.beneficiarios_ids?.includes(b.id)
+      );
+      const totalCampamentos = anio >= AÑO_INICIO ? campBen.reduce((s, c) => {
+        if (esAdulto) return s + (c.costo_adultos || c.costo_por_persona || 0);
+        return s + (c.costo_por_persona || 0);
+      }, 0) : 0;
       // Restar lo pagado de campamentos
       const pagadoCamp = pagosDelBen.filter(p => p.tipo_pago === 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
 
@@ -107,7 +115,7 @@ export default function CuentaCorriente() {
         if (idx > mesUltimoCuota) return false; // meses posteriores a la baja no generan deuda
         return true;
       });
-      const cuotaIndividual = getCuotaBeneficiario(b, activos);
+      const cuotaIndividual = esAdulto ? 0 : getCuotaBeneficiario(b, activos);
       const deudaCuotas = (!esBeneficiarioConCuota(b)) ? 0 : mesesQueGeneranDeuda.length * cuotaIndividual;
       // Para el saldo del beneficiario, los pagos por transferencia se computan a valor efectivo
       // (los $2.000 extra son impuestos bancarios que no son deuda del beneficiario)
@@ -141,7 +149,7 @@ export default function CuentaCorriente() {
         afiliacionAnio,
         esPrimeraVezAfiliacion: esPrimeraVez,
         cuotaIndividual,
-        tieneDescuentoHermanos: cuotaIndividual < CUOTA_EFECTIVO_REF && esBeneficiarioConCuota(b),
+        tieneDescuentoHermanos: !esAdulto && cuotaIndividual < CUOTA_EFECTIVO_REF && esBeneficiarioConCuota(b),
         alDia: b.becado || saldo >= 0,
       };
     });
@@ -155,20 +163,19 @@ export default function CuentaCorriente() {
       (filterEstado === 'alDia' && c.alDia) || 
       (filterEstado === 'debe' && !c.alDia && !c.becado) || 
       (filterEstado === 'becado' && c.becado);
-    const esAdulto = ['Voluntario', 'Educador'].includes(c.rama) || c.tipo === 'Voluntario';
+    const esAdultoFiltro = ['Voluntario', 'Educador'].includes(c.rama) || c.tipo === 'Voluntario';
     const tieneDeudaAfil = c.saldoAfiliacion < 0;
     const matchAfiliacion = filterAfiliacion === 'todos' ||
       (filterAfiliacion === 'conDeuda' && tieneDeudaAfil) ||
       (filterAfiliacion === 'afiliado' && c.afiliacionAnio && !tieneDeudaAfil) ||
       (filterAfiliacion === 'sinAfiliar' && !c.afiliacionAnio && !c.esPrimeraVezAfiliacion) ||
       (filterAfiliacion === 'primeraVez' && c.esPrimeraVezAfiliacion);
-    // Ocultar adultos sin deuda de afiliación para no saturar la lista
-    if (esAdulto && !tieneDeudaAfil) return false;
     // Filtro de activo/inactivo
     const esInactivo = c.activo === false;
     const matchActivo = filterActivo === 'todos' ||
       (filterActivo === 'activos' && !esInactivo) ||
       (filterActivo === 'inactivos' && esInactivo);
+    // Para adultos sin campamento que pagar, siempre aparecen "al día"
     return matchSearch && matchDni && matchRama && matchEstado && matchAfiliacion && matchActivo;
   });
 
@@ -178,7 +185,12 @@ export default function CuentaCorriente() {
   if (selectedBen) {
     const cuenta = cuentas.find(c => c.id === selectedBen.id);
     const pagosDelBen = pagos.filter(p => p.beneficiario_id === selectedBen.id);
-    const campBen = campamentos.filter(c => c.beneficiarios_ids?.includes(selectedBen.id));
+    const esAdultoDetalle = ['Voluntario', 'Educador'].includes(selectedBen.rama) || selectedBen.tipo === 'Voluntario';
+    const campBen = campamentos.filter(c =>
+      esAdultoDetalle
+        ? c.adultos_ids?.includes(selectedBen.id)
+        : c.beneficiarios_ids?.includes(selectedBen.id)
+    );
     return <CuentaDetalle beneficiario={cuenta} pagos={pagosDelBen} campamentos={campBen} anio={anio} onBack={() => setSelectedBen(null)} afiliacion={cuenta?.afiliacionAnio} esPrimeraVezAfiliacion={cuenta?.esPrimeraVezAfiliacion} todosLosBeneficiarios={beneficiarios} />;
   }
 
