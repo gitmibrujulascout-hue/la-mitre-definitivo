@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye, MessageCircle } from 'lucide-react';
+import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye, MessageCircle, AlertCircle } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import BeneficiarioForm from '@/components/beneficiarios/BeneficiarioForm';
@@ -315,11 +315,17 @@ export default function Beneficiarios() {
                     })() : '—'}
                   </TableCell>
                   <TableCell>
-                    {b.tipo === 'Voluntario' ? (
-                      <Badge className="bg-purple-100 text-purple-700 border-purple-300 border"><UserCog className="w-3 h-3 mr-1" />Voluntario</Badge>
-                    ) : b.becado ? (
-                      <Badge className="bg-amber-100 text-amber-700 border-amber-300 border"><Award className="w-3 h-3 mr-1" />Becado</Badge>
-                    ) : null}
+                    <div className="flex flex-wrap gap-1">
+                      {!b.activo && (
+                        <Badge className="bg-slate-100 text-slate-700 border-slate-300 border"><AlertCircle className="w-3 h-3 mr-1" />Inactivo</Badge>
+                      )}
+                      {b.tipo === 'Voluntario' && (
+                        <Badge className="bg-purple-100 text-purple-700 border-purple-300 border"><UserCog className="w-3 h-3 mr-1" />Voluntario</Badge>
+                      )}
+                      {b.becado && !b.tipo === 'Voluntario' && (
+                        <Badge className="bg-amber-100 text-amber-700 border-amber-300 border"><Award className="w-3 h-3 mr-1" />Becado</Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
