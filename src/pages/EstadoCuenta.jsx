@@ -567,7 +567,7 @@ export default function EstadoCuenta() {
                     {b.grupo_sanguineo || b.alergias || b.obra_social ? 'Actualizar' : 'Completar'}
                   </Button>
                 </div>
-                {(b.grupo_sanguineo || b.alergias || b.condicion_medica || b.medicacion_habitual || b.obra_social || b.contacto_emergencia_nombre) ? (
+                {(b.grupo_sanguineo || b.factor_rh || b.alergias || b.condicion_medica || b.medicacion_habitual || b.regimen_dietario || b.obra_social || b.numero_obra_social || b.contacto_emergencia_nombre || b.contacto_emergencia_telefono || b.salud_mental || b.anticoagulacion || b.observaciones_salud || b.peso_kg || b.talla_m) ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm pl-1">
                     {b.grupo_sanguineo && (
                       <div><span className="text-muted-foreground text-xs">Grupo / RH: </span>
@@ -589,9 +589,25 @@ export default function EstadoCuenta() {
                       <div><span className="text-muted-foreground text-xs">Obra social: </span>
                         <span className="font-medium">{b.obra_social}{b.numero_obra_social ? ` · ${b.numero_obra_social}` : ''}</span></div>
                     )}
+                    {b.regimen_dietario && (
+                      <div><span className="text-muted-foreground text-xs">Dieta: </span>
+                        <span className="font-medium">{b.regimen_dietario}</span></div>
+                    )}
+                    {b.salud_mental && (
+                      <div><span className="text-muted-foreground text-xs">Salud mental: </span>
+                        <span className="font-medium">{b.salud_mental}</span></div>
+                    )}
+                    {b.anticoagulacion && (
+                      <div><span className="text-muted-foreground text-xs">Anticoagulación: </span>
+                        <span className="font-medium">{b.anticoagulacion}</span></div>
+                    )}
                     {b.contacto_emergencia_nombre && (
                       <div><span className="text-muted-foreground text-xs">Emergencia: </span>
                         <span className="font-medium">{b.contacto_emergencia_nombre}{b.contacto_emergencia_telefono ? ` · ${b.contacto_emergencia_telefono}` : ''}</span></div>
+                    )}
+                    {b.observaciones_salud && (
+                      <div className="col-span-2"><span className="text-muted-foreground text-xs">Observaciones: </span>
+                        <span className="font-medium">{b.observaciones_salud}</span></div>
                     )}
                   </div>
                 ) : (
