@@ -158,7 +158,9 @@ function BeneficiarioDetalleModal({ b, onClose }) {
   };
 
   const hasHealthData = b.alergias || b.condicion_medica || b.medicacion_habitual ||
-    b.obra_social || b.numero_obra_social || b.discapacidad || b.detalle_discapacidad || b.observaciones_salud;
+    b.obra_social || b.numero_obra_social || b.discapacidad || b.detalle_discapacidad ||
+    b.observaciones_salud || b.grupo_sanguineo || b.peso_kg || b.talla_m ||
+    b.regimen_dietario || b.anticoagulacion || b.salud_mental;
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -334,13 +336,24 @@ function BeneficiarioDetalleModal({ b, onClose }) {
           {hasHealthData && (
             <Section icon={Activity} title="Salud y cobertura" highlight={!!(b.alergias || b.condicion_medica)}>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {/* Datos físicos */}
+                {b.grupo_sanguineo && (
+                  <Field label="Grupo / Factor RH" value={`${b.grupo_sanguineo}${b.factor_rh ? ` ${b.factor_rh === 'Positivo' ? '+' : '-'}` : ''}`} />
+                )}
+                {b.peso_kg && <Field label="Peso" value={`${b.peso_kg} kg`} />}
+                {b.talla_m && <Field label="Talla" value={`${b.talla_m} m`} />}
+                {/* Alertas médicas */}
                 {b.alergias && <Field label="Alergias" value={b.alergias} className="text-amber-800" />}
                 {b.condicion_medica && <Field label="Condición médica" value={b.condicion_medica} className="text-amber-800" />}
                 {b.medicacion_habitual && <Field label="Medicación habitual" value={b.medicacion_habitual} className="text-amber-800" />}
+                {b.regimen_dietario && <Field label="Régimen dietario" value={b.regimen_dietario} />}
+                {b.anticoagulacion && <Field label="Anticoagulación" value={b.anticoagulacion} className="text-amber-800" />}
+                {b.salud_mental && <Field label="Salud mental" value={b.salud_mental} />}
+                {/* Cobertura */}
                 <Field label="Obra social / Prepaga" value={b.obra_social} />
                 <Field label="Nº afiliado" value={b.numero_obra_social} />
-                {b.discapacidad && <Field label="Discapacidad" value={b.discapacidad} />}
-                {b.detalle_discapacidad && <Field label="Detalle discapacidad" value={b.detalle_discapacidad} />}
+                {b.discapacidad && <Field label="Discapacidad / CUD" value={b.discapacidad} />}
+                {b.detalle_discapacidad && <Field label="Detalle" value={b.detalle_discapacidad} />}
               </div>
               {b.observaciones_salud && (
                 <div className="mt-2 pt-2 border-t">

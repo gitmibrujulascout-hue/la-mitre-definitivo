@@ -116,14 +116,19 @@ export default function BeneficiarioFichaDialog({ open, onClose, beneficiario: b
           )}
 
           {/* Salud */}
-          {(b.alergias || b.condicion_medica || b.medicacion_habitual || b.grupo_sanguineo || b.obra_social || b.observaciones_salud || b.contacto_emergencia_nombre) && (
+          {(b.alergias || b.condicion_medica || b.medicacion_habitual || b.grupo_sanguineo || b.peso_kg || b.talla_m || b.obra_social || b.observaciones_salud || b.contacto_emergencia_nombre || b.regimen_dietario || b.anticoagulacion || b.salud_mental) && (
             <>
               <Separator />
               <Section icon={HeartPulse} title="Salud">
-                {b.grupo_sanguineo && <Field label="Grupo sanguíneo" value={`${b.grupo_sanguineo}${b.factor_rh ? ` / ${b.factor_rh}` : ''}`} />}
+                {b.grupo_sanguineo && <Field label="Grupo / Factor RH" value={`${b.grupo_sanguineo}${b.factor_rh ? ` ${b.factor_rh === 'Positivo' ? '(+)' : '(-)'}` : ''}`} />}
+                {b.peso_kg && <Field label="Peso" value={`${b.peso_kg} kg`} />}
+                {b.talla_m && <Field label="Talla" value={`${b.talla_m} m`} />}
                 <Field label="Alergias" value={b.alergias} />
                 <Field label="Afección / Enf. crónica" value={b.condicion_medica} />
                 <Field label="Medicación habitual" value={b.medicacion_habitual} />
+                <Field label="Régimen dietario" value={b.regimen_dietario} />
+                <Field label="Anticoagulación" value={b.anticoagulacion} />
+                <Field label="Salud mental" value={b.salud_mental} />
                 <Field label="Obra social" value={b.obra_social} />
                 <Field label="N° afiliado" value={b.numero_obra_social} />
                 <Field label="Contacto emergencia" value={b.contacto_emergencia_nombre ? `${b.contacto_emergencia_nombre}${b.contacto_emergencia_relacion ? ` (${b.contacto_emergencia_relacion})` : ''}${b.contacto_emergencia_telefono ? ` — ${b.contacto_emergencia_telefono}` : ''}` : null} />
