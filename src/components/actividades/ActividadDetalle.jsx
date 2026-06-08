@@ -14,6 +14,7 @@ import ReporteVentasDialog from '@/components/actividades/ReporteVentasDialog.js
 import ProductosActividadPanel from '@/components/actividades/ProductosActividadPanel';
 import RendicionDialog from '@/components/actividades/RendicionDialog';
 import RendicionMasivaDialog from '@/components/actividades/RendicionMasivaDialog';
+import GananciasGrupoDialog from '@/components/actividades/GananciasGrupoDialog';
 
 const ESTADO_COLORS = {
   Planificada: 'bg-blue-100 text-blue-700 border-blue-200 border',
@@ -28,6 +29,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
   const [showReporte, setShowReporte] = useState(false);
   const [ventaRendicion, setVentaRendicion] = useState(null);
   const [showRendicionMasiva, setShowRendicionMasiva] = useState(false);
+  const [showGananciasGrupo, setShowGananciasGrupo] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: ventas = [] } = useQuery({
@@ -193,21 +195,40 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
         )}
       </div>
 
-      {/* Acción distribuir créditos */}
-      {!creditosAcreditados && ventas.length > 0 && (
-        <Card className="p-4 mb-6 bg-primary/5 border-primary/20">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <p className="font-semibold text-sm">Distribuir créditos a los participantes</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Calculará el crédito de cada vendedor según su proporción de ventas y la ganancia neta ({formatMoney(Math.max(0, gananciaReal))}).
-              </p>
+      {/* Acciones de distribución */}
+      {ventas.length > 0 && gananciaReal > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          {/* Créditos vendedores */}
+          {!creditosAcreditados && (
+            <Card className="p-4 bg-primary/5 border-primary/20">
+              <div className="flex flex-col gap-2">
+                <div>
+                  <p className="font-semibold text-sm">Créditos para vendedores</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {actividad.porcentaje_beneficiario || 50}% de la ganancia → {formatMoney(Math.max(0, gananciaReal) * (actividad.porcentaje_beneficiario || 50) / 100)}
+                  </p>
+                </div>
+                <Button onClick={() => setShowDistribuir(true)} className="w-full">
+                  <Gift className="w-4 h-4 mr-2" />Distribuir a vendedores
+                </Button>
+              </div>
+            </Card>
+          )}
+          {/* Ganancias del grupo */}
+          <Card className="p-4 bg-amber-50 border-amber-200">
+            <div className="flex flex-col gap-2">
+              <div>
+                <p className="font-semibold text-sm text-amber-800">Ganancias del grupo</p>
+                <p className="text-xs text-amber-600 mt-0.5">
+                  {actividad.porcentaje_grupo || 50}% de la ganancia → {formatMoney(Math.max(0, gananciaReal) * (actividad.porcentaje_grupo || 50) / 100)}
+                </p>
+              </div>
+              <Button onClick={() => setShowGananciasGrupo(true)} variant="outline" className="w-full border-amber-300 text-amber-800 hover:bg-amber-100">
+                <Banknote className="w-4 h-4 mr-2" />Acreditar / Distribuir
+              </Button>
             </div>
-            <Button onClick={() => setShowDistribuir(true)}>
-              <Gift className="w-4 h-4 mr-2" />Distribuir créditos
-            </Button>
-          </div>
-        </Card>
+          </Card>
+        </div>
       )}
 
       {creditosAcreditados && (
@@ -468,6 +489,16 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
           beneficiarios={beneficiarios}
           onClose={() => setShowDistribuir(false)}
           onSaved={() => { invalidateAll(); setShowDistribuir(false); onSaved(); }}
+        />
+      )}
+      {showGananciasGrupo && (
+        <GananciasGrupoDialog
+          open
+          actividad={actividad}
+          gananciaReal={gananciaReal}
+          beneficiarios={beneficiarios}
+          onClose={() => setShowGananciasGrupo(false)}
+          onSaved={() => { setShowGananciasGrupo(false); onSaved(); }}
         />
       )}
     </div>
