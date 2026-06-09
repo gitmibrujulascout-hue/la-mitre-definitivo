@@ -13,6 +13,16 @@ import * as XLSX from 'xlsx';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
+// Formatea dinero al formato argentino: $ ##.###,##
+function formatDineroAR(monto) {
+  const num = Number(monto) || 0;
+  const partes = num.toFixed(2).split('.');
+  const entero = parseInt(partes[0]);
+  const decimal = partes[1];
+  const enterFormato = entero.toLocaleString('es-AR');
+  return `$ ${enterFormato},${decimal}`;
+}
+
 // Obtiene el número de mes a partir del nombre
 function mesIndex(nombreMes) {
   return MESES.findIndex(m => m.toLowerCase() === nombreMes?.toLowerCase());
@@ -75,16 +85,32 @@ function exportarExcel(pagosFiltrados, beneficiariosMap) {
     const ben = beneficiariosMap[p.beneficiario_id];
     const email = ben?.email_contacto || null;
 
+    // Calcular cantidad de meses
+    let cantidad = 1;
+    if (p.tipo_pago === 'Cuota') {
+      const meses = p.meses?.length ? p.meses : (p.mes ? [p.mes] : []);
+      cantidad = meses.length || 1;
+    }
+
+    const total = p.monto || 0;
+    const precioUnitario = cantidad > 0 ? total / cantidad : total;
+
+    // Determinar condición de venta
+    let condicionVenta = 'CONTADO';
+    if (p.forma_pago === 'Transferencia') {
+      condicionVenta = 'TRANSFERENCIA BANCARIA';
+    }
+
     return {
       'Fecha Comprobante': fechaComprobante,
       'Producto / Servicio': buildConcepto(p),
-      'Precio Unitario': p.monto || 0,
-      'Cantidad': 1,
-      'Total': p.monto || 0,
+      'Precio Unitario': formatDineroAR(precioUnitario),
+      'Cantidad': cantidad,
+      'Total': formatDineroAR(total),
       'Tipo': 'SERVICIO',
       'Facturado Desde': desde,
       'Facturado Hasta': hasta,
-      'Condicion de Venta': 'CONTADO',
+      'Condicion de Venta': condicionVenta,
       'Condicion de IVA': 'CONSUMIDOR FINAL',
       'CUIT o DNI (Opcional)': null,
       'Email (Opcional)': email || null,
