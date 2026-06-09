@@ -269,7 +269,9 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                 if (!grupos[key]) grupos[key] = { ben: getBen(v.beneficiario_id), nombre: v.beneficiario_nombre, pedidos: [] };
                 grupos[key].pedidos.push(v);
               });
-              return Object.values(grupos).map(({ ben, nombre, pedidos }) => {
+              return Object.values(grupos).sort((a, b) =>
+                (a.ben?.nombre || a.nombre || '').localeCompare(b.ben?.nombre || b.nombre || '', 'es')
+              ).map(({ ben, nombre, pedidos }) => {
                 const montoGrupo = pedidos.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
                 const pctGrupo = totalVentas > 0 ? Math.round((montoGrupo / totalVentas) * 100) : 0;
                 const creditoEstGrupo = gananciaReal > 0 ? Math.round(gananciaReal * (actividad.porcentaje_beneficiario || 50) / 100 * pctGrupo / 100) : 0;
@@ -420,24 +422,38 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
       </div>
 
       {/* Créditos ya acreditados */}
-      {creditosAcreditados && (
-        <Card className="mt-6">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2"><Gift className="w-4 h-4" />Créditos acreditados</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {creditos.map(cr => (
-              <div key={cr.id} className="flex items-center justify-between py-2 border-b last:border-0 text-sm">
-                <div>
-                  <p className="font-medium">{cr.beneficiario_nombre}</p>
-                  <p className="text-xs text-muted-foreground">Disponible: {formatMoney(cr.monto_disponible)}</p>
+      {creditosAcreditados && (() => {
+        // Unificar créditos por persona y ordenar alfabéticamente
+        const creditosPorPersona = {};
+        creditos.forEach(cr => {
+          const key = cr.beneficiario_id || cr.beneficiario_nombre;
+          if (!creditosPorPersona[key]) {
+            creditosPorPersona[key] = { nombre: cr.beneficiario_nombre, montoOriginal: 0, montoDisponible: 0 };
+          }
+          creditosPorPersona[key].montoOriginal += cr.monto_original || 0;
+          creditosPorPersona[key].montoDisponible += cr.monto_disponible || 0;
+        });
+        const creditosUnificados = Object.values(creditosPorPersona)
+          .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
+        return (
+          <Card className="mt-6">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2"><Gift className="w-4 h-4" />Créditos acreditados</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {creditosUnificados.map(cr => (
+                <div key={cr.nombre} className="flex items-center justify-between py-2 border-b last:border-0 text-sm">
+                  <div>
+                    <p className="font-medium">{cr.nombre}</p>
+                    <p className="text-xs text-muted-foreground">Disponible: {formatMoney(cr.montoDisponible)}</p>
+                  </div>
+                  <p className="font-bold text-primary">{formatMoney(cr.montoOriginal)}</p>
                 </div>
-                <p className="font-bold text-primary">{formatMoney(cr.monto_original)}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+              ))}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {showVentaForm && (
         <VentaForm

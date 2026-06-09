@@ -19,7 +19,16 @@ export default function DistribuirCreditosDialog({ open, onClose, onSaved, activ
   const gananciaParaBen = Math.max(0, gananciaReal) * pctBen / 100;
 
   const calculados = useMemo(() => {
-    return ventas.map(v => {
+    // Agrupar ventas por beneficiario para un único crédito por persona
+    const porBen = {};
+    ventas.forEach(v => {
+      const key = v.beneficiario_id || v.beneficiario_nombre;
+      if (!porBen[key]) {
+        porBen[key] = { beneficiario_id: v.beneficiario_id, beneficiario_nombre: v.beneficiario_nombre, monto_recaudado: 0 };
+      }
+      porBen[key].monto_recaudado += v.monto_recaudado || 0;
+    });
+    return Object.values(porBen).map(v => {
       const ben = beneficiarios.find(b => b.id === v.beneficiario_id);
       const proporcion = totalVentas > 0 ? v.monto_recaudado / totalVentas : 0;
       const creditoExacto = Math.round(gananciaParaBen * proporcion * 100) / 100;
@@ -34,27 +43,29 @@ export default function DistribuirCreditosDialog({ open, onClose, onSaved, activ
     });
   }, [ventas, gananciaParaBen, totalVentas, beneficiarios]);
 
-  // Estado editable: monto final por beneficiario (id -> monto)
+  // Estado editable: monto final por beneficiario (beneficiario_id -> monto)
   const [montos, setMontos] = useState({});
 
   // Inicializar montos con valores redondeados cuando cambian los calculados
   useMemo(() => {
     const init = {};
-    calculados.forEach(d => { init[d.v.id] = d.creditoSugerido; });
+    calculados.forEach(d => { init[d.v.beneficiario_id || d.v.beneficiario_nombre] = d.creditoSugerido; });
     setMontos(init);
   }, [calculados.length, gananciaReal]);
 
-  const getMonto = (id) => montos[id] ?? 0;
-  const setMonto = (id, val) => setMontos(prev => ({ ...prev, [id]: val === '' ? '' : Number(val) }));
-  const resetMonto = (id, sugerido) => setMontos(prev => ({ ...prev, [id]: sugerido }));
+  const getKey = (v) => v.beneficiario_id || v.beneficiario_nombre;
+  const getMonto = (key) => montos[key] ?? 0;
+  const setMonto = (key, val) => setMontos(prev => ({ ...prev, [key]: val === '' ? '' : Number(val) }));
+  const resetMonto = (key, sugerido) => setMontos(prev => ({ ...prev, [key]: sugerido }));
 
-  const totalADistribuir = calculados.reduce((s, d) => s + (getMonto(d.v.id) || 0), 0);
+  const totalADistribuir = calculados.reduce((s, d) => s + (getMonto(getKey(d.v)) || 0), 0);
 
   const mutation = useMutation({
     mutationFn: async () => {
       const fecha = new Date().toISOString().split('T')[0];
       await Promise.all(calculados.map(d => {
-        const monto = getMonto(d.v.id) || 0;
+        const key = getKey(d.v);
+        const monto = getMonto(key) || 0;
         if (monto <= 0) return Promise.resolve();
         return base44.entities.CreditoBeneficiario.create({
           beneficiario_id: d.v.beneficiario_id,
@@ -107,8 +118,10 @@ export default function DistribuirCreditosDialog({ open, onClose, onSaved, activ
               </div>
 
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {calculados.map(({ v, ben, creditoExacto, creditoSugerido, proporcion }) => (
-                  <div key={v.id} className="bg-muted/30 rounded-lg px-3 py-2.5 space-y-1.5">
+                {calculados.map(({ v, ben, creditoExacto, creditoSugerido, proporcion }) => {
+                  const key = getKey(v);
+                  return (
+                  <div key={key} className="bg-muted/30 rounded-lg px-3 py-2.5 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium">{ben?.nombre || v.beneficiario_nombre}</p>
@@ -125,25 +138,26 @@ export default function DistribuirCreditosDialog({ open, onClose, onSaved, activ
                           type="number"
                           step="500"
                           min="0"
-                          value={getMonto(v.id)}
-                          onChange={e => setMonto(v.id, e.target.value)}
+                          value={getMonto(key)}
+                          onChange={e => setMonto(key, e.target.value)}
                           className="pl-6 h-8 text-sm font-semibold text-primary"
                         />
                       </div>
-                      {getMonto(v.id) !== creditoSugerido && (
+                      {getMonto(key) !== creditoSugerido && (
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 flex-shrink-0"
                           title="Restaurar valor redondeado"
-                          onClick={() => resetMonto(v.id, creditoSugerido)}
+                          onClick={() => resetMonto(key, creditoSugerido)}
                         >
                           <RefreshCw className="w-3.5 h-3.5" />
                         </Button>
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="flex items-center justify-between bg-primary/5 rounded-lg px-3 py-2 text-sm">

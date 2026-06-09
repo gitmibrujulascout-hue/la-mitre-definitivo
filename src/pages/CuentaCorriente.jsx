@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, CheckCircle2, AlertCircle, Award, User, Plus, UserX } from 'lucide-react';
+import { Search, CheckCircle2, AlertCircle, Award, User, Plus, UserX, Gift } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
@@ -48,6 +48,11 @@ export default function CuentaCorriente() {
   const { data: afiliaciones = [] } = useQuery({
     queryKey: ['afiliaciones'],
     queryFn: () => base44.entities.Afiliacion.list('-fecha_pago', 500),
+  });
+
+  const { data: todosCreditos = [] } = useQuery({
+    queryKey: ['creditos'],
+    queryFn: () => base44.entities.CreditoBeneficiario.list(),
   });
 
   // Solo calcular deudas desde 2026 en adelante
@@ -139,6 +144,10 @@ export default function CuentaCorriente() {
 
       const saldo = pagadoCuotas - deudaCuotas + pagadoCamp - totalCampamentos + saldoAfiliacion;
 
+      const creditoDisponible = todosCreditos
+        .filter(c => c.beneficiario_id === b.id && (c.monto_disponible || 0) > 0)
+        .reduce((s, c) => s + (c.monto_disponible || 0), 0);
+
       return {
         ...b,
         mesesPagados,
@@ -151,9 +160,10 @@ export default function CuentaCorriente() {
         cuotaIndividual,
         tieneDescuentoHermanos: !esAdulto && cuotaIndividual < CUOTA_EFECTIVO_REF && esBeneficiarioConCuota(b),
         alDia: b.becado || saldo >= 0,
+        creditoDisponible,
       };
     });
-  }, [activos, pagos, campamentos, afiliaciones, anio]);
+  }, [activos, pagos, campamentos, afiliaciones, anio, todosCreditos]);
 
   const filtered = cuentas.filter(c => {
     const matchSearch = !search || c.nombre?.toLowerCase().includes(search.toLowerCase());
@@ -262,6 +272,7 @@ export default function CuentaCorriente() {
               <TableHead className="hidden md:table-cell">Afiliación</TableHead>
               <TableHead className="hidden sm:table-cell">Pagado</TableHead>
               <TableHead>Saldo</TableHead>
+              <TableHead className="hidden lg:table-cell text-primary">Créditos</TableHead>
               <TableHead className="w-24"></TableHead>
             </TableRow>
           </TableHeader>
@@ -316,6 +327,15 @@ export default function CuentaCorriente() {
                   <TableCell className="hidden sm:table-cell" onClick={() => setSelectedBen(c)}>{formatMoney(c.totalPagado)}</TableCell>
                   <TableCell className={cn('font-semibold', c.saldo >= 0 ? 'text-green-600' : 'text-red-500')} onClick={() => setSelectedBen(c)}>
                     {formatMoney(c.saldo)}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell" onClick={() => setSelectedBen(c)}>
+                    {c.creditoDisponible > 0 ? (
+                      <span className="inline-flex items-center gap-1 text-primary font-semibold text-sm">
+                        <Gift className="w-3 h-3" />{formatMoney(c.creditoDisponible)}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Button
