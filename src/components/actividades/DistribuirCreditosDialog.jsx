@@ -25,7 +25,13 @@ export default function DistribuirCreditosDialog({ open, onClose, onSaved, activ
       const creditoExacto = Math.round(gananciaParaBen * proporcion * 100) / 100;
       const creditoSugerido = roundTo500(creditoExacto);
       return { v, ben, creditoExacto, creditoSugerido, proporcion };
-    }).filter(d => d.creditoExacto > 0);
+    })
+    .filter(d => d.creditoExacto > 0)
+    .sort((a, b) => {
+      const na = (a.ben?.nombre || a.v.beneficiario_nombre || '').toLowerCase();
+      const nb = (b.ben?.nombre || b.v.beneficiario_nombre || '').toLowerCase();
+      return na.localeCompare(nb, 'es');
+    });
   }, [ventas, gananciaParaBen, totalVentas, beneficiarios]);
 
   // Estado editable: monto final por beneficiario (id -> monto)
