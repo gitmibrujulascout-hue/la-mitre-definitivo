@@ -20,6 +20,8 @@ export default function Campamentos() {
   const [viewingCamp, setViewingCamp] = useState(null);
   const [search, setSearch] = useState('');
   const [filterRama, setFilterRama] = useState('todas');
+  const [mostrarPasados, setMostrarPasados] = useState(false);
+  const hoy = new Date().toISOString().split('T')[0];
   const queryClient = useQueryClient();
 
   const { data: campamentos = [], isLoading } = useQuery({
@@ -49,11 +51,20 @@ export default function Campamentos() {
 
   const getBenName = (id) => beneficiarios.find(b => b.id === id)?.nombre || id;
 
-  const filtered = useMemo(() => campamentos.filter(c => {
-    const matchSearch = !search || c.nombre?.toLowerCase().includes(search.toLowerCase()) || c.ubicacion?.toLowerCase().includes(search.toLowerCase());
-    const matchRama = filterRama === 'todas' || c.ramas_participantes?.includes(filterRama);
-    return matchSearch && matchRama;
-  }), [campamentos, search, filterRama]);
+  const filtered = useMemo(() => {
+    const sorted = [...campamentos].sort((a, b) => {
+      const fa = a.fecha_inicio || '';
+      const fb = b.fecha_inicio || '';
+      return fa.localeCompare(fb);
+    });
+    return sorted.filter(c => {
+      const matchSearch = !search || c.nombre?.toLowerCase().includes(search.toLowerCase()) || c.ubicacion?.toLowerCase().includes(search.toLowerCase());
+      const matchRama = filterRama === 'todas' || c.ramas_participantes?.includes(filterRama);
+      const esPasado = c.fecha_fin ? c.fecha_fin < hoy : (c.fecha_inicio ? c.fecha_inicio < hoy : false);
+      const matchTemporal = mostrarPasados || !esPasado;
+      return matchSearch && matchRama && matchTemporal;
+    });
+  }, [campamentos, search, filterRama, mostrarPasados, hoy]);
 
   // Si estamos viendo un detalle, refrescamos el campamento desde la lista actualizada
   const campamentoActualizado = viewingCamp
@@ -102,6 +113,9 @@ export default function Campamentos() {
               {RAMAS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Button variant={mostrarPasados ? 'default' : 'outline'} onClick={() => setMostrarPasados(v => !v)} className="whitespace-nowrap">
+            {mostrarPasados ? 'Ocultar pasados' : 'Ver todos'}
+          </Button>
         </div>
       </Card>
 
