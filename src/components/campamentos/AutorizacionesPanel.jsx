@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -11,10 +11,11 @@ import { toast } from 'sonner';
 import { differenceInYears, parseISO } from 'date-fns';
 
 function esMenor(beneficiario) {
-  if (!beneficiario?.fecha_nacimiento) return true; // si no tiene fecha, asumir menor por precaución
-  const edad = differenceInYears(new Date(), parseISO(beneficiario.fecha_nacimiento));
-  return edad < 18;
+  if (!beneficiario?.fecha_nacimiento) return true;
+  return differenceInYears(new Date(), parseISO(beneficiario.fecha_nacimiento)) < 18;
 }
+
+const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 
 export default function AutorizacionesPanel({ campamento, beneficiarios, invalidateKey = 'campamentos' }) {
   const [search, setSearch] = useState('');
@@ -22,29 +23,17 @@ export default function AutorizacionesPanel({ campamento, beneficiarios, invalid
 
   const autorizados = new Set(campamento.autorizaciones_ids || []);
 
-  const mutation = useMutation({
-    mutationFn: (nuevosIds) => base44.entities.Campamento.update(campamento.id, { autorizaciones_ids: nuevosIds }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [invalidateKey] });
-    },
-    onError: () => toast.error('Error al guardar'),
-  });
+  const menores = useMemo(() => {
+    const ids = campamento.beneficiarios_ids || [];
+    return beneficiarios.filter(b => ids.includes(b.id) && esMenor(b))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  }, [campamento, beneficiarios]);
 
-  const toggle = (id) => {
-    const actual = new Set(campamento.autorizaciones_ids || []);
-    if (actual.has(id)) {
-      actual.delete(id);
-    } else {
-      actual.add(id);
-    }
-    mutation.mutate(Array.from(actual));
-  };
+  const filtrados = useMemo(() => {
+    const q = search.toLowerCase();
+    return q ? menores.filter(b => b.nombre.toLowerCase().includes(q)) : menores;
+  }, [menores, search]);
 
-  const entregaron = menores.filter(b => autorizados.has(b.id)).length;
-  const porcentaje = menores.length > 0 ? Math.round((entregaron / menores.length) * 100) : 0;
-
-  // Agrupación por rama para vista ordenada
-  const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
   const porRama = useMemo(() => {
     const map = {};
     for (const b of filtrados) {
@@ -56,6 +45,24 @@ export default function AutorizacionesPanel({ campamento, beneficiarios, invalid
     const otras = Object.entries(map).filter(([r]) => !ORDEN_RAMAS.includes(r));
     return [...ordenadas, ...otras];
   }, [filtrados]);
+
+  const mutation = useMutation({
+    mutationFn: (nuevosIds) => base44.entities.Campamento.update(campamento.id, { autorizaciones_ids: nuevosIds }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [invalidateKey] });
+    },
+    onError: () => toast.error('Error al guardar'),
+  });
+
+  const toggle = (id) => {
+    const actual = new Set(campamento.autorizaciones_ids || []);
+    if (actual.has(id)) actual.delete(id);
+    else actual.add(id);
+    mutation.mutate(Array.from(actual));
+  };
+
+  const entregaron = menores.filter(b => autorizados.has(b.id)).length;
+  const porcentaje = menores.length > 0 ? Math.round((entregaron / menores.length) * 100) : 0;
 
   return (
     <Card>
@@ -75,7 +82,6 @@ export default function AutorizacionesPanel({ campamento, beneficiarios, invalid
           </Badge>
         </CardTitle>
 
-        {/* Barra de progreso */}
         {menores.length > 0 && (
           <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-1">
             <div
@@ -85,7 +91,6 @@ export default function AutorizacionesPanel({ campamento, beneficiarios, invalid
           </div>
         )}
 
-        {/* Buscador */}
         <div className="relative mt-2">
           <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground" />
           <Input

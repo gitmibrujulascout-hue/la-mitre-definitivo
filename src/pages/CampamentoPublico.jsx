@@ -286,7 +286,7 @@ export default function CampamentoPublico() {
 
   const { data: gastos = [] } = useQuery({
     queryKey: ['gastos_pub', acceso?.campamento_id],
-    queryFn: () => base44.entities.Gasto.filter({ campamento_id: acceso.campamento_id }),
+    queryFn: () => base44.entities.Gasto.filter({ campamento_id: acceso.campamento_id }).catch(() => []),
     enabled: !!acceso?.campamento_id,
   });
 
