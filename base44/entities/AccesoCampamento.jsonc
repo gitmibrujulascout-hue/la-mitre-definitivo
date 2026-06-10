@@ -1,0 +1,31 @@
+{
+  "name": "AccesoCampamento",
+  "type": "object",
+  "properties": {
+    "campamento_id": {
+      "type": "string",
+      "description": "ID del campamento"
+    },
+    "campamento_nombre": {
+      "type": "string",
+      "description": "Nombre del campamento"
+    },
+    "codigo": {
+      "type": "string",
+      "description": "C\u00f3digo de acceso \u00fanico (generado aleatoriamente)"
+    },
+    "activo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Si el c\u00f3digo est\u00e1 activo"
+    },
+    "observaciones": {
+      "type": "string",
+      "description": "Notas del admin (ej: para qui\u00e9n es este c\u00f3digo)"
+    }
+  },
+  "required": [
+    "campamento_id",
+    "codigo"
+  ]
+}

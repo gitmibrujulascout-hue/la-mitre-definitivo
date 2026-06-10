@@ -21,6 +21,7 @@ import AgenteScout from '@/pages/AgenteScout';
 import ReporteBeneficiarios from '@/pages/ReporteBeneficiarios';
 import DirectorioEmergencias from '@/pages/DirectorioEmergencias';
 import FichaEmergencia from '@/pages/FichaEmergencia.jsx';
+import CampamentoPublico from '@/pages/CampamentoPublico';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, user } = useAuth();
@@ -75,6 +76,7 @@ const AuthenticatedApp = () => {
       </Route>
       <Route path="/estado-cuenta" element={<EstadoCuenta />} />
       <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
+      <Route path="/campamento/:codigo" element={<CampamentoPublico />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
