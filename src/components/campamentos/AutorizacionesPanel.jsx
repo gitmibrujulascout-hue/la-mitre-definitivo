@@ -16,30 +16,16 @@ function esMenor(beneficiario) {
   return edad < 18;
 }
 
-export default function AutorizacionesPanel({ campamento, beneficiarios }) {
+export default function AutorizacionesPanel({ campamento, beneficiarios, invalidateKey = 'campamentos' }) {
   const [search, setSearch] = useState('');
   const queryClient = useQueryClient();
 
   const autorizados = new Set(campamento.autorizaciones_ids || []);
 
-  // Solo menores de 18 que estén asignados al campamento
-  const menores = useMemo(() => {
-    return (campamento.beneficiarios_ids || [])
-      .map(id => beneficiarios.find(b => b.id === id))
-      .filter(Boolean)
-      .filter(esMenor)
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-  }, [campamento, beneficiarios]);
-
-  const filtrados = useMemo(() => {
-    if (!search) return menores;
-    return menores.filter(b => b.nombre.toLowerCase().includes(search.toLowerCase()));
-  }, [menores, search]);
-
   const mutation = useMutation({
     mutationFn: (nuevosIds) => base44.entities.Campamento.update(campamento.id, { autorizaciones_ids: nuevosIds }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['campamentos'] });
+      queryClient.invalidateQueries({ queryKey: [invalidateKey] });
     },
     onError: () => toast.error('Error al guardar'),
   });

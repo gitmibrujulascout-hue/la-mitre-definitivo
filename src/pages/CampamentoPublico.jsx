@@ -12,11 +12,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import { differenceInYears, parseISO } from 'date-fns';
 import {
-  Users, MapPin, Calendar, DollarSign, AlertTriangle,
-  HeartPulse, Phone, Plus, Trash2, UserPlus, CreditCard, Tent
+  Users, MapPin, Calendar, AlertTriangle,
+  HeartPulse, Phone, Plus, Trash2, UserPlus, CreditCard, Tent, Printer, FileCheck
 } from 'lucide-react';
 import { SALUD_FIELDS } from '@/lib/saludFields';
 import { formatMoney } from '@/lib/ramaUtils';
+import BalanceCampamento from '@/components/campamentos/BalanceCampamento';
+import AutorizacionesPanel from '@/components/campamentos/AutorizacionesPanel';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
@@ -282,6 +284,12 @@ export default function CampamentoPublico() {
     enabled: !!acceso?.campamento_id,
   });
 
+  const { data: gastos = [] } = useQuery({
+    queryKey: ['gastos_pub', acceso?.campamento_id],
+    queryFn: () => base44.entities.Gasto.filter({ campamento_id: acceso.campamento_id }),
+    enabled: !!acceso?.campamento_id,
+  });
+
   const getBen = (id) => beneficiarios.find(b => b.id === id);
   const ninos = useMemo(
     () => (campamento?.beneficiarios_ids || []).map(getBen).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
@@ -291,6 +299,18 @@ export default function CampamentoPublico() {
     () => (campamento?.adultos_ids || []).map(getBen).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
     [campamento, beneficiarios]
   );
+
+  const conAlertas = useMemo(
+    () => [...ninos, ...adultos].filter(b => b.alergias || b.regimen_dietario || b.condicion_medica || b.medicacion_habitual),
+    [ninos, adultos]
+  );
+
+  const menoresCount = useMemo(() =>
+    (campamento?.beneficiarios_ids || []).map(getBen).filter(Boolean)
+      .filter(b => !b.fecha_nacimiento || differenceInYears(new Date(), parseISO(b.fecha_nacimiento)) < 18).length,
+    [campamento, beneficiarios]
+  );
+  const autorizacionesCount = (campamento?.autorizaciones_ids || []).length;
 
   const ninosPorRama = useMemo(() => {
     const map = {};
@@ -304,16 +324,56 @@ export default function CampamentoPublico() {
     return [...ordenadas, ...otras];
   }, [ninos]);
 
-  const conAlertas = useMemo(
-    () => [...ninos, ...adultos].filter(b => b.alergias || b.regimen_dietario || b.condicion_medica || b.medicacion_habitual),
-    [ninos, adultos]
-  );
-
   const pagadoPor = (id) => pagos.filter(p => p.beneficiario_id === id).reduce((s, p) => s + p.monto, 0);
   const costo = (ben) => {
     const esAdulto = ben.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(ben.rama);
     if (esAdulto && campamento?.adultos_pagan) return campamento.costo_adultos || campamento.costo_por_persona;
     return campamento?.costo_por_persona;
+  };
+
+  const handlePrint = () => {
+    if (!campamento) return;
+    const autorizadosSet = new Set(campamento.autorizaciones_ids || []);
+    const pagosMap = {};
+    pagos.forEach(p => {
+      if (p.tipo_pago === 'Campamento' && p.campamento_id === campamento.id) {
+        pagosMap[p.beneficiario_id] = (pagosMap[p.beneficiario_id] || 0) + (p.monto || 0);
+      }
+    });
+    let contador = 0;
+    const ramasHtml = ninosPorRama.map(([rama, lista]) => {
+      const rows = lista.map(b => {
+        contador++;
+        const autorizo = autorizadosSet.has(b.id) ? '✓' : '';
+        const montoPagado = pagosMap[b.id] ? `$${pagosMap[b.id].toLocaleString('es-AR')}` : '';
+        return `<tr>
+          <td>${contador}</td><td>${b.nombre}</td><td>${b.dni || ''}</td>
+          <td style="text-align:center;${autorizadosSet.has(b.id) ? 'color:green;font-weight:bold' : ''}">${autorizo}</td>
+          <td style="text-align:center;${pagosMap[b.id] ? 'color:green;font-weight:bold' : ''}">${montoPagado}</td>
+        </tr>`;
+      }).join('');
+      const color = rama === 'Lobatos' ? '#fef9c3' : rama === 'Tropa' ? '#dcfce7' : rama === 'KM' ? '#dbeafe' : rama === 'Rovers' ? '#fee2e2' : '#f1f5f9';
+      return `<div style="font-weight:bold;font-size:13px;padding:6px 10px;border-radius:4px;margin-top:16px;border:1px solid #ccc;background:${color}">${rama} (${lista.length})</div>
+        <table><thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th style="width:80px;text-align:center">Autorización</th><th style="width:90px;text-align:center">Pago</th></tr></thead>
+        <tbody>${rows}</tbody></table>`;
+    }).join('');
+    const adultosRows = adultos.map((b, i) =>
+      `<tr><td>${i+1}</td><td>${b.nombre}</td><td>${b.funcion || b.rama_educador || b.rama || ''}</td><td>${b.dni || ''}</td><td>${campamento.adultos_pagan ? '' : 'No abona'}</td></tr>`
+    ).join('');
+    const resumenTexto = ninosPorRama.map(([r, l]) => `${r}: ${l.length}`).join(' | ');
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Listado ${campamento.nombre}</title>
+    <style>body{font-family:Arial,sans-serif;padding:20px;font-size:13px}h1{margin-bottom:4px;font-size:18px}.meta{color:#555;margin-bottom:16px;font-size:11px}table{width:100%;border-collapse:collapse;margin-top:6px}th,td{border:1px solid #ccc;padding:5px 8px;text-align:left}th{background:#f0f0f0;font-size:12px}td{font-size:12px}.seccion{margin-top:20px;font-weight:bold;font-size:14px;border-bottom:2px solid #333;padding-bottom:4px}.resumen{margin-top:20px;padding:10px;background:#f9f9f9;border:1px solid #ddd;border-radius:4px;font-size:12px}</style>
+    </head><body>
+    <h1>${campamento.nombre}</h1>
+    <div class="meta">${campamento.ubicacion ? `📍 ${campamento.ubicacion} &nbsp;` : ''}${campamento.fecha_inicio ? `📅 ${campamento.fecha_inicio}${campamento.fecha_fin ? ` al ${campamento.fecha_fin}` : ''}` : ''} &nbsp;|&nbsp; Costo niños: ${formatMoney(campamento.costo_por_persona)}</div>
+    ${ninos.length > 0 ? `<div class="seccion">Niños / Beneficiarios (${ninos.length})</div>${ramasHtml}` : ''}
+    ${adultos.length > 0 ? `<div class="seccion" style="margin-top:24px">Adultos / Voluntarios (${adultos.length})</div><table><thead><tr><th>#</th><th>Nombre</th><th>Rol</th><th>DNI</th><th>Pago</th></tr></thead><tbody>${adultosRows}</tbody></table>` : ''}
+    <div class="resumen"><strong>Resumen:</strong> ${resumenTexto}${adultos.length > 0 ? ` | Adultos: ${adultos.length}` : ''} | <strong>TOTAL: ${ninos.length + adultos.length} personas</strong></div>
+    </body></html>`;
+    const win = window.open('', '_blank');
+    win.document.write(html);
+    win.document.close();
+    win.print();
   };
 
   if (loadingAcceso || loadingCamp) {
@@ -353,6 +413,28 @@ export default function CampamentoPublico() {
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
 
+        {/* Stats resumen */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card className="p-3 text-center">
+            <p className="text-2xl font-bold">{ninos.length}</p>
+            <p className="text-xs text-muted-foreground">Niños</p>
+          </Card>
+          <Card className="p-3 text-center">
+            <p className="text-2xl font-bold">{adultos.length}</p>
+            <p className="text-xs text-muted-foreground">Adultos</p>
+          </Card>
+          <Card className="p-3 text-center">
+            <p className="text-2xl font-bold text-primary">{ninos.length + adultos.length}</p>
+            <p className="text-xs text-muted-foreground">Total</p>
+          </Card>
+          <Card className="p-3 text-center">
+            <p className={`text-2xl font-bold ${autorizacionesCount === menoresCount && menoresCount > 0 ? 'text-green-600' : 'text-amber-500'}`}>
+              {autorizacionesCount}/{menoresCount}
+            </p>
+            <p className="text-xs text-muted-foreground">Autorizaciones</p>
+          </Card>
+        </div>
+
         {/* Acciones */}
         <div className="flex gap-3 flex-wrap">
           <Button onClick={() => setShowPago(true)} className="flex-1 sm:flex-none">
@@ -361,6 +443,15 @@ export default function CampamentoPublico() {
           <Button variant="outline" onClick={() => setShowModificar(true)} className="flex-1 sm:flex-none">
             <UserPlus className="w-4 h-4 mr-2" />Modificar participantes
           </Button>
+          <Button variant="outline" onClick={handlePrint} className="flex-1 sm:flex-none">
+            <Printer className="w-4 h-4 mr-2" />Exportar listado
+          </Button>
+        </div>
+
+        {/* Autorizaciones y Balance */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <AutorizacionesPanel campamento={campamento} beneficiarios={beneficiarios} invalidateKey="campamento_pub" />
+          <BalanceCampamento campamento={campamento} pagos={pagos} gastos={gastos} />
         </div>
 
         {/* Alertas médicas */}
