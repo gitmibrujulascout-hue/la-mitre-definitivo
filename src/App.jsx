@@ -90,6 +90,7 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <Routes>
+            <Route path="/campamento/:codigo" element={<CampamentoPublico />} />
             <Route path="/*" element={<AuthenticatedApp />} />
           </Routes>
         </Router>
