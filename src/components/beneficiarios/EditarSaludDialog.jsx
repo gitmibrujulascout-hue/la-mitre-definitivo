@@ -9,7 +9,15 @@ import { Upload, Sparkles, FileText, X, CheckCircle, AlertCircle } from 'lucide-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
-import { SALUD_FIELDS as FIELDS, SALUD_SCHEMA, buildSaludForm as buildInitialForm, parseSaludForm } from '@/lib/saludFields';
+import { SALUD_FIELDS as FIELDS, SALUD_SCHEMA, parseSaludForm } from '@/lib/saludFields';
+
+function buildInitialForm(beneficiario) {
+  const form = {};
+  FIELDS.forEach(({ key }) => {
+    form[key] = beneficiario?.[key] != null ? String(beneficiario[key]) : '';
+  });
+  return form;
+}
 
 // Comparación campo a campo entre lo cargado y lo extraído por IA
 function ConflictRow({ field, valorActual, valorIA, eleccion, onChange }) {
@@ -245,16 +253,28 @@ export default function EditarSaludDialog({ open, onClose, beneficiario, onSaved
         {/* Formulario manual */}
         {mode === 'edit' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            {FIELDS.map(({ key, label, placeholder, type, wide }) => (
+            {FIELDS.map(({ key, label, placeholder, type, wide, toggleable, toggleLabel }) => (
               <div key={key} className={wide ? 'sm:col-span-2' : ''}>
                 <Label className="text-xs text-muted-foreground">{label}</Label>
-                <Input
-                  type={type || 'text'}
-                  value={form[key]}
-                  onChange={e => handleChange(key, e.target.value)}
-                  placeholder={placeholder}
-                  className="mt-1 text-sm"
-                />
+                <div className="mt-1 flex items-center gap-2">
+                  <Input
+                    type={type || 'text'}
+                    value={form[key]}
+                    onChange={e => handleChange(key, e.target.value)}
+                    placeholder={toggleable ? (form[key] === '' ? `(vacío = ${toggleLabel})` : placeholder) : placeholder}
+                    className="text-sm flex-1"
+                  />
+                  {toggleable && form[key] !== '' && (
+                    <button
+                      type="button"
+                      onClick={() => handleChange(key, '')}
+                      className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                      title={`Limpiar (marcar como ${toggleLabel})`}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
