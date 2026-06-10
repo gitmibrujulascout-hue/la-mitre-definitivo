@@ -51,6 +51,7 @@ const AuthenticatedApp = () => {
       <Routes>
         <Route path="/estado-cuenta" element={<EstadoCuenta />} />
         <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
+        <Route path="/campamento/:codigo" element={<CampamentoPublico />} />
         <Route path="*" element={<EstadoCuenta />} />
       </Routes>
     );
