@@ -134,10 +134,10 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
     <div class="meta">
       ${campamento.ubicacion ? `📍 ${campamento.ubicacion} &nbsp;` : ''}
       ${campamento.fecha_inicio ? `📅 ${campamento.fecha_inicio}${campamento.fecha_fin ? ` al ${campamento.fecha_fin}` : ''}` : ''}
-      &nbsp;|&nbsp; Costo niños: ${formatMoney(campamento.costo_por_persona)}
+      &nbsp;|&nbsp; Costo beneficiarios: ${formatMoney(campamento.costo_por_persona)}
       ${campamento.adultos_pagan && campamento.costo_adultos ? ` | Costo adultos: ${formatMoney(campamento.costo_adultos)}` : ''}
     </div>
-    ${ninos.length > 0 ? `<div class="seccion">Niños / Beneficiarios (${ninos.length})</div>${ramasHtml}` : ''}
+    ${ninos.length > 0 ? `<div class="seccion">Beneficiarios (${ninos.length})</div>${ramasHtml}` : ''}
     ${adultos.length > 0 ? `
       <div class="seccion" style="margin-top:24px">Adultos / Voluntarios (${adultos.length})</div>
       <table><thead><tr><th>#</th><th>Nombre</th><th>Rol / Rama</th><th>DNI</th><th>Pago</th></tr></thead>
@@ -191,7 +191,7 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <Card className="p-4 text-center">
           <p className="text-2xl font-bold">{ninos.length}</p>
-          <p className="text-xs text-muted-foreground">Niños</p>
+          <p className="text-xs text-muted-foreground">Beneficiarios</p>
         </Card>
         <Card className="p-4 text-center">
           <p className="text-2xl font-bold">{adultos.length}</p>
@@ -203,7 +203,7 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
         </Card>
         <Card className="p-4 text-center">
           <p className="text-2xl font-bold">{formatMoney(campamento.costo_por_persona)}</p>
-          <p className="text-xs text-muted-foreground">Costo/niño</p>
+          <p className="text-xs text-muted-foreground">Costo/beneficiario</p>
         </Card>
         <Card className="p-4 text-center">
           <p className={cn('text-2xl font-bold', autorizacionesCount === menoresCount && menoresCount > 0 ? 'text-green-600' : 'text-amber-500')}>
@@ -233,12 +233,12 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Niños agrupados por rama */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="w-4 h-4" />Niños / Beneficiarios ({ninos.length})
-            </CardTitle>
+        {/* Beneficiarios agrupados por rama */}
+         <Card>
+           <CardHeader className="pb-3">
+             <CardTitle className="text-base flex items-center gap-2">
+               <Users className="w-4 h-4" />Beneficiarios ({ninos.length})
+             </CardTitle>
             {/* Resumen por rama */}
             {resumenRamas.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-1">
@@ -255,7 +255,7 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
           </CardHeader>
           <CardContent className="pt-0 max-h-96 overflow-y-auto">
             {ninos.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Sin niños asignados</p>
+              <p className="text-sm text-muted-foreground text-center py-4">Sin beneficiarios asignados</p>
             ) : ninosPorRama.map(([rama, lista]) => {
               const config = RAMA_CONFIG[rama];
               return (

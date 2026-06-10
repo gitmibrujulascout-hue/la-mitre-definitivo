@@ -171,7 +171,7 @@ function FichaMedicaDialog({ open, onClose, beneficiario }) {
 // ——— Agregar/quitar participante ———
 function ModificarParticipantesDialog({ open, onClose, campamento, beneficiarios, onSaved }) {
   const [busqueda, setBusqueda] = useState('');
-  const [tipo, setTipo] = useState('ninos'); // 'ninos' | 'adultos'
+  const [tipo, setTipo] = useState('beneficiarios'); // 'beneficiarios' | 'adultos'
   const queryClient = useQueryClient();
 
   const idsActualesNinos = campamento.beneficiarios_ids || [];
@@ -194,7 +194,7 @@ function ModificarParticipantesDialog({ open, onClose, campamento, beneficiarios
   });
 
   const toggle = (benId) => {
-    if (tipo === 'ninos') {
+    if (tipo === 'beneficiarios') {
       const nueva = idsActualesNinos.includes(benId)
         ? idsActualesNinos.filter(id => id !== benId)
         : [...idsActualesNinos, benId];
@@ -207,7 +207,7 @@ function ModificarParticipantesDialog({ open, onClose, campamento, beneficiarios
     }
   };
 
-  const idsActuales = tipo === 'ninos' ? idsActualesNinos : idsActualesAdultos;
+  const idsActuales = tipo === 'beneficiarios' ? idsActualesNinos : idsActualesAdultos;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -216,10 +216,10 @@ function ModificarParticipantesDialog({ open, onClose, campamento, beneficiarios
           <DialogTitle className="flex items-center gap-2"><UserPlus className="w-4 h-4" />Modificar participantes</DialogTitle>
         </DialogHeader>
         <div className="flex gap-2 mb-3">
-          {['ninos', 'adultos'].map(t => (
+          {['beneficiarios', 'adultos'].map(t => (
             <button key={t} onClick={() => setTipo(t)}
               className={`flex-1 py-1.5 rounded-md text-sm font-medium border transition-all ${tipo === t ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:border-primary/50'}`}>
-              {t === 'ninos' ? `Niños (${idsActualesNinos.length})` : `Adultos (${idsActualesAdultos.length})`}
+              {t === 'beneficiarios' ? `Beneficiarios (${idsActualesNinos.length})` : `Adultos (${idsActualesAdultos.length})`}
             </button>
           ))}
         </div>
@@ -365,8 +365,8 @@ export default function CampamentoPublico() {
     <style>body{font-family:Arial,sans-serif;padding:20px;font-size:13px}h1{margin-bottom:4px;font-size:18px}.meta{color:#555;margin-bottom:16px;font-size:11px}table{width:100%;border-collapse:collapse;margin-top:6px}th,td{border:1px solid #ccc;padding:5px 8px;text-align:left}th{background:#f0f0f0;font-size:12px}td{font-size:12px}.seccion{margin-top:20px;font-weight:bold;font-size:14px;border-bottom:2px solid #333;padding-bottom:4px}.resumen{margin-top:20px;padding:10px;background:#f9f9f9;border:1px solid #ddd;border-radius:4px;font-size:12px}</style>
     </head><body>
     <h1>${campamento.nombre}</h1>
-    <div class="meta">${campamento.ubicacion ? `📍 ${campamento.ubicacion} &nbsp;` : ''}${campamento.fecha_inicio ? `📅 ${campamento.fecha_inicio}${campamento.fecha_fin ? ` al ${campamento.fecha_fin}` : ''}` : ''} &nbsp;|&nbsp; Costo niños: ${formatMoney(campamento.costo_por_persona)}</div>
-    ${ninos.length > 0 ? `<div class="seccion">Niños / Beneficiarios (${ninos.length})</div>${ramasHtml}` : ''}
+    <div class="meta">${campamento.ubicacion ? `📍 ${campamento.ubicacion} &nbsp;` : ''}${campamento.fecha_inicio ? `📅 ${campamento.fecha_inicio}${campamento.fecha_fin ? ` al ${campamento.fecha_fin}` : ''}` : ''} &nbsp;|&nbsp; Costo beneficiarios: ${formatMoney(campamento.costo_por_persona)}</div>
+     ${ninos.length > 0 ? `<div class="seccion">Beneficiarios (${ninos.length})</div>${ramasHtml}` : ''}
     ${adultos.length > 0 ? `<div class="seccion" style="margin-top:24px">Adultos / Voluntarios (${adultos.length})</div><table><thead><tr><th>#</th><th>Nombre</th><th>Rol</th><th>DNI</th><th>Pago</th></tr></thead><tbody>${adultosRows}</tbody></table>` : ''}
     <div class="resumen"><strong>Resumen:</strong> ${resumenTexto}${adultos.length > 0 ? ` | Adultos: ${adultos.length}` : ''} | <strong>TOTAL: ${ninos.length + adultos.length} personas</strong></div>
     </body></html>`;
@@ -417,7 +417,7 @@ export default function CampamentoPublico() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Card className="p-3 text-center">
             <p className="text-2xl font-bold">{ninos.length}</p>
-            <p className="text-xs text-muted-foreground">Niños</p>
+            <p className="text-xs text-muted-foreground">Beneficiarios</p>
           </Card>
           <Card className="p-3 text-center">
             <p className="text-2xl font-bold">{adultos.length}</p>
@@ -480,16 +480,16 @@ export default function CampamentoPublico() {
           </Card>
         )}
 
-        {/* Listado niños */}
+        {/* Listado beneficiarios */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <Users className="w-4 h-4" />Niños / Beneficiarios ({ninos.length})
+              <Users className="w-4 h-4" />Beneficiarios ({ninos.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             {ninos.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Sin niños asignados</p>
+              <p className="text-sm text-muted-foreground text-center py-4">Sin beneficiarios asignados</p>
             ) : ninosPorRama.map(([rama, lista]) => (
               <div key={rama} className="mb-4 last:mb-0">
                 <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1 px-1">{rama}</p>
