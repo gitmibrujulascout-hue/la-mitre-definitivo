@@ -72,6 +72,7 @@
     "costo_por_persona"
   ],
   "rls": {
+    "read": {},
     "create": {
       "user_condition": {
         "role": "admin"

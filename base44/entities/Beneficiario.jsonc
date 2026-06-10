@@ -232,6 +232,7 @@
     "nombre"
   ],
   "rls": {
+    "read": {},
     "create": {
       "user_condition": {
         "role": "admin"

@@ -58,8 +58,10 @@ export default function CodigoAccesoPanel({ campamento }) {
     },
   });
 
+  const appId = window.location.hostname.split('.')[0].replace('preview-sandbox--', '');
+  const prodOrigin = `https://${appId}.base44.app`;
   const url = accesoActivo
-    ? `${window.location.origin}/campamento/${accesoActivo.codigo}`
+    ? `${prodOrigin}/campamento/${accesoActivo.codigo}`
     : null;
 
   const copiarLink = () => {
@@ -127,7 +129,7 @@ export default function CodigoAccesoPanel({ campamento }) {
             {/* Link completo */}
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-white border rounded px-3 py-1.5 text-xs text-muted-foreground truncate font-mono">
-                {mostrarCodigo ? url : `${window.location.origin}/campamento/••••••••`}
+                {mostrarCodigo ? url : `${prodOrigin}/campamento/••••••••`}
               </div>
               <Button size="sm" variant="outline" onClick={copiarLink}>
                 <Copy className="w-3.5 h-3.5 mr-1.5" />Copiar link
