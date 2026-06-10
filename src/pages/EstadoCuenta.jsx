@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Search, CheckCircle2, XCircle, Award, Tent, Gift, AlertCircle,
-  User, Phone, Mail, Calendar, Hash, ShieldCheck, UserX, UserCheck, HeartPulse, Pencil
+  User, Phone, Mail, Calendar, Hash, ShieldCheck, UserX, UserCheck, HeartPulse, Pencil,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import FichaSaludFamiliaDialog from '@/components/beneficiarios/FichaSaludFamiliaDialog';
 import RamaBadge from '@/components/shared/RamaBadge';
@@ -24,6 +25,7 @@ export default function EstadoCuenta() {
   const [dniInput, setDniInput] = useState('');
   const [dniBuscado, setDniBuscado] = useState('');
   const [editandoSalud, setEditandoSalud] = useState(null); // beneficiario seleccionado
+  const [saludExpandido, setSaludExpandido] = useState({}); // { [id]: bool }
   const [anio] = useState(new Date().getFullYear());
 
   const { data: beneficiarios = [], isLoading: loadingBen } = useQuery({
@@ -556,66 +558,110 @@ export default function EstadoCuenta() {
 
 
               {/* Información médica */}
-              <Card className="p-5 border border-primary/20">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <HeartPulse className="w-4 h-4 text-primary" />
-                    <h3 className="font-semibold text-sm">Información médica</h3>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => setEditandoSalud(b)}>
-                    <Pencil className="w-3 h-3 mr-1.5" />
-                    {b.grupo_sanguineo || b.alergias || b.obra_social ? 'Actualizar' : 'Completar'}
-                  </Button>
-                </div>
-                {(b.grupo_sanguineo || b.factor_rh || b.alergias || b.condicion_medica || b.medicacion_habitual || b.regimen_dietario || b.obra_social || b.numero_obra_social || b.contacto_emergencia_nombre || b.contacto_emergencia_telefono || b.salud_mental || b.anticoagulacion || b.observaciones_salud || b.peso_kg || b.talla_m) ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm pl-1">
-                    {b.grupo_sanguineo && (
-                      <div><span className="text-muted-foreground text-xs">Grupo / RH: </span>
-                        <span className="font-medium">{b.grupo_sanguineo}{b.factor_rh ? ` (${b.factor_rh === 'Positivo' ? '+' : '-'})` : ''}</span></div>
+              {(() => {
+                const tieneSalud = !!(b.grupo_sanguineo || b.factor_rh || b.alergias || b.condicion_medica || b.medicacion_habitual || b.regimen_dietario || b.obra_social || b.numero_obra_social || b.contacto_emergencia_nombre || b.contacto_emergencia_telefono || b.salud_mental || b.anticoagulacion || b.observaciones_salud || b.peso_kg || b.talla_m);
+                const expandido = saludExpandido[b.id] || false;
+                return (
+                  <>
+                    {/* Cartel de alerta si no hay datos */}
+                    {!tieneSalud && (
+                      <div className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 flex gap-3 items-start">
+                        <div className="mt-0.5 flex-shrink-0 w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center">
+                          <HeartPulse className="w-5 h-5 text-amber-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-amber-800 text-sm">¡Información de salud incompleta!</p>
+                          <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                            Contar con los datos de salud de <strong>{b.nombre.split(' ')[0]}</strong> es muy importante. Ante cualquier emergencia durante las actividades, esta información es indispensable para actuar rápido y de forma segura. Por favor, completala cuanto antes.
+                          </p>
+                          <Button size="sm" className="mt-2.5 bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setEditandoSalud(b)}>
+                            <Pencil className="w-3 h-3 mr-1.5" />Completar ahora
+                          </Button>
+                        </div>
+                      </div>
                     )}
-                    {b.alergias && (
-                      <div><span className="text-muted-foreground text-xs">Alergias: </span>
-                        <span className="font-medium">{b.alergias}</span></div>
-                    )}
-                    {b.condicion_medica && (
-                      <div><span className="text-muted-foreground text-xs">Afección: </span>
-                        <span className="font-medium">{b.condicion_medica}</span></div>
-                    )}
-                    {b.medicacion_habitual && (
-                      <div><span className="text-muted-foreground text-xs">Medicación: </span>
-                        <span className="font-medium">{b.medicacion_habitual}</span></div>
-                    )}
-                    {b.obra_social && (
-                      <div><span className="text-muted-foreground text-xs">Obra social: </span>
-                        <span className="font-medium">{b.obra_social}{b.numero_obra_social ? ` · ${b.numero_obra_social}` : ''}</span></div>
-                    )}
-                    {b.regimen_dietario && (
-                      <div><span className="text-muted-foreground text-xs">Dieta: </span>
-                        <span className="font-medium">{b.regimen_dietario}</span></div>
-                    )}
-                    {b.salud_mental && (
-                      <div><span className="text-muted-foreground text-xs">Salud mental: </span>
-                        <span className="font-medium">{b.salud_mental}</span></div>
-                    )}
-                    {b.anticoagulacion && (
-                      <div><span className="text-muted-foreground text-xs">Anticoagulación: </span>
-                        <span className="font-medium">{b.anticoagulacion}</span></div>
-                    )}
-                    {b.contacto_emergencia_nombre && (
-                      <div><span className="text-muted-foreground text-xs">Emergencia: </span>
-                        <span className="font-medium">{b.contacto_emergencia_nombre}{b.contacto_emergencia_telefono ? ` · ${b.contacto_emergencia_telefono}` : ''}</span></div>
-                    )}
-                    {b.observaciones_salud && (
-                      <div className="col-span-2"><span className="text-muted-foreground text-xs">Observaciones: </span>
-                        <span className="font-medium">{b.observaciones_salud}</span></div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">
-                    No hay información médica cargada. Hacé clic en "Completar" para agregar los datos de salud de {b.nombre.split(' ')[0]}.
-                  </p>
-                )}
-              </Card>
+
+                    <Card className="border border-primary/20 overflow-hidden">
+                      {/* Header colapsable */}
+                      <button
+                        className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors"
+                        onClick={() => setSaludExpandido(prev => ({ ...prev, [b.id]: !expandido }))}
+                      >
+                        <div className="flex items-center gap-2">
+                          <HeartPulse className="w-4 h-4 text-primary" />
+                          <h3 className="font-semibold text-sm">Información médica</h3>
+                          {tieneSalud && (
+                            <span className="text-xs bg-green-100 text-green-700 border border-green-300 rounded-full px-2 py-0.5">Cargada</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {expandido ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                        </div>
+                      </button>
+
+                      {/* Contenido expandible */}
+                      {expandido && (
+                        <div className="px-4 pb-4 border-t">
+                          <div className="flex justify-end mt-3 mb-3">
+                            <Button size="sm" variant="outline" onClick={() => setEditandoSalud(b)}>
+                              <Pencil className="w-3 h-3 mr-1.5" />
+                              {tieneSalud ? 'Actualizar' : 'Completar'}
+                            </Button>
+                          </div>
+                          {tieneSalud ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm pl-1">
+                              {b.grupo_sanguineo && (
+                                <div><span className="text-muted-foreground text-xs">Grupo / RH: </span>
+                                  <span className="font-medium">{b.grupo_sanguineo}{b.factor_rh ? ` (${b.factor_rh === 'Positivo' ? '+' : '-'})` : ''}</span></div>
+                              )}
+                              {b.alergias && (
+                                <div><span className="text-muted-foreground text-xs">Alergias: </span>
+                                  <span className="font-medium">{b.alergias}</span></div>
+                              )}
+                              {b.condicion_medica && (
+                                <div><span className="text-muted-foreground text-xs">Afección: </span>
+                                  <span className="font-medium">{b.condicion_medica}</span></div>
+                              )}
+                              {b.medicacion_habitual && (
+                                <div><span className="text-muted-foreground text-xs">Medicación: </span>
+                                  <span className="font-medium">{b.medicacion_habitual}</span></div>
+                              )}
+                              {b.obra_social && (
+                                <div><span className="text-muted-foreground text-xs">Obra social: </span>
+                                  <span className="font-medium">{b.obra_social}{b.numero_obra_social ? ` · ${b.numero_obra_social}` : ''}</span></div>
+                              )}
+                              {b.regimen_dietario && (
+                                <div><span className="text-muted-foreground text-xs">Dieta: </span>
+                                  <span className="font-medium">{b.regimen_dietario}</span></div>
+                              )}
+                              {b.salud_mental && (
+                                <div><span className="text-muted-foreground text-xs">Salud mental: </span>
+                                  <span className="font-medium">{b.salud_mental}</span></div>
+                              )}
+                              {b.anticoagulacion && (
+                                <div><span className="text-muted-foreground text-xs">Anticoagulación: </span>
+                                  <span className="font-medium">{b.anticoagulacion}</span></div>
+                              )}
+                              {b.contacto_emergencia_nombre && (
+                                <div><span className="text-muted-foreground text-xs">Emergencia: </span>
+                                  <span className="font-medium">{b.contacto_emergencia_nombre}{b.contacto_emergencia_telefono ? ` · ${b.contacto_emergencia_telefono}` : ''}</span></div>
+                              )}
+                              {b.observaciones_salud && (
+                                <div className="col-span-2"><span className="text-muted-foreground text-xs">Observaciones: </span>
+                                  <span className="font-medium">{b.observaciones_salud}</span></div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic">
+                              Aún no hay datos de salud cargados para {b.nombre.split(' ')[0]}.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </Card>
+                  </>
+                );
+              })()}
 
               {grupoFamiliar.length > 1 && !esPrincipal && (
                 <div className="border-t border-dashed pt-2" />
