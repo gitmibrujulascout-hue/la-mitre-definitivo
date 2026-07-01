@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { differenceInYears, parseISO } from 'date-fns';
 import {
   Users, MapPin, Calendar, AlertTriangle,
-  HeartPulse, Phone, Plus, Trash2, UserPlus, CreditCard, Tent, Printer, FileCheck
+  HeartPulse, Phone, Plus, Trash2, UserPlus, CreditCard, Tent, Printer, FileCheck, Receipt, Gift
 } from 'lucide-react';
 import { SALUD_FIELDS } from '@/lib/saludFields';
 import { formatMoney } from '@/lib/ramaUtils';
@@ -23,11 +23,90 @@ import AutorizacionesPanel from '@/components/campamentos/AutorizacionesPanel';
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 
+// ——— Mini formulario de gasto de campamento (para enlace externo) ———
+function GastoCampamentoDialog({ open, onClose, campamento, onSaved }) {
+  const [form, setForm] = useState({
+    descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0],
+    proveedor: '', observaciones: '',
+  });
+  const queryClient = useQueryClient();
+
+  const mut = useMutation({
+    mutationFn: data => base44.entities.Gasto.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gastos_pub'] });
+      toast.success('Gasto registrado');
+      onClose();
+      setForm({ descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0], proveedor: '', observaciones: '' });
+      if (onSaved) onSaved();
+    },
+  });
+
+  const handleSave = () => {
+    if (!form.descripcion || !form.monto) return;
+    mut.mutate({
+      descripcion: form.descripcion,
+      monto: parseFloat(form.monto) || 0,
+      fecha: form.fecha,
+      categoria: 'Campamento',
+      forma_pago: 'Efectivo',
+      destino: 'Caja',
+      proveedor: form.proveedor || undefined,
+      observaciones: form.observaciones || undefined,
+      campamento_id: campamento.id,
+      campamento_nombre: campamento.nombre,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Receipt className="w-4 h-4" />Registrar gasto del campamento</DialogTitle></DialogHeader>
+        <div className="space-y-3 py-2">
+          <div>
+            <Label>Descripción *</Label>
+            <Input value={form.descripcion} onChange={e => setForm(p => ({ ...p, descripcion: e.target.value }))} placeholder="Ej: Comida, transporte..." />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Monto *</Label>
+              <Input type="number" value={form.monto} onChange={e => setForm(p => ({ ...p, monto: e.target.value }))} placeholder="0" />
+            </div>
+            <div>
+              <Label>Fecha</Label>
+              <Input type="date" value={form.fecha} onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))} />
+            </div>
+          </div>
+          <div>
+            <Label>Proveedor</Label>
+            <Input value={form.proveedor} onChange={e => setForm(p => ({ ...p, proveedor: e.target.value }))} placeholder="Comercio (opcional)" />
+          </div>
+          <div>
+            <Label>Observaciones</Label>
+            <Input value={form.observaciones} onChange={e => setForm(p => ({ ...p, observaciones: e.target.value }))} placeholder="Opcional" />
+          </div>
+          <div className="p-3 rounded-lg bg-muted text-sm text-muted-foreground">
+            💵 Pago en efectivo — {campamento.es_privado ? 'Campamento privado (no impacta en caja general)' : 'Impacta en caja general'}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={!form.descripcion || !form.monto || mut.isPending}>
+            {mut.isPending ? 'Registrando...' : 'Registrar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ——— Mini formulario de pago de campamento ———
-function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos, onSaved }) {
+function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos, creditos, onSaved }) {
   const [benId, setBenId] = useState('');
   const [monto, setMonto] = useState('');
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [usarCredito, setUsarCredito] = useState(false);
+  const [creditoId, setCreditoId] = useState('');
   const queryClient = useQueryClient();
 
   const listaAsistentes = useMemo(() => {
@@ -52,18 +131,42 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
   const saldo = costoBen - yaPageBen;
 
   const mut = useMutation({
-    mutationFn: (data) => base44.entities.Pago.create(data),
+    mutationFn: async (data) => {
+      await base44.entities.Pago.create(data);
+      // If using credit, reduce the credit's available amount
+      if (data.usar_credito && data.credito_id && data.monto_credito > 0) {
+        const credito = creditos.find(c => c.id === data.credito_id);
+        if (credito) {
+          const nuevoDisponible = Math.max(0, (credito.monto_disponible || 0) - data.monto_credito);
+          await base44.entities.CreditoBeneficiario.update(credito.id, { monto_disponible: nuevoDisponible });
+        }
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pagos_pub'] });
+      queryClient.invalidateQueries({ queryKey: ['creditos_pub'] });
       toast.success('Pago registrado');
       onClose();
-      setBenId(''); setMonto('');
+      setBenId(''); setMonto(''); setUsarCredito(false); setCreditoId('');
       if (onSaved) onSaved();
     },
   });
 
+  const creditoBen = useMemo(() => {
+    if (!benId) return null;
+    const creditosBen = creditos.filter(c => c.beneficiario_id === benId && (c.monto_disponible || 0) > 0);
+    if (creditosBen.length === 0) return null;
+    return creditosBen.reduce((acc, c) => ({
+      id: c.id,
+      monto_disponible: (acc.monto_disponible || 0) + (c.monto_disponible || 0),
+      creditos: [...(acc.creditos || []), c],
+    }), { id: null, monto_disponible: 0, creditos: [] });
+  }, [benId, creditos]);
+
   const handleSave = () => {
     if (!benId || !monto) return;
+    const montoNum = parseFloat(monto);
+    const montoCredito = usarCredito ? Math.min(creditoBen?.monto_disponible || 0, montoNum) : 0;
     mut.mutate({
       beneficiario_id: benId,
       beneficiario_nombre: benSeleccionado?.nombre || '',
@@ -71,10 +174,16 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
       campamento_id: campamento.id,
       campamento_nombre: campamento.nombre,
       anio: new Date().getFullYear(),
-      monto: parseFloat(monto),
-      forma_pago: 'Efectivo',
+      monto: montoNum,
+      forma_pago: usarCredito && montoCredito > 0
+        ? (montoCredito >= montoNum ? 'Crédito actividad' : 'Efectivo')
+        : 'Efectivo',
       destino: 'Caja',
       fecha_pago: fecha,
+      usar_credito: usarCredito,
+      credito_id: creditoBen?.creditos?.[0]?.id,
+      monto_credito: montoCredito,
+      observaciones: usarCredito && montoCredito > 0 ? `Crédito aplicado: ${formatMoney(montoCredito)}` : undefined,
     });
   };
 
@@ -87,6 +196,8 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
             <Label>Persona</Label>
             <Select value={benId} onValueChange={v => {
               setBenId(v);
+              setUsarCredito(false);
+              setCreditoId('');
               const ben = beneficiarios.find(b => b.id === v);
               const c = costo(ben);
               const p = pagadoPor(v);
@@ -110,6 +221,27 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
           <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700 flex items-center gap-2">
             💵 Pago en efectivo
           </div>
+          {creditoBen && (
+            <div className="p-3 rounded-lg border border-blue-200 bg-blue-50/50 space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={usarCredito}
+                  onChange={e => setUsarCredito(e.target.checked)}
+                  className="rounded"
+                />
+                <span className="text-sm font-medium flex items-center gap-1">
+                  <Gift className="w-3.5 h-3.5 text-blue-600" />
+                  Usar crédito disponible: {formatMoney(creditoBen.monto_disponible)}
+                </span>
+              </label>
+              {usarCredito && (
+                <p className="text-xs text-blue-600">
+                  Se descontará del crédito del beneficiario y se completará con efectivo si es necesario.
+                </p>
+              )}
+            </div>
+          )}
           <div>
             <Label>Fecha</Label>
             <Input type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
@@ -263,6 +395,7 @@ export default function CampamentoPublico() {
   const { codigo } = useParams();
   const [showPago, setShowPago] = useState(false);
   const [showModificar, setShowModificar] = useState(false);
+  const [showGasto, setShowGasto] = useState(false);
   const [fichaBen, setFichaBen] = useState(null);
 
   const { data: accesos = [], isLoading: loadingAcceso } = useQuery({
@@ -295,6 +428,12 @@ export default function CampamentoPublico() {
     queryKey: ['gastos_pub', acceso?.campamento_id],
     queryFn: () => base44.entities.Gasto.filter({ campamento_id: acceso.campamento_id }).catch(() => []),
     enabled: !!acceso?.campamento_id,
+  });
+
+  const { data: creditos = [] } = useQuery({
+    queryKey: ['creditos_pub'],
+    queryFn: () => base44.entities.CreditoBeneficiario.list(),
+    enabled: !!acceso,
   });
 
   const getBen = (id) => beneficiarios.find(b => b.id === id);
@@ -461,6 +600,9 @@ export default function CampamentoPublico() {
           <Button variant="outline" onClick={() => setShowModificar(true)} className="flex-1 sm:flex-none">
             <UserPlus className="w-4 h-4 mr-2" />Modificar participantes
           </Button>
+          <Button variant="outline" onClick={() => setShowGasto(true)} className="flex-1 sm:flex-none">
+            <Receipt className="w-4 h-4 mr-2" />Registrar gasto
+          </Button>
           <Button variant="outline" onClick={handlePrint} className="flex-1 sm:flex-none">
             <Printer className="w-4 h-4 mr-2" />Exportar listado
           </Button>
@@ -582,6 +724,12 @@ export default function CampamentoPublico() {
         campamento={campamento}
         beneficiarios={beneficiarios}
         pagos={pagos}
+        creditos={creditos}
+      />
+      <GastoCampamentoDialog
+        open={showGasto}
+        onClose={() => setShowGasto(false)}
+        campamento={campamento}
       />
       <ModificarParticipantesDialog
         open={showModificar}

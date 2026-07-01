@@ -8,24 +8,31 @@ import { base44 } from '@/api/base44Client';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-const CATS = ['Materiales', 'Insumos', 'Transporte', 'Packaging', 'Servicios', 'Otro'];
+const CATS = ['Materiales', 'Alimentos', 'Transporte', 'Servicios', 'Mantenimiento', 'Campamento', 'Otro'];
 
 export default function GastoActividadForm({ open, onClose, onSaved, actividad }) {
   const [form, setForm] = useState({
-    descripcion: '', monto: '', fecha: actividad.fecha || new Date().toISOString().split('T')[0],
-    categoria: 'Insumos', observaciones: '',
+    descripcion: '', monto: '', fecha: actividad?.fecha || new Date().toISOString().split('T')[0],
+    categoria: 'Alimentos', forma_pago: 'Efectivo', proveedor: '', numero_factura: '', observaciones: '',
   });
 
   const mutation = useMutation({
-    mutationFn: data => base44.entities.GastoActividad.create(data),
+    mutationFn: data => base44.entities.Gasto.create(data),
     onSuccess: () => { toast.success('Gasto registrado'); onSaved(); },
   });
 
   const handleSave = () => {
     if (!form.descripcion || !form.monto) return;
     mutation.mutate({
-      ...form,
+      descripcion: form.descripcion,
       monto: parseFloat(form.monto) || 0,
+      fecha: form.fecha,
+      categoria: form.categoria,
+      forma_pago: form.forma_pago,
+      destino: form.forma_pago === 'Transferencia' ? 'Banco' : 'Caja',
+      proveedor: form.proveedor || undefined,
+      numero_factura: form.numero_factura || undefined,
+      observaciones: form.observaciones || undefined,
       actividad_id: actividad.id,
       actividad_nombre: actividad.nombre,
     });
@@ -35,7 +42,7 @@ export default function GastoActividadForm({ open, onClose, onSaved, actividad }
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Registrar gasto de actividad</DialogTitle>
+          <DialogTitle>Gasto de actividad — {actividad?.nombre}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div>
@@ -52,12 +59,36 @@ export default function GastoActividadForm({ open, onClose, onSaved, actividad }
               <Input type="date" value={form.fecha} onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))} />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Categoría</Label>
+              <Select value={form.categoria} onValueChange={v => setForm(p => ({ ...p, categoria: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{CATS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Forma de pago</Label>
+              <Select value={form.forma_pago} onValueChange={v => setForm(p => ({ ...p, forma_pago: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Efectivo">Efectivo (Caja)</SelectItem>
+                  <SelectItem value="Transferencia">Transferencia (Banco)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <div>
-            <Label>Categoría</Label>
-            <Select value={form.categoria} onValueChange={v => setForm(p => ({ ...p, categoria: v }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{CATS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-            </Select>
+            <Label>Proveedor</Label>
+            <Input value={form.proveedor} onChange={e => setForm(p => ({ ...p, proveedor: e.target.value }))} placeholder="Comercio o proveedor (opcional)" />
+          </div>
+          <div>
+            <Label>N° de factura / recibo</Label>
+            <Input value={form.numero_factura} onChange={e => setForm(p => ({ ...p, numero_factura: e.target.value }))} placeholder="Para rendición contable (opcional)" />
+          </div>
+          <div>
+            <Label>Observaciones</Label>
+            <Input value={form.observaciones} onChange={e => setForm(p => ({ ...p, observaciones: e.target.value }))} placeholder="Opcional" />
           </div>
         </div>
         <DialogFooter>

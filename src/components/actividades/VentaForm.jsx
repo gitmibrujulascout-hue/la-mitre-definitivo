@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
   const [comprador_nombre, setCompradorNombre] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [lineas, setLineas] = useState([{ ...emptyLinea }]);
-  const [cantidadTotal, setCantidadTotal] = useState('');
+  const [cantidadesPorGrupo, setCantidadPorGrupo] = useState({});
 
   const { data: productos = [] } = useQuery({
     queryKey: ['productos-actividad', actividad?.id],
@@ -29,6 +29,16 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
 
   const sorted = [...productos].sort((a, b) => (a.orden || 0) - (b.orden || 0));
   const tieneProductos = sorted.length > 0;
+
+  const grupos = useMemo(() => {
+    const map = {};
+    for (const p of sorted) {
+      const g = p.grupo || 'Sin grupo';
+      if (!map[g]) map[g] = [];
+      map[g].push(p);
+    }
+    return Object.entries(map);
+  }, [sorted]);
 
   const ben = beneficiarios.find(b => b.id === beneficiario_id);
 
@@ -63,27 +73,23 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
   const addLinea = () => setLineas(prev => [...prev, { ...emptyLinea }]);
   const removeLinea = (i) => setLineas(prev => prev.filter((_, idx) => idx !== i));
 
-  // Distribución automática: dada una cantidad total, arma líneas combinando múltiples
-  // niveles de promo (de mayor eficiencia a menor) + unidades sueltas para minimizar el precio.
-  const distribuirAutomatico = () => {
-    const total = parseInt(cantidadTotal) || 0;
-    if (total <= 0 || sorted.length === 0) return;
+  const distribuirGrupo = (grupoNombre, productosGrupo, totalStr) => {
+    const total = parseInt(totalStr) || 0;
+    if (total <= 0 || productosGrupo.length === 0) return;
 
-    const promos = sorted.filter(p => p.es_promo && p.cantidad_promo > 0);
-    const unidades = sorted.filter(p => !p.es_promo);
+    const promos = productosGrupo.filter(p => p.es_promo && p.cantidad_promo > 0);
+    const unidades = productosGrupo.filter(p => !p.es_promo);
 
     const nuevasLineas = [];
     let restante = total;
 
     if (promos.length > 0) {
-      // Ordenar promos por eficiencia: menor precio por unidad física primero
       const promosOrdenados = [...promos].sort((a, b) => {
         const precioUnitA = (a.precio_venta || 0) / a.cantidad_promo;
         const precioUnitB = (b.precio_venta || 0) / b.cantidad_promo;
         return precioUnitA - precioUnitB;
       });
 
-      // Usar cada nivel de promo mientras queden unidades suficientes
       for (const promo of promosOrdenados) {
         if (restante <= 0) break;
         const cantPromos = Math.floor(restante / promo.cantidad_promo);
@@ -94,12 +100,10 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
       }
     }
 
-    // Completar el resto con la unidad suelta más barata
     if (restante > 0 && unidades.length > 0) {
       const unitario = [...unidades].sort((a, b) => (a.precio_venta || 0) - (b.precio_venta || 0))[0];
       nuevasLineas.push({ producto_id: unitario.id, cantidad_vendida: restante.toString() });
     } else if (restante > 0 && promos.length > 0) {
-      // Sin producto unitario: registrar una promo extra como 1
       const promo = [...promos].sort((a, b) =>
         (a.precio_venta / a.cantidad_promo) - (b.precio_venta / b.cantidad_promo)
       )[0];
@@ -107,8 +111,10 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
     }
 
     if (nuevasLineas.length > 0) {
-      setLineas(nuevasLineas);
-      setCantidadTotal('');
+      const grupoIds = new Set(productosGrupo.map(p => p.id));
+      const otrasLineas = lineas.filter(l => !grupoIds.has(l.producto_id));
+      setLineas([...otrasLineas, ...nuevasLineas]);
+      setCantidadPorGrupo(prev => ({ ...prev, [grupoNombre]: '' }));
     }
   };
 
@@ -135,7 +141,7 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
         cantidad_promo: prod?.es_promo ? prod.cantidad_promo : null,
         cantidad_vendida: cant,
         monto_recaudado: monto,
-        comprador_nombre: comprador_nombre || '',
+        comprador_nombre: comprador_nombre || ben?.nombre || '',
         entregado: false,
         observaciones: observaciones || '',
       });
@@ -155,7 +161,6 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Beneficiario */}
           <div>
             <Label>Vendedor *</Label>
             <Select value={beneficiario_id} onValueChange={setBeneficiarioId}>
@@ -170,17 +175,48 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
             </Select>
           </div>
 
-          {/* Comprador externo */}
           <div>
             <Label>Nombre del comprador externo</Label>
             <Input
               value={comprador_nombre}
               onChange={e => setCompradorNombre(e.target.value)}
-              placeholder="Nombre de quien retira el pedido (opcional)"
+              placeholder="Nombre de quien retira el pedido (opcional, se autocompleta con el vendedor)"
             />
           </div>
 
-          {/* Líneas de productos */}
+          {tieneProductos && grupos.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-blue-800 flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5" />
+                Carga rápida por tipo de producto
+              </p>
+              {grupos.map(([grupoNombre, productosGrupo]) => (
+                <div key={grupoNombre} className="flex items-center gap-2 p-2 rounded-lg border border-blue-200 bg-blue-50/50">
+                  <span className="text-sm font-medium flex-1">{grupoNombre}</span>
+                  <Input
+                    type="number"
+                    value={cantidadesPorGrupo[grupoNombre] || ''}
+                    onChange={e => setCantidadPorGrupo(prev => ({ ...prev, [grupoNombre]: e.target.value }))}
+                    placeholder="Cant. total"
+                    className="w-28 h-8 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => distribuirGrupo(grupoNombre, productosGrupo, cantidadesPorGrupo[grupoNombre])}
+                    disabled={!cantidadesPorGrupo[grupoNombre] || parseInt(cantidadesPorGrupo[grupoNombre]) <= 0}
+                  >
+                    Distribuir
+                  </Button>
+                </div>
+              ))}
+              <p className="text-xs text-blue-600">
+                Distribuye automáticamente en promos + unidades sueltas de cada tipo, minimizando el precio.
+              </p>
+            </div>
+          )}
+
           <div>
             <div className="flex items-center justify-between mb-2">
               <Label>Productos del pedido *</Label>
@@ -190,37 +226,6 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
                 </Button>
               )}
             </div>
-
-            {/* Distribución automática por cantidad total */}
-            {tieneProductos && (
-              <div className="mb-3 p-3 rounded-lg border border-blue-200 bg-blue-50/50">
-                <p className="text-xs font-medium text-blue-800 mb-2 flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5" />
-                  Carga rápida por cantidad total
-                </p>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    value={cantidadTotal}
-                    onChange={e => setCantidadTotal(e.target.value)}
-                    placeholder="Cantidad total de unidades"
-                    className="h-8 text-sm"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={distribuirAutomatico}
-                    disabled={!cantidadTotal || parseInt(cantidadTotal) <= 0}
-                  >
-                    Distribuir
-                  </Button>
-                </div>
-                <p className="text-xs text-blue-600 mt-1">
-                  Distribuye automáticamente en promos + unidades sueltas para minimizar el precio.
-                </p>
-              </div>
-            )}
 
             {!tieneProductos && (
               <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
@@ -243,7 +248,6 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
                       )}
                     </div>
 
-                    {/* Producto */}
                     {tieneProductos && (
                       <Select value={linea.producto_id} onValueChange={v => setLinea(i, 'producto_id', v)}>
                         <SelectTrigger>
@@ -254,6 +258,7 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
                             <SelectItem key={p.id} value={p.id}>
                               <span className="flex items-center gap-2">
                                 {p.nombre}
+                                {p.grupo && <span className="text-blue-500 text-xs">[{p.grupo}]</span>}
                                 {p.es_promo && <span className="text-amber-600 text-xs">({p.cantidad_promo}x)</span>}
                                 <span className="text-muted-foreground text-xs">— {formatMoney(p.precio_venta)}</span>
                               </span>
@@ -276,7 +281,6 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
                       </div>
                     )}
 
-                    {/* Cantidad */}
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
@@ -298,7 +302,6 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
             </div>
           </div>
 
-          {/* Total */}
           {totalMonto > 0 && (
             <div className="flex justify-end">
               <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-right">

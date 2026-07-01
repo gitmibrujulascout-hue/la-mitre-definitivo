@@ -39,7 +39,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
 
   const { data: gastosAct = [] } = useQuery({
     queryKey: ['gastos-actividad', actividad.id],
-    queryFn: () => base44.entities.GastoActividad.filter({ actividad_id: actividad.id }),
+    queryFn: () => base44.entities.Gasto.filter({ actividad_id: actividad.id }),
   });
 
   const { data: creditos = [] } = useQuery({
@@ -53,7 +53,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
   });
 
   const deleteGastoMut = useMutation({
-    mutationFn: id => base44.entities.GastoActividad.delete(id),
+    mutationFn: id => base44.entities.Gasto.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['gastos-actividad', actividad.id] }),
   });
 
@@ -66,16 +66,12 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ventas-actividad', actividad.id] }),
   });
 
-  // Gastos generales asociados a esta actividad (desde entidad Gasto)
-  const { data: gastosGenerales = [] } = useQuery({
-    queryKey: ['gastos-general-actividad', actividad.id],
-    queryFn: () => base44.entities.Gasto.filter({ actividad_id: actividad.id }),
-  });
+  // Gastos generales asociados a esta actividad (mismo query que gastosAct, para referencias)
+  const gastosGenerales = gastosAct;
 
   const totalVentas = ventas.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
   const totalGastos = gastosAct.reduce((s, g) => s + (g.monto || 0), 0);
-  const totalGastosGenerales = gastosGenerales.reduce((s, g) => s + (g.monto || 0), 0);
-  const gananciaReal = totalVentas - totalGastos - totalGastosGenerales;
+  const gananciaReal = totalVentas - totalGastos;
   const creditosAcreditados = creditos.length > 0;
 
   const getBen = (id) => beneficiarios.find(b => b.id === id);
@@ -179,9 +175,8 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
           <p className="text-xl font-bold text-red-500">{formatMoney(totalGastos)}</p>
         </Card>
         <Card className="p-3 text-center">
-          <p className="text-xs text-muted-foreground">Gastos generales</p>
-          <p className="text-xl font-bold text-red-400">{formatMoney(totalGastosGenerales)}</p>
-          {totalGastosGenerales > 0 && <p className="text-xs text-muted-foreground">desde Gastos</p>}
+          <p className="text-xs text-muted-foreground">Forma de pago</p>
+          <p className="text-xl font-bold text-blue-500">Efectivo</p>
         </Card>
         <Card className={`p-3 text-center col-span-2 sm:col-span-1 ${gananciaReal >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
           <p className="text-xs text-muted-foreground">Ganancia neta</p>
@@ -393,12 +388,12 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
           </CardContent>
         </Card>
 
-        {/* Gastos de producción */}
+        {/* Gastos de la actividad (gastos generales del grupo asociados) */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
-                <DollarSign className="w-4 h-4" />Gastos de producción
+                <DollarSign className="w-4 h-4" />Gastos de la actividad
               </CardTitle>
               <Button size="sm" onClick={() => setShowGastoForm(true)}><Plus className="w-3 h-3 mr-1" />Agregar</Button>
             </div>
@@ -406,13 +401,16 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
           <CardContent className="pt-0 max-h-80 overflow-y-auto space-y-0">
             {gastosAct.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
-                Registrá los costos de producción (materiales, insumos, etc.)
+                Registrá los gastos asociados a esta actividad (con facturas para rendición)
               </p>
             ) : gastosAct.map(g => (
               <div key={g.id} className="flex items-center justify-between py-2.5 border-b last:border-0 text-sm">
                 <div>
                   <p className="font-medium">{g.descripcion}</p>
-                  <p className="text-xs text-muted-foreground">{g.categoria}{g.fecha ? ` · ${g.fecha}` : ''}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {g.categoria}{g.fecha ? ` · ${g.fecha}` : ''}{g.proveedor ? ` · ${g.proveedor}` : ''}
+                    {g.numero_factura ? ` · Fact: ${g.numero_factura}` : ''} · {g.forma_pago || 'Efectivo'}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-red-500">{formatMoney(g.monto)}</span>

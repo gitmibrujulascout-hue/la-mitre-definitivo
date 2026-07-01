@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 
 const DEFAULT_PRODUCTO = {
   nombre: '',
+  grupo: '',
   descripcion: '',
   es_promo: false,
   cantidad_promo: '',
@@ -39,6 +40,7 @@ function ProductoFormDialog({ open, onClose, onSaved, actividadId, actividadNomb
       ...form,
       actividad_id: actividadId,
       actividad_nombre: actividadNombre,
+      grupo: form.grupo || undefined,
       precio_venta: parseFloat(form.precio_venta) || 0,
       precio_costo: parseFloat(form.precio_costo) || 0,
       cantidad_promo: form.es_promo ? (parseInt(form.cantidad_promo) || 2) : null,
@@ -56,6 +58,12 @@ function ProductoFormDialog({ open, onClose, onSaved, actividadId, actividadNomb
           <div>
             <Label>Nombre *</Label>
             <Input value={form.nombre} onChange={e => update('nombre', e.target.value)} placeholder="Ej: Empanada de carne, Promo 2x1" />
+          </div>
+
+          <div>
+            <Label>Tipo / Grupo</Label>
+            <Input value={form.grupo} onChange={e => update('grupo', e.target.value)} placeholder="Ej: Muzzarella, Especial (para distribución automática)" />
+            <p className="text-xs text-muted-foreground mt-0.5">Agrupa productos del mismo tipo para la distribución automática</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -173,6 +181,9 @@ export default function ProductosActividadPanel({ actividad }) {
                     <Tag className="w-2.5 h-2.5 mr-1" />
                     Promo {p.cantidad_promo}x
                   </Badge>
+                )}
+                {p.grupo && (
+                  <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">{p.grupo}</Badge>
                 )}
               </div>
               <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
