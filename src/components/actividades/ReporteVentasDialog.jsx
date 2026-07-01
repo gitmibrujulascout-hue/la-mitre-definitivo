@@ -74,6 +74,7 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
     const ra = RAMA_ORDER[a.rama] ?? 99;
     const rb = RAMA_ORDER[b.rama] ?? 99;
     if (ra !== rb) return ra - rb;
+    // Mismo grupo (ej: Voluntario y Educador = Adultos): igualar y ordenar por apellido
     return apellido(a.nombre).localeCompare(apellido(b.nombre), 'es');
   });
 
@@ -87,13 +88,14 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
   });
 
   // Agrupar vendedores por rama preservando el orden
+  // Usar RAMA_LABEL como clave para que Voluntario y Educador se agrupen juntos bajo "Adultos"
   const ramaSections = [];
-  let currentRama = null;
+  let currentGroup = null;
   vendedoresOrdenados.forEach(v => {
-    const ramaKey = v.rama || '__sin_rama__';
-    if (ramaKey !== currentRama) {
-      currentRama = ramaKey;
-      ramaSections.push({ rama: v.rama, vendedores: [v] });
+    const groupKey = v.rama ? (RAMA_LABEL[v.rama] || v.rama) : '__sin_rama__';
+    if (groupKey !== currentGroup) {
+      currentGroup = groupKey;
+      ramaSections.push({ rama: v.rama, groupLabel: groupKey, vendedores: [v] });
     } else {
       ramaSections[ramaSections.length - 1].vendedores.push(v);
     }
