@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Wallet } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import ProductoTiendaForm from '@/components/tienda/ProductoTiendaForm';
 import VentaTiendaForm from '@/components/tienda/VentaTiendaForm';
@@ -73,6 +73,8 @@ export default function Tienda() {
   const totalVentas = ventas.reduce((s, v) => s + (v.monto_total || 0), 0);
   const ventasHoy = ventas.filter(v => v.fecha === new Date().toISOString().split('T')[0]);
   const totalHoy = ventasHoy.reduce((s, v) => s + (v.monto_total || 0), 0);
+  const ventasCajaExclusiva = ventas.filter(v => v.destino === 'Caja exclusiva');
+  const totalCajaExclusiva = ventasCajaExclusiva.reduce((s, v) => s + (v.monto_total || 0), 0);
 
   const categorias = ['todas', 'Uniforme', 'Merchandising', 'Libro', 'Accesorio', 'Otro'];
 
@@ -118,12 +120,23 @@ export default function Tienda() {
           </div>
         </CardContent></Card>
         <Card><CardContent className="pt-4 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><ShoppingBag className="w-5 h-5 text-primary" /></div>
-            <div><p className="text-xs text-muted-foreground">Total ventas</p><p className="text-lg font-bold">{formatMoney(totalVentas)}</p></div>
+           <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><ShoppingBag className="w-5 h-5 text-primary" /></div>
+             <div><p className="text-xs text-muted-foreground">Total ventas</p><p className="text-lg font-bold">{formatMoney(totalVentas)}</p></div>
+           </div>
+         </CardContent></Card>
+        </div>
+
+        {/* Caja exclusiva */}
+        {totalCajaExclusiva > 0 && (
+        <div className="flex items-center gap-2 p-3 mb-6 bg-purple-50 border border-purple-200 rounded-lg">
+          <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center"><Wallet className="w-4 h-4 text-purple-600" /></div>
+          <div>
+            <p className="text-sm font-medium text-purple-800">Caja exclusiva</p>
+            <p className="text-xs text-purple-600">{ventasCajaExclusiva.length} venta(s) · {formatMoney(totalCajaExclusiva)} — no impacta en caja/banco general</p>
           </div>
-        </CardContent></Card>
-      </div>
+        </div>
+        )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
@@ -163,7 +176,12 @@ export default function Tienda() {
                         <h3 className="font-semibold text-sm truncate">{p.nombre}</h3>
                         {p.descripcion && <p className="text-xs text-muted-foreground line-clamp-1">{p.descripcion}</p>}
                       </div>
-                      <Badge variant="outline" className="text-xs shrink-0">{p.categoria}</Badge>
+                      <div className="flex gap-1 shrink-0">
+                        {p.es_combo && <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs">Combo</Badge>}
+                        {p.caja_exclusiva && <Badge className="bg-purple-100 text-purple-700 border-purple-300 border text-xs">Excl.</Badge>}
+                        {p.descuento_familiar_pct > 0 && <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">Fam. {p.descuento_familiar_pct}%</Badge>}
+                        <Badge variant="outline" className="text-xs">{p.categoria}</Badge>
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between mb-3">
@@ -259,7 +277,7 @@ export default function Tienda() {
         <ProductoTiendaForm open onClose={() => setShowProductoForm(false)} producto={editProducto} />
       )}
       {showVentaForm && (
-        <VentaTiendaForm open onClose={() => setShowVentaForm(false)} productos={productos} beneficiarios={beneficiarios} />
+        <VentaTiendaForm open onClose={() => setShowVentaForm(false)} productos={productos} beneficiarios={beneficiarios} ventas={ventas} />
       )}
     </div>
   );

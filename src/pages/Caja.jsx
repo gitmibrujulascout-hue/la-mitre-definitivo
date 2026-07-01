@@ -122,6 +122,15 @@ export default function Caja() {
     queryFn: () => base44.entities.MovimientoBanco.list('-fecha', 200),
   });
 
+  const { data: campamentos = [] } = useQuery({
+    queryKey: ['campamentos'],
+    queryFn: () => base44.entities.Campamento.list(),
+  });
+
+  const privateCampIds = useMemo(() => new Set(
+    campamentos.filter(c => c.es_privado).map(c => c.id)
+  ), [campamentos]);
+
   const deleteMov = useMutation({
     mutationFn: refId => base44.entities.MovimientoBanco.delete(refId),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] }); toast.success('Eliminado'); }
@@ -148,6 +157,7 @@ export default function Caja() {
   const buildMovimientos = (cuentaFiltro) => {
     const ingresoPagos = pagos
       .filter(p => filtrarPorAnio(p.fecha_pago) && destinoPago(p) === cuentaFiltro)
+      .filter(p => !(p.tipo_pago === 'Campamento' && privateCampIds.has(p.campamento_id)))
       .map(p => ({
         id: `pago-${p.id}`, refId: p.id, fecha: p.fecha_pago, tipo: 'Ingreso',
         concepto: p.tipo_pago === 'Campamento'
@@ -158,6 +168,7 @@ export default function Caja() {
 
     const egresoGastos = gastos
       .filter(g => filtrarPorAnio(g.fecha) && destinoGasto(g) === cuentaFiltro)
+      .filter(g => !privateCampIds.has(g.campamento_id))
       .map(g => ({
         id: `gasto-${g.id}`, refId: g.id, fecha: g.fecha, tipo: 'Egreso',
         concepto: `${g.descripcion}${g.proveedor ? ` (${g.proveedor})` : ''}`,
@@ -178,8 +189,8 @@ export default function Caja() {
       });
   };
 
-  const movimientosCaja = useMemo(() => buildMovimientos('Caja'), [pagos, gastos, movimientosExtra, anio, mostrarTodos]);
-  const movimientosBanco = useMemo(() => buildMovimientos('Banco'), [pagos, gastos, movimientosExtra, anio, mostrarTodos]);
+  const movimientosCaja = useMemo(() => buildMovimientos('Caja'), [pagos, gastos, movimientosExtra, anio, mostrarTodos, privateCampIds]);
+  const movimientosBanco = useMemo(() => buildMovimientos('Banco'), [pagos, gastos, movimientosExtra, anio, mostrarTodos, privateCampIds]);
 
   const movimientos = tab === 'caja' ? movimientosCaja : movimientosBanco;
 

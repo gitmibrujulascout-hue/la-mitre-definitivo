@@ -17,7 +17,7 @@ const EMPTY_FORM = {
   nombre: '', fecha_inicio: '', fecha_fin: '', costo_por_persona: '',
   costo_adultos: '', adultos_pagan: false, es_privado: false,
   ubicacion: '', observaciones: '', ramas_participantes: [],
-  beneficiarios_ids: [], adultos_ids: []
+  beneficiarios_ids: [], adultos_ids: [], costos_individuales: {}
 };
 
 export default function CampamentoForm({ open, onClose, beneficiarios, campamento = null }) {
@@ -28,6 +28,7 @@ export default function CampamentoForm({ open, onClose, beneficiarios, campament
     costo_por_persona: campamento.costo_por_persona?.toString() || '',
     costo_adultos: campamento.costo_adultos?.toString() || '',
   } : EMPTY_FORM);
+  const [showCostosInd, setShowCostosInd] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -217,6 +218,50 @@ export default function CampamentoForm({ open, onClose, beneficiarios, campament
               ))}
             </ScrollArea>
           </div>
+
+          {/* Costos individuales */}
+          {(form.beneficiarios_ids.length > 0 || (form.adultos_ids || []).length > 0) && (
+            <div>
+              <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+                <div>
+                  <p className="text-sm font-medium">Costos individuales</p>
+                  <p className="text-xs text-muted-foreground">Anular el costo general para personas con precio diferenciado</p>
+                </div>
+                <Switch checked={showCostosInd} onCheckedChange={setShowCostosInd} />
+              </div>
+              {showCostosInd && (
+                <div className="mt-2 space-y-1 max-h-48 overflow-y-auto border rounded-lg p-2">
+                  {[...form.beneficiarios_ids, ...(form.adultos_ids || [])].map(id => {
+                    const ben = beneficiarios.find(b => b.id === id);
+                    if (!ben) return null;
+                    const esAdulto = ben.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(ben.rama);
+                    const defaultCosto = esAdulto
+                      ? (form.costo_adultos || form.costo_por_persona)
+                      : form.costo_por_persona;
+                    return (
+                      <div key={id} className="flex items-center gap-2 py-1">
+                        <span className="flex-1 text-sm truncate">{ben.nombre}</span>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">Default: {defaultCosto || '—'}</span>
+                        <Input
+                          type="number"
+                          className="w-28"
+                          placeholder={defaultCosto || '0'}
+                          value={form.costos_individuales?.[id] ?? ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            const costos = { ...(form.costos_individuales || {}) };
+                            if (val) costos[id] = parseFloat(val);
+                            else delete costos[id];
+                            update('costos_individuales', costos);
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           <div>
             <Label>Observaciones</Label>

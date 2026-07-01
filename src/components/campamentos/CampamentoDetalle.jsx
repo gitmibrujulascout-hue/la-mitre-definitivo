@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Pencil, Printer, MapPin, Calendar, Users, AlertTriangle, Calculator } from 'lucide-react';
+import { ArrowLeft, Pencil, Printer, MapPin, Calendar, Users, AlertTriangle, Calculator, Tag } from 'lucide-react';
 import RamaBadge from '@/components/shared/RamaBadge';
 import { formatMoney, RAMA_CONFIG, RAMAS } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
@@ -275,12 +275,20 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
                     <span className={cn('w-2 h-2 rounded-full', config?.dot || 'bg-muted-foreground')} />
                     <span className="text-xs font-bold uppercase tracking-wide">{rama} ({lista.length})</span>
                   </div>
-                  {lista.map((b, i) => (
-                    <div key={b.id} className="flex items-center gap-2 py-1 px-3 text-sm hover:bg-muted/40 rounded">
-                      <span className="text-muted-foreground w-5 text-xs">{i + 1}.</span>
-                      <span className="flex-1">{b.nombre}</span>
-                    </div>
-                  ))}
+                  {lista.map((b, i) => {
+                    const costoInd = campamento.costos_individuales?.[b.id];
+                    return (
+                      <div key={b.id} className="flex items-center gap-2 py-1 px-3 text-sm hover:bg-muted/40 rounded">
+                        <span className="text-muted-foreground w-5 text-xs">{i + 1}.</span>
+                        <span className="flex-1">{b.nombre}</span>
+                        {costoInd != null && (
+                          <Badge variant="outline" className="text-xs text-amber-700 border-amber-300">
+                            {formatMoney(costoInd)}
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}

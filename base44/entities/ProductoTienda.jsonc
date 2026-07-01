@@ -17,6 +17,7 @@
         "Merchandising",
         "Libro",
         "Accesorio",
+        "Combo",
         "Otro"
       ],
       "default": "Otro",
@@ -55,6 +56,28 @@
       "type": "number",
       "default": 3,
       "description": "Stock m\u00ednimo para alertas"
+    },
+    "es_combo": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si es un combo/bundle de productos individuales"
+    },
+    "productos_combo": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Productos incluidos en el combo: [{ producto_id, producto_nombre, cantidad }]"
+    },
+    "descuento_familiar_pct": {
+      "type": "number",
+      "default": 0,
+      "description": "% de descuento para miembros del mismo grupo familiar (si un familiar ya compr\u00f3 el producto)"
+    },
+    "caja_exclusiva": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si las ventas de este producto van a una caja exclusiva separada de la caja/banco general"
     },
     "activo": {
       "type": "boolean",

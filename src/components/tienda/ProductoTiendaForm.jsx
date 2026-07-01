@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const CATEGORIAS = ['Uniforme', 'Merchandising', 'Libro', 'Accesorio', 'Otro'];
+const CATEGORIAS = ['Uniforme', 'Merchandising', 'Libro', 'Accesorio', 'Combo', 'Otro'];
 const TALLES_SUGERIDOS = ['S', 'M', 'L', 'XL', 'XXL', '2', '4', '6', '8', '10', '12', '14', '16'];
 
 const emptyForm = {
@@ -19,6 +19,8 @@ const emptyForm = {
   precio_venta: '', precio_costo: '',
   tiene_talles: false, talles: [], stock_por_talle: {},
   stock: '', stock_minimo: '3', activo: true,
+  es_combo: false, productos_combo: [],
+  descuento_familiar_pct: '0', caja_exclusiva: false,
 };
 
 export default function ProductoTiendaForm({ open, onClose, producto }) {
@@ -35,6 +37,10 @@ export default function ProductoTiendaForm({ open, onClose, producto }) {
         precio_costo: producto.precio_costo ?? '',
         stock: producto.stock ?? '',
         stock_minimo: producto.stock_minimo ?? '3',
+        es_combo: producto.es_combo ?? false,
+        productos_combo: producto.productos_combo ?? [],
+        descuento_familiar_pct: producto.descuento_familiar_pct?.toString() ?? '0',
+        caja_exclusiva: producto.caja_exclusiva ?? false,
       });
     } else {
       setForm(emptyForm);
@@ -62,6 +68,10 @@ export default function ProductoTiendaForm({ open, onClose, producto }) {
       precio_costo: parseFloat(form.precio_costo) || 0,
       stock: form.tiene_talles ? 0 : (parseInt(form.stock) || 0),
       stock_minimo: parseInt(form.stock_minimo) || 3,
+      es_combo: form.es_combo,
+      productos_combo: form.es_combo ? form.productos_combo : [],
+      descuento_familiar_pct: parseFloat(form.descuento_familiar_pct) || 0,
+      caja_exclusiva: form.caja_exclusiva,
     });
   };
 
@@ -194,6 +204,74 @@ export default function ProductoTiendaForm({ open, onClose, producto }) {
               <Input type="number" value={form.stock} onChange={e => setForm(p => ({ ...p, stock: e.target.value }))} placeholder="0" />
             </div>
           )}
+
+          {/* Combo toggle */}
+          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+            <div>
+              <Label className="cursor-pointer">Es un combo / bundle</Label>
+              <p className="text-xs text-muted-foreground">Agrupa varios productos con un precio especial</p>
+            </div>
+            <Switch checked={form.es_combo} onCheckedChange={v => setForm(p => ({ ...p, es_combo: v, tiene_talles: v ? false : p.tiene_talles }))} />
+          </div>
+
+          {/* Combo builder */}
+          {form.es_combo && (
+            <div className="space-y-2 p-3 border rounded-lg">
+              <Label>Productos del combo</Label>
+              {form.productos_combo.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Input
+                    value={item.producto_nombre || ''}
+                    onChange={e => {
+                      const items = [...form.productos_combo];
+                      items[idx] = { ...item, producto_nombre: e.target.value };
+                      setForm(p => ({ ...p, productos_combo: items }));
+                    }}
+                    placeholder="Nombre del producto"
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    min="1"
+                    value={item.cantidad || 1}
+                    onChange={e => {
+                      const items = [...form.productos_combo];
+                      items[idx] = { ...item, cantidad: parseInt(e.target.value) || 1 };
+                      setForm(p => ({ ...p, productos_combo: items }));
+                    }}
+                    className="w-20"
+                  />
+                  <Button type="button" variant="ghost" size="icon" onClick={() => {
+                    const items = form.productos_combo.filter((_, i) => i !== idx);
+                    setForm(p => ({ ...p, productos_combo: items }));
+                  }}>
+                    <Trash2 className="w-4 h-4 text-muted-foreground" />
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => {
+                setForm(p => ({ ...p, productos_combo: [...p.productos_combo, { producto_id: '', producto_nombre: '', cantidad: 1 }] }));
+              }}>
+                <Plus className="w-4 h-4 mr-1" />Agregar producto al combo
+              </Button>
+            </div>
+          )}
+
+          {/* Descuento familiar */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Descuento familiar (%)</Label>
+              <Input type="number" min="0" max="100" value={form.descuento_familiar_pct} onChange={e => setForm(p => ({ ...p, descuento_familiar_pct: e.target.value }))} placeholder="0" />
+              <p className="text-xs text-muted-foreground mt-0.5">Se aplica si un familiar ya compró el producto</p>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+              <div>
+                <Label className="cursor-pointer">Caja exclusiva</Label>
+                <p className="text-xs text-muted-foreground">Ventas a fondo separado</p>
+              </div>
+              <Switch checked={form.caja_exclusiva} onCheckedChange={v => setForm(p => ({ ...p, caja_exclusiva: v }))} />
+            </div>
+          </div>
 
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
             <Label className="cursor-pointer">Producto activo</Label>

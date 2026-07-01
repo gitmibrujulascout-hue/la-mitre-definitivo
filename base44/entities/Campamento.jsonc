@@ -34,6 +34,10 @@
       "default": false,
       "description": "Si es un campamento privado por rama: los movimientos de dinero se gestionan dentro del campamento y no impactan en la caja general del grupo"
     },
+    "costos_individuales": {
+      "type": "object",
+      "description": "Costos personalizados por persona: { 'beneficiario_id': monto }. Anula el costo_por_persona / costo_adultos."
+    },
     "ramas_participantes": {
       "type": "array",
       "items": {

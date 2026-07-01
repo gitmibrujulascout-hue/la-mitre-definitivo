@@ -38,6 +38,8 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
   const pagadoPor = (id) => pagos.filter(p => p.campamento_id === campamento.id && p.beneficiario_id === id).reduce((s, p) => s + p.monto, 0);
   const costo = (ben) => {
     if (!ben) return campamento.costo_por_persona;
+    const costoInd = campamento.costos_individuales?.[ben.id];
+    if (costoInd != null) return costoInd;
     const esAdulto = ben.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(ben.rama);
     if (esAdulto && !campamento.adultos_pagan) return 0;
     if (esAdulto && campamento.adultos_pagan) return campamento.costo_adultos || campamento.costo_por_persona;
@@ -331,6 +333,8 @@ export default function CampamentoPublico() {
 
   const pagadoPor = (id) => pagos.filter(p => p.beneficiario_id === id).reduce((s, p) => s + p.monto, 0);
   const costo = (ben) => {
+    const costoInd = campamento?.costos_individuales?.[ben.id];
+    if (costoInd != null) return costoInd;
     const esAdulto = ben.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(ben.rama);
     if (esAdulto && !campamento?.adultos_pagan) return 0;
     if (esAdulto && campamento?.adultos_pagan) return campamento.costo_adultos || campamento.costo_por_persona;

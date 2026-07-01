@@ -43,6 +43,10 @@ export default function Dashboard() {
     queryFn: () => base44.entities.Campamento.list(),
   });
 
+  const privateCampIds = useMemo(() => new Set(
+    campamentos.filter(c => c.es_privado).map(c => c.id)
+  ), [campamentos]);
+
   const navigate = useNavigate();
 
   const activos = beneficiarios.filter((b) => b.activo !== false);
@@ -69,8 +73,14 @@ export default function Dashboard() {
 
   const fondos = useMemo(() => {
     const calcular = (cuenta) => {
-      const ingresosPagos = pagos.filter(p => destinoPago(p) === cuenta).reduce((s, p) => s + (p.monto || 0), 0);
-      const egresosGastos = gastos.filter(g => destinoGasto(g) === cuenta).reduce((s, g) => s + (g.monto || 0), 0);
+      const ingresosPagos = pagos
+        .filter(p => destinoPago(p) === cuenta)
+        .filter(p => !(p.tipo_pago === 'Campamento' && privateCampIds.has(p.campamento_id)))
+        .reduce((s, p) => s + (p.monto || 0), 0);
+      const egresosGastos = gastos
+        .filter(g => destinoGasto(g) === cuenta)
+        .filter(g => !privateCampIds.has(g.campamento_id))
+        .reduce((s, g) => s + (g.monto || 0), 0);
       // Solo movimientos manuales (igual que Caja)
       const movs = movimientosExtra.filter(m => (m.cuenta || 'Caja') === cuenta && m.origen === 'Manual');
       const ingresosExtra = movs.filter(m => m.tipo === 'Ingreso').reduce((s, m) => s + (m.monto || 0), 0);
@@ -80,7 +90,7 @@ export default function Dashboard() {
       return { ingresos, egresos, saldo: ingresos - egresos };
     };
     return { caja: calcular('Caja'), banco: calcular('Banco') };
-  }, [pagos, gastos, movimientosExtra]);
+  }, [pagos, gastos, movimientosExtra, privateCampIds]);
 
   // --- Calendario ---
   const hoy = new Date();
