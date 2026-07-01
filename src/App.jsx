@@ -14,6 +14,7 @@ import Campamentos from '@/pages/Campamentos';
 import CuentaCorriente from '@/pages/CuentaCorriente';
 import Caja from '@/pages/Caja';
 import ActividadesEconomicas from '@/pages/ActividadesEconomicas';
+import Tienda from '@/pages/Tienda';
 import EstadoCuenta from '@/pages/EstadoCuenta';
 import ReportePagos from '@/pages/ReportePagos';
 import Afiliaciones from '@/pages/Afiliaciones';
@@ -68,6 +69,7 @@ const AuthenticatedApp = () => {
         <Route path="/campamentos" element={<Campamentos />} />
         <Route path="/cuenta-corriente" element={<CuentaCorriente />} />
         <Route path="/caja" element={<Caja />} />
+        <Route path="/tienda" element={<Tienda />} />
         <Route path="/actividades" element={<ActividadesEconomicas />} />
         <Route path="/reporte-pagos" element={<ReportePagos />} />
         <Route path="/afiliaciones" element={<Afiliaciones />} />

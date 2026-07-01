@@ -1,0 +1,87 @@
+{
+  "name": "ProductoTienda",
+  "type": "object",
+  "properties": {
+    "nombre": {
+      "type": "string",
+      "description": "Nombre del producto"
+    },
+    "descripcion": {
+      "type": "string",
+      "description": "Descripci\u00f3n del producto"
+    },
+    "categoria": {
+      "type": "string",
+      "enum": [
+        "Uniforme",
+        "Merchandising",
+        "Libro",
+        "Accesorio",
+        "Otro"
+      ],
+      "default": "Otro",
+      "description": "Categor\u00eda del producto"
+    },
+    "precio_venta": {
+      "type": "number",
+      "description": "Precio de venta al p\u00fablico"
+    },
+    "precio_costo": {
+      "type": "number",
+      "description": "Precio de costo (opcional)"
+    },
+    "tiene_talles": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si el producto maneja stock por talle"
+    },
+    "talles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Lista de talles disponibles (ej: S, M, L, XL)"
+    },
+    "stock_por_talle": {
+      "type": "object",
+      "description": "Stock por talle: { 'S': 5, 'M': 10, ... }"
+    },
+    "stock": {
+      "type": "number",
+      "default": 0,
+      "description": "Stock total (cuando no maneja talles)"
+    },
+    "stock_minimo": {
+      "type": "number",
+      "default": 3,
+      "description": "Stock m\u00ednimo para alertas"
+    },
+    "activo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Si el producto est\u00e1 activo para la venta"
+    }
+  },
+  "required": [
+    "nombre",
+    "precio_venta"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
