@@ -564,6 +564,7 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                   <SelectItem value="__blank__">Sin pañuelo</SelectItem>
                   <SelectItem value="Promesa">Promesa</SelectItem>
                   <SelectItem value="Investidura">Investidura</SelectItem>
+                  <SelectItem value="Paturuzú">Paturuzú (equipo especial)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

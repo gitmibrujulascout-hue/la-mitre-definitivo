@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye, MessageCircle, AlertCircle, HeartPulse, Bell, Medal } from 'lucide-react';
+import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye, MessageCircle, AlertCircle, HeartPulse, Bell, Medal, Crown } from 'lucide-react';
+import AsignarPanueloMasivoDialog from '@/components/beneficiarios/AsignarPanueloMasivoDialog';
 import ImportarFichaSaludDialog from '@/components/beneficiarios/ImportarFichaSaludDialog';
 import RevisionSolicitudesSaludDialog from '@/components/beneficiarios/RevisionSolicitudesSaludDialog';
 import PageHeader from '@/components/shared/PageHeader';
@@ -39,6 +40,7 @@ export default function Beneficiarios() {
 
   const [bajaConDeudaDialog, setBajaConDeudaDialog] = useState(null); // { data, hermanosIds, mesesDeudores, cuota }
   const [showRevisionSalud, setShowRevisionSalud] = useState(false);
+  const [showPanueloMasivo, setShowPanueloMasivo] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: beneficiarios = [], isLoading } = useQuery({
@@ -230,6 +232,9 @@ export default function Beneficiarios() {
             <span className="ml-2 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">{solicitudesPendientes.length}</span>
           </Button>
         )}
+        <Button variant="outline" onClick={() => setShowPanueloMasivo(true)}>
+          <Crown className="w-4 h-4 mr-2" />Pañuelos
+        </Button>
         <Button variant="outline" onClick={exportarCSV}>
           <Download className="w-4 h-4 mr-2" />Exportar
         </Button>
@@ -342,7 +347,12 @@ export default function Beneficiarios() {
                       {b.becado && b.tipo !== 'Voluntario' && (
                         <Badge className="bg-amber-100 text-amber-700 border-amber-300 border"><Award className="w-3 h-3 mr-1" />Becado</Badge>
                       )}
-                      {b.estado_panuelo && (
+                      {b.estado_panuelo === 'Paturuzú' && (
+                        <Badge className="bg-amber-100 text-amber-800 border-amber-400 border" title="Pañuelo: Paturuzú (equipo especial)">
+                          <Crown className="w-3 h-3 mr-1" />Paturuzú
+                        </Badge>
+                      )}
+                      {b.estado_panuelo && b.estado_panuelo !== 'Paturuzú' && (
                         <Badge className={b.estado_panuelo === 'Promesa' ? 'bg-blue-100 text-blue-700 border-blue-300 border' : 'bg-indigo-100 text-indigo-700 border-indigo-300 border'} title={`Pañuelo: ${b.estado_panuelo}`}>
                           {b.estado_panuelo === 'Promesa' ? <Award className="w-3 h-3 mr-1" /> : <Medal className="w-3 h-3 mr-1" />}{b.estado_panuelo}
                         </Badge>
@@ -389,6 +399,14 @@ export default function Beneficiarios() {
       {showForm && <BeneficiarioForm open onClose={() => setShowForm(false)} onSave={handleSave} todosBeneficiarios={beneficiarios} />}
       {editing && <BeneficiarioForm open onClose={() => setEditing(null)} onSave={handleSave} initialData={editing} todosBeneficiarios={beneficiarios} />}
       {showImport && <ImportBeneficiariosDialog open onClose={() => setShowImport(false)} />}
+      {showPanueloMasivo && (
+        <AsignarPanueloMasivoDialog
+          open
+          onClose={() => setShowPanueloMasivo(false)}
+          beneficiarios={beneficiarios}
+          onDone={() => queryClient.invalidateQueries({ queryKey: ['beneficiarios'] })}
+        />
+      )}
       {fichaOpen && <BeneficiarioFichaDialog open onClose={() => setFichaOpen(null)} beneficiario={fichaOpen} />}
       {fichasSaludOpen && <ImportarFichaSaludDialog open onClose={() => setFichasSaludOpen(null)} beneficiario={fichasSaludOpen} />}
       {showRevisionSalud && (

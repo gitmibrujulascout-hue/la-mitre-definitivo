@@ -60,10 +60,11 @@
       "enum": [
         "",
         "Promesa",
-        "Investidura"
+        "Investidura",
+        "Paturuz\u00fa"
       ],
       "default": "",
-      "description": "Estado del pa\u00f1uelo: Promesa o Investidura"
+      "description": "Estado del pa\u00f1uelo: Promesa, Investidura o Paturuz\u00fa (equipo especial de adultos)"
     },
     "rama": {
       "type": "string",
