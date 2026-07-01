@@ -69,12 +69,11 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
     ventasPorVendedor[key].ventas.push(v);
   });
 
-  // Ordenar vendedores: primero por rama (Lobatos, Tropa, KM, Rovers, Adultos), luego por apellido
+  // Ordenar vendedores: primero por grupo de rama (Lobatos, Tropa, Caminantes, Rovers, Adultos), luego por apellido
   const vendedoresOrdenados = Object.values(ventasPorVendedor).sort((a, b) => {
-    const ra = RAMA_ORDER[a.rama] ?? 99;
-    const rb = RAMA_ORDER[b.rama] ?? 99;
-    if (ra !== rb) return ra - rb;
-    // Mismo grupo (ej: Voluntario y Educador = Adultos): igualar y ordenar por apellido
+    const ga = a.rama ? (RAMA_LABEL[a.rama] || a.rama) : '__sin_rama__';
+    const gb = b.rama ? (RAMA_LABEL[b.rama] || b.rama) : '__sin_rama__';
+    if (ga !== gb) return (RAMA_ORDER[a.rama] ?? 99) - (RAMA_ORDER[b.rama] ?? 99);
     return apellido(a.nombre).localeCompare(apellido(b.nombre), 'es');
   });
 
