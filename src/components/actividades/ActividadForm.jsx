@@ -17,6 +17,8 @@ const DEFAULT = {
   nombre: '',
   descripcion: '',
   fecha: new Date().toISOString().split('T')[0],
+  fecha_cierre_pedidos: '',
+  fecha_pago: '',
   estado: 'Planificada',
   tipo_producto: '',
   precio_venta_unitario: '',
@@ -101,7 +103,7 @@ export default function ActividadForm({ open, onClose, onSaved, initialData, ben
               <Input value={form.nombre} onChange={e => update('nombre', e.target.value)} placeholder="Ej: Venta de empanadas Mayo 2026" />
             </div>
             <div>
-              <Label>Fecha *</Label>
+              <Label>Fecha del evento (entregas) *</Label>
               <Input type="date" value={form.fecha} onChange={e => update('fecha', e.target.value)} />
             </div>
             <div>
@@ -114,6 +116,16 @@ export default function ActividadForm({ open, onClose, onSaved, initialData, ben
                   <SelectItem value="Finalizada">Finalizada</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Cierre de pedidos</Label>
+                <Input type="date" value={form.fecha_cierre_pedidos || ''} onChange={e => update('fecha_cierre_pedidos', e.target.value)} />
+              </div>
+              <div>
+                <Label>Fecha de pago</Label>
+                <Input type="date" value={form.fecha_pago || ''} onChange={e => update('fecha_pago', e.target.value)} />
+              </div>
             </div>
             <div className="col-span-2">
               <Label>Producto / Tipo de actividad</Label>

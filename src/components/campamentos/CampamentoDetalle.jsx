@@ -110,9 +110,14 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
       `;
     }).join('<div style="margin-top:16px"></div>');
 
-    const adultosRows = adultos.map((b, i) =>
-      `<tr><td>${i + 1}</td><td>${b.nombre}</td><td>${b.funcion || b.rama_educador || b.rama || ''}</td><td>${b.dni || ''}</td><td>${campamento.adultos_pagan ? '' : 'No abona'}</td></tr>`
-    ).join('');
+    const adultosRows = adultos.map((b, i) => {
+      const pagadoAdulto = pagosMap[b.id] || 0;
+      const pagoStr = campamento.adultos_pagan
+        ? (pagadoAdulto ? `$${pagadoAdulto.toLocaleString('es-AR')}` : '')
+        : 'No abona';
+      const pagoStyle = pagadoAdulto ? 'style="text-align:center;color:green;font-weight:bold"' : 'style="text-align:center"';
+      return `<tr><td>${i + 1}</td><td>${b.nombre}</td><td>${b.funcion || b.rama_educador || b.rama || ''}</td><td>${b.dni || ''}</td><td ${pagoStyle}>${pagoStr}</td></tr>`;
+    }).join('');
 
     const resumenTexto = resumenRamas.map(([r, c]) => `${r}: ${c}`).join(' | ');
 

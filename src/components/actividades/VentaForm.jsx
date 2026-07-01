@@ -32,7 +32,7 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
   const ben = beneficiarios.find(b => b.id === beneficiario_id);
 
   const benOptions = beneficiarios
-    .filter(b => b.activo !== false && b.tipo !== 'Voluntario' && !['Voluntario', 'Educador'].includes(b.rama))
+    .filter(b => b.activo !== false)
     .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
 
   const getProducto = (id) => productos.find(p => p.id === id);
@@ -100,9 +100,9 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
         <div className="space-y-4 py-2">
           {/* Beneficiario */}
           <div>
-            <Label>Beneficiario vendedor *</Label>
+            <Label>Vendedor *</Label>
             <Select value={beneficiario_id} onValueChange={setBeneficiarioId}>
-              <SelectTrigger><SelectValue placeholder="Seleccionar beneficiario" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Seleccionar vendedor" /></SelectTrigger>
               <SelectContent>
                 {benOptions.map(b => (
                   <SelectItem key={b.id} value={b.id}>{b.nombre}</SelectItem>

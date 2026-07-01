@@ -55,6 +55,16 @@
       "type": "string",
       "description": "Descripci\u00f3n de religi\u00f3n"
     },
+    "estado_panuelo": {
+      "type": "string",
+      "enum": [
+        "",
+        "Promesa",
+        "Investidura"
+      ],
+      "default": "",
+      "description": "Estado del pa\u00f1uelo: Promesa o Investidura"
+    },
     "rama": {
       "type": "string",
       "enum": [

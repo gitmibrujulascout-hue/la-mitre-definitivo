@@ -27,7 +27,6 @@ const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos, onSaved }) {
   const [benId, setBenId] = useState('');
   const [monto, setMonto] = useState('');
-  const [formaPago, setFormaPago] = useState('');
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const queryClient = useQueryClient();
 
@@ -55,13 +54,13 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
       queryClient.invalidateQueries({ queryKey: ['pagos_pub'] });
       toast.success('Pago registrado');
       onClose();
-      setBenId(''); setMonto(''); setFormaPago('');
+      setBenId(''); setMonto('');
       if (onSaved) onSaved();
     },
   });
 
   const handleSave = () => {
-    if (!benId || !formaPago || !monto) return;
+    if (!benId || !monto) return;
     mut.mutate({
       beneficiario_id: benId,
       beneficiario_nombre: benSeleccionado?.nombre || '',
@@ -70,8 +69,8 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
       campamento_nombre: campamento.nombre,
       anio: new Date().getFullYear(),
       monto: parseFloat(monto),
-      forma_pago: formaPago,
-      destino: formaPago === 'Transferencia' ? 'Banco' : 'Caja',
+      forma_pago: 'Efectivo',
+      destino: 'Caja',
       fecha_pago: fecha,
     });
   };
@@ -83,7 +82,13 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
         <div className="space-y-4 py-2">
           <div>
             <Label>Persona</Label>
-            <Select value={benId} onValueChange={v => { setBenId(v); setMonto(''); }}>
+            <Select value={benId} onValueChange={v => {
+              setBenId(v);
+              const ben = beneficiarios.find(b => b.id === v);
+              const c = costo(ben);
+              const p = pagadoPor(v);
+              setMonto(c - p > 0 ? String(c - p) : '');
+            }}>
               <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
               <SelectContent>{listaAsistentes.map(b => <SelectItem key={b.id} value={b.id}>{b.nombre}</SelectItem>)}</SelectContent>
             </Select>
@@ -99,15 +104,8 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
             <Label>Monto</Label>
             <Input type="number" value={monto} onChange={e => setMonto(e.target.value)} placeholder={saldo > 0 ? saldo.toString() : '0'} />
           </div>
-          <div>
-            <Label>Forma de pago</Label>
-            <Select value={formaPago} onValueChange={setFormaPago}>
-              <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Efectivo">Efectivo</SelectItem>
-                <SelectItem value="Transferencia">Transferencia</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700 flex items-center gap-2">
+            💵 Pago en efectivo
           </div>
           <div>
             <Label>Fecha</Label>
@@ -116,7 +114,7 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={!benId || !formaPago || !monto || mut.isPending}>
+          <Button onClick={handleSave} disabled={!benId || !monto || mut.isPending}>
             {mut.isPending ? 'Registrando...' : 'Registrar'}
           </Button>
         </DialogFooter>
@@ -179,10 +177,16 @@ function ModificarParticipantesDialog({ open, onClose, campamento, beneficiarios
 
   const candidatos = useMemo(() => {
     const q = busqueda.toLowerCase();
+    const ramasPart = campamento.ramas_participantes || [];
     return beneficiarios
       .filter(b => b.activo !== false && b.nombre?.toLowerCase().includes(q))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-  }, [beneficiarios, busqueda]);
+      .sort((a, b) => {
+        const aInRama = ramasPart.includes(a.rama) ? 0 : 1;
+        const bInRama = ramasPart.includes(b.rama) ? 0 : 1;
+        if (aInRama !== bInRama) return aInRama - bInRama;
+        return a.nombre.localeCompare(b.nombre, 'es');
+      });
+  }, [beneficiarios, busqueda, campamento.ramas_participantes]);
 
   const mut = useMutation({
     mutationFn: (data) => base44.entities.Campamento.update(campamento.id, data),
@@ -357,9 +361,14 @@ export default function CampamentoPublico() {
         <table><thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th style="width:80px;text-align:center">Autorización</th><th style="width:90px;text-align:center">Pago</th></tr></thead>
         <tbody>${rows}</tbody></table>`;
     }).join('');
-    const adultosRows = adultos.map((b, i) =>
-      `<tr><td>${i+1}</td><td>${b.nombre}</td><td>${b.funcion || b.rama_educador || b.rama || ''}</td><td>${b.dni || ''}</td><td>${campamento.adultos_pagan ? '' : 'No abona'}</td></tr>`
-    ).join('');
+    const adultosRows = adultos.map((b, i) => {
+      const pagadoAdulto = pagosMap[b.id] || 0;
+      const pagoStr = campamento.adultos_pagan
+        ? (pagadoAdulto ? `$${pagadoAdulto.toLocaleString('es-AR')}` : '')
+        : 'No abona';
+      const pagoStyle = pagadoAdulto ? 'style="text-align:center;color:green;font-weight:bold"' : 'style="text-align:center"';
+      return `<tr><td>${i+1}</td><td>${b.nombre}</td><td>${b.funcion || b.rama_educador || b.rama || ''}</td><td>${b.dni || ''}</td><td ${pagoStyle}>${pagoStr}</td></tr>`;
+    }).join('');
     const resumenTexto = ninosPorRama.map(([r, l]) => `${r}: ${l.length}`).join(' | ');
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Listado ${campamento.nombre}</title>
     <style>body{font-family:Arial,sans-serif;padding:20px;font-size:13px}h1{margin-bottom:4px;font-size:18px}.meta{color:#555;margin-bottom:16px;font-size:11px}table{width:100%;border-collapse:collapse;margin-top:6px}th,td{border:1px solid #ccc;padding:5px 8px;text-align:left}th{background:#f0f0f0;font-size:12px}td{font-size:12px}.seccion{margin-top:20px;font-weight:bold;font-size:14px;border-bottom:2px solid #333;padding-bottom:4px}.resumen{margin-top:20px;padding:10px;background:#f9f9f9;border:1px solid #ddd;border-radius:4px;font-size:12px}</style>

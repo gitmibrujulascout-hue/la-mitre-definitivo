@@ -13,7 +13,17 @@
     "fecha": {
       "type": "string",
       "format": "date",
-      "description": "Fecha de la actividad"
+      "description": "Fecha del evento (entregas)"
+    },
+    "fecha_cierre_pedidos": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha l\u00edmite para cerrar pedidos"
+    },
+    "fecha_pago": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha l\u00edmite de pago"
     },
     "estado": {
       "type": "string",

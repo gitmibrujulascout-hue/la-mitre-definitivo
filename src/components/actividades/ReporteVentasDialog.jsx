@@ -31,7 +31,10 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
   const printRef = useRef();
 
   const totalRecaudado = ventas.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
-  const totalUnidades = ventas.reduce((s, v) => s + (v.cantidad_vendida || 0), 0);
+  const totalUnidades = ventas.reduce((s, v) => {
+    const uds = v.es_promo && v.cantidad_promo ? (v.cantidad_vendida || 0) * v.cantidad_promo : (v.cantidad_vendida || 0);
+    return s + uds;
+  }, 0);
   const totalRendido = ventas.reduce((s, v) => s + (v.monto_rendido || (v.estado_rendicion === 'Rendido' ? v.monto_recaudado : 0) || 0), 0);
   const totalSaldo = totalRecaudado - totalRendido;
   const entregadas = ventas.filter(v => v.entregado).length;
@@ -80,7 +83,7 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
           <td style="padding:5px 8px 5px 20px;border:1px solid #ddd">${nombre}</td>
           <td style="padding:5px 8px 5px 20px;border:1px solid #ddd">${v.producto_nombre || '—'}</td>
           <td style="padding:5px 8px 5px 20px;border:1px solid #ddd">${v.comprador_nombre || '—'}</td>
-          <td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${v.cantidad_vendida || '—'}</td>
+          <td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${v.cantidad_vendida || '—'}${v.es_promo && v.cantidad_promo ? ` (${v.cantidad_vendida * v.cantidad_promo} uds)` : ''}</td>
           <td style="padding:5px 8px;border:1px solid #ddd;text-align:right">${fmt(v.monto_recaudado)}</td>
           <td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${v.entregado ? 'Entregado' : 'Pendiente'}</td>
           <td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${v.estado_rendicion || 'Sin rendir'}</td>
@@ -292,7 +295,9 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
                              : <span className="text-muted-foreground text-xs italic">—</span>}
                          </td>
                          <td className="px-2 py-0.5 text-center">
-                           {v.cantidad_vendida > 0 ? v.cantidad_vendida : '—'}
+                           {v.cantidad_vendida > 0 ? (
+                             <span>{v.cantidad_vendida}{v.es_promo && v.cantidad_promo ? <span className="text-xs text-muted-foreground"> ({v.cantidad_vendida * v.cantidad_promo} uds)</span> : ''}</span>
+                           ) : '—'}
                          </td>
                          <td className="px-2 py-0.5 text-right font-semibold text-green-600">
                            {formatMoney(v.monto_recaudado || 0)}

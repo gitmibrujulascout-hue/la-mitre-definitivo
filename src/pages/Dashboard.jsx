@@ -1,13 +1,16 @@
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Users, CreditCard, Receipt, TrendingUp, TrendingDown, Wallet, Landmark } from 'lucide-react';
+import { Users, CreditCard, Receipt, TrendingUp, TrendingDown, Wallet, Landmark, CalendarDays, Cake } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 import StatsCard from '@/components/shared/StatsCard';
 import { RAMA_CONFIG, RAMAS, formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
+
+const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 export default function Dashboard() {
   const { data: beneficiarios = [] } = useQuery({
@@ -28,6 +31,16 @@ export default function Dashboard() {
   const { data: movimientosExtra = [] } = useQuery({
     queryKey: ['movimientos_banco'],
     queryFn: () => base44.entities.MovimientoBanco.list('-fecha', 2000),
+  });
+
+  const { data: actividades = [] } = useQuery({
+    queryKey: ['actividades'],
+    queryFn: () => base44.entities.ActividadEconomica.list('-fecha', 100),
+  });
+
+  const { data: campamentos = [] } = useQuery({
+    queryKey: ['campamentos'],
+    queryFn: () => base44.entities.Campamento.list(),
   });
 
   const navigate = useNavigate();
@@ -69,10 +82,76 @@ export default function Dashboard() {
     return { caja: calcular('Caja'), banco: calcular('Banco') };
   }, [pagos, gastos, movimientosExtra]);
 
+  // --- Calendario ---
+  const hoy = new Date();
+  const mesActual = hoy.getMonth();
+  const anioActual = hoy.getFullYear();
+  const diaHoy = hoy.getDate();
+
+  const cumpleanerosMes = useMemo(() => {
+    return activos
+      .filter(b => {
+        if (!b.fecha_nacimiento) return false;
+        const mes = new Date(b.fecha_nacimiento + 'T12:00:00').getMonth();
+        return mes === mesActual;
+      })
+      .map(b => {
+        const fechaNac = new Date(b.fecha_nacimiento + 'T12:00:00');
+        return { id: b.id, nombre: b.nombre, rama: b.rama, dia: fechaNac.getDate() };
+      })
+      .sort((a, b) => a.dia - b.dia);
+  }, [activos, mesActual]);
+
+  // Eventos del mes (actividades, campamentos)
+  const eventosMes = useMemo(() => {
+    const eventos = [];
+    // Actividades económicas
+    actividades.forEach(a => {
+      if (a.fecha) {
+        const f = new Date(a.fecha + 'T12:00:00');
+        if (f.getMonth() === mesActual && f.getFullYear() === anioActual) {
+          eventos.push({ tipo: 'actividad', dia: f.getDate(), titulo: a.nombre, color: 'bg-green-500' });
+        }
+      }
+    });
+    // Campamentos
+    campamentos.forEach(c => {
+      if (c.fecha_inicio) {
+        const f = new Date(c.fecha_inicio + 'T12:00:00');
+        if (f.getMonth() === mesActual && f.getFullYear() === anioActual) {
+          eventos.push({ tipo: 'campamento', dia: f.getDate(), titulo: c.nombre, color: 'bg-blue-500' });
+        }
+      }
+    });
+    return eventos;
+  }, [actividades, campamentos, mesActual, anioActual]);
+
+  // Generar matriz del calendario
+  const primerDiaMes = new Date(anioActual, mesActual, 1).getDay(); // 0=Dom
+  const diasEnMes = new Date(anioActual, mesActual + 1, 0).getDate();
+  const celdasCalendario = useMemo(() => {
+    const celdas = [];
+    // Días vacíos al inicio
+    for (let i = 0; i < primerDiaMes; i++) celdas.push(null);
+    // Días del mes
+    for (let d = 1; d <= diasEnMes; d++) {
+      const cumples = cumpleanerosMes.filter(c => c.dia === d);
+      const eventos = eventosMes.filter(e => e.dia === d);
+      celdas.push({ dia: d, cumples, eventos });
+    }
+    return celdas;
+  }, [primerDiaMes, diasEnMes, cumpleanerosMes, eventosMes]);
+
+  const getRamaColor = (rama) => {
+    const config = RAMA_CONFIG[rama];
+    return config?.text || 'text-foreground';
+  };
+
   return (
     <div>
       <PageHeader title="Dashboard" description="Resumen general de tesorería" />
 
+      {/* 1. Stats principales */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard title="Beneficiarios activos" value={activos.length} subtitle={`${becados.length} becados`} icon={Users} />
         <StatsCard title="Balance total" value={formatMoney(fondos.caja.saldo + fondos.banco.saldo)} subtitle="Caja + Banco" icon={CreditCard} />
@@ -80,7 +159,101 @@ export default function Dashboard() {
         <StatsCard title="Saldo Banco" value={formatMoney(fondos.banco.saldo)} subtitle={`+${formatMoney(fondos.banco.ingresos)} / −${formatMoney(fondos.banco.egresos)}`} icon={Landmark} />
       </div>
 
-      {/* Detalle financiero */}
+      {/* 2. Beneficiarios por rama */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {RAMAS.map((rama) => {
+          const config = RAMA_CONFIG[rama];
+          return (
+            <Card
+              key={rama}
+              onClick={() => navigate(`/beneficiarios?rama=${encodeURIComponent(rama)}`)}
+              className={cn('text-card-foreground p-4 rounded-xl border-2 shadow relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow', config.border)}
+              style={{ backgroundColor: 'transparent' }}>
+              <div className={cn('absolute inset-0 opacity-[0.08]', config.color)} />
+              <div className="relative pl-3">
+                <p className="text-xs font-medium text-muted-foreground">{rama}</p>
+                <p className="text-2xl font-bold">{ramaCount[rama] || 0}</p>
+                <p className="text-xs text-muted-foreground">{config.edad}</p>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* 3. Calendario */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <Card className="p-5 lg:col-span-2">
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <CalendarDays className="w-4 h-4 text-primary" />
+            {MESES_CORTOS[mesActual]} {anioActual}
+          </h3>
+          {/* Días de la semana */}
+          <div className="grid grid-cols-7 gap-1 mb-1">
+            {DIAS_SEMANA.map(d => (
+              <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
+            ))}
+          </div>
+          {/* Días */}
+          <div className="grid grid-cols-7 gap-1">
+            {celdasCalendario.map((celda, i) => {
+              if (!celda) return <div key={i} className="min-h-[60px] rounded-lg bg-muted/20" />;
+              const esHoy = celda.dia === diaHoy;
+              const tieneEventos = celda.cumples.length > 0 || celda.eventos.length > 0;
+              return (
+                <div
+                  key={i}
+                  className={cn(
+                    'min-h-[60px] rounded-lg border p-1 text-xs transition-colors',
+                    esHoy ? 'border-primary bg-primary/5' : 'border-border bg-card',
+                    tieneEventos ? 'shadow-sm' : ''
+                  )}
+                >
+                  <div className={cn('font-medium text-right', esHoy ? 'text-primary' : 'text-muted-foreground')}>{celda.dia}</div>
+                  {/* Eventos */}
+                  {celda.eventos.map((e, idx) => (
+                    <div key={idx} className={cn('text-[9px] text-white rounded px-1 truncate mb-0.5', e.color)}>
+                      {e.titulo}
+                    </div>
+                  ))}
+                  {/* Cumpleaños */}
+                  {celda.cumples.map(c => (
+                    <div key={c.id} className={cn('text-[9px] font-medium truncate', getRamaColor(c.rama))}>
+                      🎂 {c.nombre.split(' ')[0]}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Cumpleaños del mes */}
+        <Card className="p-5">
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <Cake className="w-4 h-4 text-primary" />
+            Cumpleaños de {MESES_CORTOS[mesActual]}
+          </h3>
+          {cumpleanerosMes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No hay cumpleaños este mes</p>
+          ) : (
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {cumpleanerosMes.map(c => (
+                <div key={c.id} className="flex items-center gap-2 py-1.5 border-b border-border last:border-0">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                    {c.dia}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn('text-sm font-medium truncate', getRamaColor(c.rama))}>{c.nombre}</p>
+                    {c.rama && <p className="text-xs text-muted-foreground">{c.rama}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* 4. Resumen de caja y banco */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
         {[{ label: 'Caja (Efectivo)', data: fondos.caja, icon: Wallet }, { label: 'Banco (Transferencia)', data: fondos.banco, icon: Landmark }].map(({ label, data, icon: Icon }) => (
           <Card key={label} className="p-4">
@@ -106,28 +279,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Ramas */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {RAMAS.map((rama) => {
-          const config = RAMA_CONFIG[rama];
-          return (
-            <Card
-              key={rama}
-              onClick={() => navigate(`/beneficiarios?rama=${encodeURIComponent(rama)}`)}
-              className={cn('text-card-foreground p-4 rounded-xl border-2 shadow relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow', config.border)}
-              style={{ backgroundColor: 'transparent' }}>
-              <div className={cn('absolute inset-0 opacity-[0.08]', config.color)} />
-              <div className="relative pl-3">
-                <p className="text-xs font-medium text-muted-foreground">{rama}</p>
-                <p className="text-2xl font-bold">{ramaCount[rama] || 0}</p>
-                <p className="text-xs text-muted-foreground">{config.edad}</p>
-              </div>
-            </Card>);
-
-        })}
-      </div>
-
-      {/* Últimos pagos */}
+      {/* 5. Últimos movimientos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-5">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
@@ -173,6 +325,6 @@ export default function Dashboard() {
           }
         </Card>
       </div>
-    </div>);
-
+    </div>
+  );
 }

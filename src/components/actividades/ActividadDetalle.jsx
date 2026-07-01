@@ -58,9 +58,10 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
   });
 
   const marcarEntregadoMut = useMutation({
-    mutationFn: ({ id, entregado }) => base44.entities.VentaActividad.update(id, {
+    mutationFn: ({ id, entregado, comprador_nombre }) => base44.entities.VentaActividad.update(id, {
       entregado,
       fecha_entrega: entregado ? new Date().toISOString().split('T')[0] : null,
+      ...(comprador_nombre ? { comprador_nombre } : {}),
     }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ventas-actividad', actividad.id] }),
   });
@@ -110,11 +111,13 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
     } else if (hayParcial || montoRendidoTotal > 0) {
       lineas.push(`⚠️ Recibido hasta ahora: $${montoRendidoTotal.toLocaleString('es-AR')}`);
       lineas.push(`📌 *Saldo pendiente: $${saldoTotal.toLocaleString('es-AR')}*`);
-      lineas.push(`⏰ Fecha límite: *23 de mayo inclusive*`);
     } else {
       lineas.push(`📌 *Monto a abonar: $${montoTotal.toLocaleString('es-AR')}*`);
-      lineas.push(`⏰ Fecha límite: *23 de mayo inclusive*`);
     }
+    lineas.push(`💸 *Modalidad de pago: Efectivo*`);
+    if (actividad.fecha_cierre_pedidos) lineas.push(`📝 Cierre de pedidos: *${actividad.fecha_cierre_pedidos}*`);
+    if (actividad.fecha_pago) lineas.push(`💵 Fecha de pago: *${actividad.fecha_pago}*`);
+    if (actividad.fecha) lineas.push(`📅 Entrega: *${actividad.fecha}*`);
     lineas.push('');
     lineas.push(`¡Gracias por participar! 🙏`);
 
@@ -353,16 +356,18 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                               >
                                 <Banknote className="w-3.5 h-3.5" />
                               </Button>
-                              {comprador && (
-                                <Button
-                                  variant="ghost" size="icon"
-                                  className={`h-6 w-6 ${todoEntregado ? 'text-green-600' : 'text-muted-foreground'}`}
-                                  title={todoEntregado ? 'Marcar todo como NO entregado' : 'Marcar todo como entregado'}
-                                  onClick={() => items.forEach(v => marcarEntregadoMut.mutate({ id: v.id, entregado: !todoEntregado }))}
-                                >
-                                  {todoEntregado ? <PackageCheck className="w-3.5 h-3.5" /> : <Package className="w-3.5 h-3.5" />}
-                                </Button>
-                              )}
+                              <Button
+                                variant="ghost" size="icon"
+                                className={`h-6 w-6 ${todoEntregado ? 'text-green-600' : 'text-muted-foreground'}`}
+                                title={todoEntregado ? 'Marcar todo como NO entregado' : 'Marcar todo como entregado'}
+                                onClick={() => items.forEach(v => marcarEntregadoMut.mutate({
+                                  id: v.id,
+                                  entregado: !todoEntregado,
+                                  ...(!todoEntregado && !v.comprador_nombre ? { comprador_nombre: v.beneficiario_nombre || '' } : {}),
+                                }))}
+                              >
+                                {todoEntregado ? <PackageCheck className="w-3.5 h-3.5" /> : <Package className="w-3.5 h-3.5" />}
+                              </Button>
                             </div>
                           </div>
                           {/* Líneas de productos dentro del pedido */}

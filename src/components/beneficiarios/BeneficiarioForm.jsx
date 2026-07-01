@@ -15,7 +15,7 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
   const [form, setForm] = useState(initialData || {
     nombre: '', dni: '', telefono_contacto: '', telefono_contacto_2: '', fecha_nacimiento: '',
     funcion: '', categoria: '', zona: '', distrito: '', codigo: '', organismo: '',
-    religion: '', religion_descripcion: '',
+    religion: '', religion_descripcion: '', estado_panuelo: '',
     rama: '', tipo: 'Beneficiario', becado: false, email_contacto: '', activo: true,
     grupo_familiar: '', fecha_primer_afiliacion: '',
     provincia: '', localidad: '', calle: '', codigo_postal: '', nacionalidad: '',
@@ -556,6 +556,17 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                 <p className="text-xs text-muted-foreground mt-1">Se usará para auto-seleccionar este adulto al crear campamentos de esa rama</p>
               </div>
             )}
+            <div>
+              <Label>Estado del pañuelo</Label>
+              <Select value={form.estado_panuelo || ''} onValueChange={v => update('estado_panuelo', v === '__blank__' ? '' : v)}>
+                <SelectTrigger><SelectValue placeholder="Sin pañuelo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__blank__">Sin pañuelo</SelectItem>
+                  <SelectItem value="Promesa">Promesa</SelectItem>
+                  <SelectItem value="Investidura">Investidura</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Zona</Label>

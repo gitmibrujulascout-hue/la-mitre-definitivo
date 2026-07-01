@@ -15,7 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const EMPTY_FORM = {
   nombre: '', fecha_inicio: '', fecha_fin: '', costo_por_persona: '',
-  costo_adultos: '', adultos_pagan: false,
+  costo_adultos: '', adultos_pagan: false, es_privado: false,
   ubicacion: '', observaciones: '', ramas_participantes: [],
   beneficiarios_ids: [], adultos_ids: []
 };
@@ -129,6 +129,15 @@ export default function CampamentoForm({ open, onClose, beneficiarios, campament
               <p className="text-xs text-muted-foreground">Activar para poder registrar pagos de adultos</p>
             </div>
             <Switch checked={form.adultos_pagan} onCheckedChange={v => update('adultos_pagan', v)} />
+          </div>
+
+          {/* Campamento privado por rama */}
+          <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+            <div>
+              <p className="text-sm font-medium">Campamento privado por rama</p>
+              <p className="text-xs text-muted-foreground">Los movimientos de dinero se gestionan dentro del campamento y no impactan en la caja general del grupo</p>
+            </div>
+            <Switch checked={form.es_privado || false} onCheckedChange={v => update('es_privado', v)} />
           </div>
           {form.adultos_pagan && (
             <div>

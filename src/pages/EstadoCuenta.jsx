@@ -136,12 +136,18 @@ export default function EstadoCuenta() {
     const saldoCuotas = -deudaCuotas;
 
     // Campamentos asignados al beneficiario
-    const campBen = campamentos.filter(c => c.beneficiarios_ids?.includes(b.id));
+    const campBen = campamentos.filter(c => c.beneficiarios_ids?.includes(b.id) || c.adultos_ids?.includes(b.id));
     // Total pagado en campamentos (todos los pagos)
     const pagadoCamp = pagosDelBen
       .filter(p => p.tipo_pago === 'Campamento')
       .reduce((s, p) => s + (p.monto || 0), 0);
-    const totalCampamentos = campBen.reduce((s, c) => s + (c.costo_por_persona || 0), 0);
+    const totalCampamentos = campBen.reduce((s, c) => {
+      const esAdulto = c.adultos_ids?.includes(b.id) && !c.beneficiarios_ids?.includes(b.id);
+      if (esAdulto) {
+        return s + (c.adultos_pagan ? (c.costo_adultos || c.costo_por_persona || 0) : 0);
+      }
+      return s + (c.costo_por_persona || 0);
+    }, 0);
     const saldoCamp = pagadoCamp - totalCampamentos;
 
     // Créditos disponibles
@@ -498,7 +504,11 @@ export default function EstadoCuenta() {
                       const pagadoEste = pagos
                         .filter(p => p.beneficiario_id === b.id && p.tipo_pago === 'Campamento' && p.campamento_id === c.id)
                         .reduce((s, p) => s + (p.monto || 0), 0);
-                      const saldoCamp = (c.costo_por_persona || 0) - pagadoEste;
+                      const esAdultoCamp = c.adultos_ids?.includes(b.id) && !c.beneficiarios_ids?.includes(b.id);
+                      const costoBen = esAdultoCamp
+                        ? (c.adultos_pagan ? (c.costo_adultos || c.costo_por_persona || 0) : 0)
+                        : (c.costo_por_persona || 0);
+                      const saldoCamp = costoBen - pagadoEste;
                       return (
                         <Card key={c.id} className="p-4 flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
@@ -509,7 +519,7 @@ export default function EstadoCuenta() {
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-xs text-muted-foreground">Costo: {formatMoney(c.costo_por_persona)}</p>
+                            <p className="text-xs text-muted-foreground">Costo: {formatMoney(costoBen)}</p>
                             <p className={cn("text-sm font-semibold", saldoCamp <= 0 ? "text-green-600" : "text-red-500")}>
                               {saldoCamp <= 0 ? "Pagado ✓" : `Debe: ${formatMoney(saldoCamp)}`}
                             </p>
