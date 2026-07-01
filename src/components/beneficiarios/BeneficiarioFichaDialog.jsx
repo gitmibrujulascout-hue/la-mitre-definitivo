@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import RamaBadge from '@/components/shared/RamaBadge';
 import EditarSaludDialog from '@/components/beneficiarios/EditarSaludDialog';
-import { MapPin, User, Shield, BookOpen, Award, UserCog, HeartPulse, Pencil } from 'lucide-react';
+import { MapPin, User, Shield, BookOpen, Award, UserCog, HeartPulse, Pencil, Medal, Crown } from 'lucide-react';
+
+const PANUELO_PROMESA_IMG = "https://media.base44.com/images/public/69f1ed5d29db0dc5bc7e0ef8/9f0e84abb_Gemini_Generated_Image_pm52inpm52inpm52.png";
 
 function Field({ label, value }) {
   if (!value) return null;
@@ -67,6 +69,21 @@ export default function BeneficiarioFichaDialog({ open, onClose, beneficiario: b
             )}
             {!b.activo && (
               <Badge variant="secondary">Inactivo</Badge>
+            )}
+            {b.estado_panuelo === 'Promesa' && (
+              <Badge className="bg-blue-100 text-blue-700 border-blue-300 border" title="Pañuelo: Promesa">
+                <img src={PANUELO_PROMESA_IMG} alt="Promesa" className="w-3.5 h-3.5 mr-1 object-contain inline-block align-middle" />Promesa
+              </Badge>
+            )}
+            {b.estado_panuelo === 'Investidura' && (
+              <Badge className="bg-indigo-100 text-indigo-700 border-indigo-300 border" title="Pañuelo: Investidura">
+                <Medal className="w-3 h-3 mr-1" />Investidura
+              </Badge>
+            )}
+            {b.estado_panuelo === 'Paturuzú' && (
+              <Badge className="bg-amber-100 text-amber-800 border-amber-400 border" title="Pañuelo: Paturuzú">
+                <Crown className="w-3 h-3 mr-1" />Paturuzú
+              </Badge>
             )}
           </div>
         </DialogHeader>

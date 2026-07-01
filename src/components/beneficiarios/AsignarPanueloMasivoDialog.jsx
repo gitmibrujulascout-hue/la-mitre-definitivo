@@ -5,13 +5,17 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Search, Award, Medal, Crown } from 'lucide-react';
+import { Search, Medal, Crown } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 
+const PANUELO_IMG = "https://media.base44.com/images/public/69f1ed5d29db0dc5bc7e0ef8/9f0e84abb_Gemini_Generated_Image_pm52inpm52inpm52.png";
+
+const PromesaImg = ({ className }) => <img src={PANUELO_IMG} alt="Promesa" className={className} />;
+
 const PANUELO_OPTIONS = [
   { value: '', label: 'Sin pañuelo', icon: null },
-  { value: 'Promesa', label: 'Promesa', icon: Award },
+  { value: 'Promesa', label: 'Promesa', icon: PromesaImg },
   { value: 'Investidura', label: 'Investidura', icon: Medal },
   { value: 'Paturuzú', label: 'Paturuzú', icon: Crown },
 ];
