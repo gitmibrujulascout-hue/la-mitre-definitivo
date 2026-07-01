@@ -1,0 +1,63 @@
+{
+  "name": "ConfigCuota",
+  "type": "object",
+  "properties": {
+    "mes": {
+      "type": "string",
+      "enum": [
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre"
+      ],
+      "description": "Mes de la configuraci\u00f3n de cuota"
+    },
+    "anio": {
+      "type": "number",
+      "description": "A\u00f1o de la configuraci\u00f3n"
+    },
+    "monto_efectivo": {
+      "type": "number",
+      "description": "Monto de la cuota en efectivo"
+    },
+    "monto_transferencia": {
+      "type": "number",
+      "description": "Monto de la cuota por transferencia"
+    },
+    "observaciones": {
+      "type": "string",
+      "description": "Notas adicionales (ej: aumento aplicado)"
+    }
+  },
+  "required": [
+    "mes",
+    "anio",
+    "monto_efectivo"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, CreditCard, Receipt, Tent, 
-  BookOpen, Menu, X, TreePine, Landmark, TrendingUp, ExternalLink, FileText, ShieldCheck, MessageCircle, HeartPulse, ShoppingBag
+  BookOpen, Menu, X, TreePine, Landmark, TrendingUp, ExternalLink, FileText, ShieldCheck, MessageCircle, HeartPulse, ShoppingBag, Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +14,7 @@ const navItems = [
   { path: '/campamentos', label: 'Campamentos', icon: Tent },
   { path: '/cuenta-corriente', label: 'Cta. Corriente', icon: BookOpen },
   { path: '/caja', label: 'Caja y Banco', icon: Landmark },
+  { path: '/config-cuotas', label: 'Config. Cuotas', icon: Calendar },
   { path: '/tienda', label: 'Tienda', icon: ShoppingBag },
   { path: '/actividades', label: 'Act. Económicas', icon: TrendingUp },
   { path: '/reporte-pagos', label: 'Reporte de Pagos', icon: FileText },

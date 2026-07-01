@@ -70,10 +70,34 @@ export function estaAlDia(b, pagosCuotasAnio, mesesQueGeneranDeuda) {
 }
 
 // Devuelve la cuota base para un mes específico (antes de descuentos)
-export function getCuotaBaseMes(mes) {
-  const config = CUOTAS_MENSUALES[mes];
-  if (config !== null && config !== undefined) return config;
+// Soporta valores dinámicos por mes/año desde la entidad ConfigCuota
+export function getCuotaBaseMes(mes, anio, configCuotas = []) {
+  if (MESES_SIN_CUOTA.includes(mes)) return 0;
+  // Buscar configuración dinámica (mes + año)
+  if (anio && configCuotas.length > 0) {
+    const config = configCuotas.find(c => c.mes === mes && Number(c.anio) === Number(anio));
+    if (config && config.monto_efectivo != null) return config.monto_efectivo;
+  }
+  // Fallback a valores estáticos
+  const staticConfig = CUOTAS_MENSUALES[mes];
+  if (staticConfig !== null && staticConfig !== undefined) return staticConfig;
   return CUOTA_EFECTIVO;
+}
+
+// Devuelve la cuota por transferencia para un mes/año específico
+export function getCuotaTransferenciaMes(mes, anio, configCuotas = []) {
+  if (MESES_SIN_CUOTA.includes(mes)) return 0;
+  if (anio && configCuotas.length > 0) {
+    const config = configCuotas.find(c => c.mes === mes && Number(c.anio) === Number(anio));
+    if (config && config.monto_transferencia != null) return config.monto_transferencia;
+  }
+  return CUOTA_TRANSFERENCIA;
+}
+
+// Devuelve el crédito de Julio (el 50% que se acredita al beneficiario al día)
+export function getCreditoJulio(cuotaBase, alDia) {
+  if (!alDia) return 0;
+  return Math.round(cuotaBase * JULIO_DESCUENTO_AL_DIA);
 }
 
 // Devuelve la cuota efectiva para un mes específico, aplicando descuento de Julio
@@ -99,9 +123,9 @@ export function esBeneficiarioConCuota(b) {
  * @param {object} b - beneficiario
  * @param {array} todosBeneficiarios - lista completa de beneficiarios activos
  */
-export function getCuotaBeneficiario(b, todosBeneficiarios = []) {
+export function getCuotaBeneficiario(b, todosBeneficiarios = [], baseEfectivo = CUOTA_EFECTIVO) {
   if (!esBeneficiarioConCuota(b)) return 0;
-  if (!b.grupo_familiar) return CUOTA_EFECTIVO;
+  if (!b.grupo_familiar) return baseEfectivo;
 
   // Contar hermanos que también pagan cuota (activos, mismo grupo_familiar)
   const hermanos = todosBeneficiarios.filter(x =>
@@ -119,7 +143,7 @@ export function getCuotaBeneficiario(b, todosBeneficiarios = []) {
     if (cantidadTotal >= nivel) descuento = DESCUENTO_HERMANOS[nivel];
   }
 
-  return Math.round(CUOTA_EFECTIVO * (1 - descuento));
+  return Math.round(baseEfectivo * (1 - descuento));
 }
 
 export function getRamaBadge(rama) {

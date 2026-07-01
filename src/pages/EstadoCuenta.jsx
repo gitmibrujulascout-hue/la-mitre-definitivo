@@ -14,7 +14,7 @@ import FichaSaludFamiliaDialog from '@/components/beneficiarios/FichaSaludFamili
 import RamaBadge from '@/components/shared/RamaBadge';
 import {
   MESES, MESES_SIN_CUOTA,
-  CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado,
+  CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, getCuotaBaseMes, getCuotaTransferenciaMes, marzoEsBonificado,
   estaAlDia, getCuotaMes, JULIO_DESCUENTO_AL_DIA
 } from '@/lib/ramaUtils';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
@@ -52,6 +52,11 @@ export default function EstadoCuenta() {
   const { data: afiliaciones = [] } = useQuery({
     queryKey: ['afiliaciones'],
     queryFn: () => base44.entities.Afiliacion.list('-fecha_pago', 500),
+  });
+
+  const { data: configCuotas = [] } = useQuery({
+    queryKey: ['config_cuotas'],
+    queryFn: () => base44.entities.ConfigCuota.list(),
   });
 
   // Buscar beneficiario por DNI
@@ -111,16 +116,20 @@ export default function EstadoCuenta() {
       return true;
     });
 
-    const cuotaIndividual = getCuotaBeneficiario(b, activos);
+    // Cuota del mes actual para display
+    const mesActualNombre = MESES[new Date().getMonth()];
+    const baseMesActual = getCuotaBaseMes(mesActualNombre, anio, configCuotas);
+    const cuotaIndividual = getCuotaBeneficiario(b, activos, baseMesActual);
     // Calcular cuota transferencia aplicando el mismo ratio de descuento que efectivo
-    const ratioDescuento = esBeneficiarioConCuota(b) ? cuotaIndividual / CUOTA_EFECTIVO : 1;
-    const cuotaTransferencia = Math.round(CUOTA_TRANSFERENCIA * ratioDescuento);
+    const ratioDescuento = esBeneficiarioConCuota(b) ? cuotaIndividual / baseMesActual : 1;
+    const baseTransferenciaActual = getCuotaTransferenciaMes(mesActualNombre, anio, configCuotas);
+    const cuotaTransferencia = Math.round(baseTransferenciaActual * ratioDescuento);
 
-    // Calcular deuda mes por mes: si el mes ya está pagado no genera deuda,
-    // si no está pagado genera deuda por la cuota base (efectivo).
-    // Esto evita que pagar por transferencia (monto mayor) genere saldo a favor irreal.
+    // Calcular deuda mes por mes: cada mes puede tener su propio valor de cuota
     let deudaCuotas = 0;
     let pagadoCuotas = 0;
+    let creditoJulioPendiente = 0;
+    let creditoJulioGenerado = false;
     const alDia = esBeneficiarioConCuota(b) ? estaAlDia(b, pagosCuotasAnio, mesesQueGeneranDeuda) : false;
     if (esBeneficiarioConCuota(b)) {
       // Meses efectivamente cubiertos por algún pago
@@ -128,8 +137,20 @@ export default function EstadoCuenta() {
         pagosCuotasAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []))
       );
       const mesesPendientes = mesesQueGeneranDeuda.filter(m => !mesesCubiertos.has(m));
-      // Deuda = suma de cuota de cada mes pendiente (Julio al 50% si está al día)
-      deudaCuotas = mesesPendientes.reduce((s, m) => s + getCuotaMes(m, cuotaIndividual, alDia), 0);
+      // Verificar si el crédito de Julio ya fue generado
+      const labelCreditoJulio = `Crédito Julio ${anio}`;
+      creditoJulioGenerado = creditos.some(c => c.beneficiario_id === b.id && c.observaciones === labelCreditoJulio);
+      // Deuda = suma de cuota de cada mes pendiente (cada mes usa su valor propio)
+      deudaCuotas = mesesPendientes.reduce((s, m) => {
+        const baseMes = getCuotaBaseMes(m, anio, configCuotas);
+        const cuotaBenMes = getCuotaBeneficiario(b, activos, baseMes);
+        const cuotaFinal = getCuotaMes(m, cuotaBenMes, alDia);
+        // Julio: el otro 50% es crédito (si aún no fue generado)
+        if (m === 'Julio' && alDia && !creditoJulioGenerado) {
+          creditoJulioPendiente = Math.round(cuotaBenMes * JULIO_DESCUENTO_AL_DIA);
+        }
+        return s + cuotaFinal;
+      }, 0);
       pagadoCuotas = pagosCuotasAnio.reduce((s, p) => s + (p.monto || 0), 0);
     } else {
       pagadoCuotas = pagosCuotasAnio.reduce((s, p) => s + (p.monto || 0), 0);
@@ -183,6 +204,8 @@ export default function EstadoCuenta() {
       cuotaTransferencia,
       alDia,
       descuentoJulio: alDia && mesesQueGeneranDeuda.includes('Julio'),
+      creditoJulioPendiente,
+      creditoJulioGenerado,
       tieneDescuento: cuotaIndividual < CUOTA_EFECTIVO && esBeneficiarioConCuota(b),
     };
   };
@@ -503,9 +526,18 @@ export default function EstadoCuenta() {
                   </div>
                 )}
                 {cuenta.descuentoJulio && (
-                  <p className="text-xs text-cyan-600 mt-1 px-1">
-                    Julio al día: pagás solo {formatMoney(Math.round(cuenta.cuotaIndividual * (1 - JULIO_DESCUENTO_AL_DIA)))} (50% de descuento)
-                  </p>
+                  <div className="text-xs text-cyan-600 mt-1 px-1 space-y-0.5">
+                    <p>Julio al día: pagás solo {formatMoney(Math.round(cuenta.cuotaIndividual * (1 - JULIO_DESCUENTO_AL_DIA)))} (50% de descuento)</p>
+                    {cuenta.creditoJulioGenerado ? (
+                      <p className="text-green-600 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />Crédito de Julio de {formatMoney(cuenta.creditoJulioPendiente || Math.round(cuenta.cuotaIndividual * JULIO_DESCUENTO_AL_DIA))} ya acreditado en tu cuenta
+                      </p>
+                    ) : cuenta.creditoJulioPendiente > 0 && (
+                      <p className="text-cyan-700 flex items-center gap-1">
+                        <Gift className="w-3 h-3" />Recibirás {formatMoney(cuenta.creditoJulioPendiente)} como crédito en tu cuenta al pagar Julio
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 

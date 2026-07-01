@@ -15,6 +15,7 @@ import CuentaCorriente from '@/pages/CuentaCorriente';
 import Caja from '@/pages/Caja';
 import ActividadesEconomicas from '@/pages/ActividadesEconomicas';
 import Tienda from '@/pages/Tienda';
+import ConfiguracionCuotas from '@/pages/ConfiguracionCuotas';
 import EstadoCuenta from '@/pages/EstadoCuenta';
 import ReportePagos from '@/pages/ReportePagos';
 import Afiliaciones from '@/pages/Afiliaciones';
@@ -70,6 +71,7 @@ const AuthenticatedApp = () => {
         <Route path="/cuenta-corriente" element={<CuentaCorriente />} />
         <Route path="/caja" element={<Caja />} />
         <Route path="/tienda" element={<Tienda />} />
+        <Route path="/config-cuotas" element={<ConfiguracionCuotas />} />
         <Route path="/actividades" element={<ActividadesEconomicas />} />
         <Route path="/reporte-pagos" element={<ReportePagos />} />
         <Route path="/afiliaciones" element={<Afiliaciones />} />
