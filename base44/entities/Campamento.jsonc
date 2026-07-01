@@ -18,7 +18,7 @@
     },
     "costo_por_persona": {
       "type": "number",
-      "description": "Costo por persona del campamento (ni\u00f1os)"
+      "description": "Costo por persona del campamento (beneficiarios)"
     },
     "costo_adultos": {
       "type": "number",
@@ -28,6 +28,11 @@
       "type": "boolean",
       "default": false,
       "description": "Si los adultos/voluntarios deben abonar el campamento"
+    },
+    "es_privado": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si es un campamento privado por rama: los movimientos de dinero se gestionan dentro del campamento y no impactan en la caja general del grupo"
     },
     "ramas_participantes": {
       "type": "array",
@@ -41,7 +46,7 @@
       "items": {
         "type": "string"
       },
-      "description": "IDs de beneficiarios (ni\u00f1os) que asisten"
+      "description": "IDs de beneficiarios que asisten"
     },
     "adultos_ids": {
       "type": "array",
@@ -78,31 +83,8 @@
         "role": "admin"
       }
     },
-    "update": {
-      "$or": [
-        {
-          "created_by": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
+    "update": {},
     "delete": {
-      "$or": [
-        {
-          "created_by": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "write": {
       "$or": [
         {
           "created_by": "{{user.email}}"
