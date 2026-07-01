@@ -1,20 +1,22 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Pencil, Printer, MapPin, Calendar, Users, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Pencil, Printer, MapPin, Calendar, Users, AlertTriangle, Calculator } from 'lucide-react';
 import RamaBadge from '@/components/shared/RamaBadge';
 import { formatMoney, RAMA_CONFIG, RAMAS } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import AutorizacionesPanel from './AutorizacionesPanel';
 import BalanceCampamento from './BalanceCampamento';
 import CodigoAccesoPanel from './CodigoAccesoPanel';
+import PresupuestoCampamento from './PresupuestoCampamento';
 import { differenceInYears, parseISO } from 'date-fns';
 
 // Orden canónico de ramas
 const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 
 export default function CampamentoDetalle({ campamento, beneficiarios, pagos, gastos, onBack, onEdit }) {
+  const [showPresupuesto, setShowPresupuesto] = useState(false);
   const getBen = (id) => beneficiarios.find(b => b.id === id);
 
   const menoresCount = useMemo(() =>
@@ -187,6 +189,7 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
           </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowPresupuesto(true)}><Calculator className="w-4 h-4 mr-2" />Presupuesto</Button>
           <Button variant="outline" onClick={handlePrint}><Printer className="w-4 h-4 mr-2" />Exportar listado</Button>
           <Button onClick={onEdit}><Pencil className="w-4 h-4 mr-2" />Editar</Button>
         </div>
@@ -339,6 +342,15 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
             ))}
           </CardContent>
         </Card>
+      )}
+
+      {showPresupuesto && (
+        <PresupuestoCampamento
+          open
+          onClose={() => setShowPresupuesto(false)}
+          campamento={campamento}
+          beneficiarios={beneficiarios}
+        />
       )}
     </div>
   );

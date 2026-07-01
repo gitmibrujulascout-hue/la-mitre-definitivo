@@ -10,7 +10,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { formatMoney } from '@/lib/ramaUtils';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Tag } from 'lucide-react';
+import { Plus, Trash2, Tag, Zap } from 'lucide-react';
 
 const emptyLinea = { producto_id: '', cantidad_vendida: '' };
 
@@ -19,6 +19,7 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
   const [comprador_nombre, setCompradorNombre] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [lineas, setLineas] = useState([{ ...emptyLinea }]);
+  const [cantidadTotal, setCantidadTotal] = useState('');
 
   const { data: productos = [] } = useQuery({
     queryKey: ['productos-actividad', actividad?.id],
@@ -54,6 +55,44 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
 
   const addLinea = () => setLineas(prev => [...prev, { ...emptyLinea }]);
   const removeLinea = (i) => setLineas(prev => prev.filter((_, idx) => idx !== i));
+
+  // Distribución automática: dada una cantidad total, arma líneas con promos + unidades sueltas
+  const distribuirAutomatico = () => {
+    const total = parseInt(cantidadTotal) || 0;
+    if (total <= 0 || sorted.length === 0) return;
+
+    // Buscar la promo con mayor cantidad_promo (mejor relación precio/unidad)
+    const promos = sorted.filter(p => p.es_promo && p.cantidad_promo > 0);
+    const unidades = sorted.filter(p => !p.es_promo);
+
+    const nuevasLineas = [];
+
+    if (promos.length > 0) {
+      // Usar la promo de mayor cantidad primero
+      const promo = promos.sort((a, b) => b.cantidad_promo - a.cantidad_promo)[0];
+      const cantPromos = Math.floor(total / promo.cantidad_promo);
+      const resto = total % promo.cantidad_promo;
+      if (cantPromos > 0) {
+        nuevasLineas.push({ producto_id: promo.id, cantidad_vendida: cantPromos.toString() });
+      }
+      if (resto > 0 && unidades.length > 0) {
+        const unitario = unidades.sort((a, b) => (a.precio_venta || 0) - (b.precio_venta || 0))[0];
+        nuevasLineas.push({ producto_id: unitario.id, cantidad_vendida: resto.toString() });
+      } else if (resto > 0 && promos.length > 0 && cantPromos === 0) {
+        // Si no hay unitario y la promo no alcanza, igual registrar la promo como 1
+        nuevasLineas.push({ producto_id: promo.id, cantidad_vendida: '1' });
+      }
+    } else if (unidades.length > 0) {
+      // Sin promos: todo al unitario más barato
+      const unitario = unidades.sort((a, b) => (a.precio_venta || 0) - (b.precio_venta || 0))[0];
+      nuevasLineas.push({ producto_id: unitario.id, cantidad_vendida: total.toString() });
+    }
+
+    if (nuevasLineas.length > 0) {
+      setLineas(nuevasLineas);
+      setCantidadTotal('');
+    }
+  };
 
   const createMut = useMutation({
     mutationFn: data => base44.entities.VentaActividad.create(data),
@@ -131,6 +170,37 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
                 </Button>
               )}
             </div>
+
+            {/* Distribución automática por cantidad total */}
+            {tieneProductos && (
+              <div className="mb-3 p-3 rounded-lg border border-blue-200 bg-blue-50/50">
+                <p className="text-xs font-medium text-blue-800 mb-2 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5" />
+                  Carga rápida por cantidad total
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={cantidadTotal}
+                    onChange={e => setCantidadTotal(e.target.value)}
+                    placeholder="Cantidad total de unidades"
+                    className="h-8 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={distribuirAutomatico}
+                    disabled={!cantidadTotal || parseInt(cantidadTotal) <= 0}
+                  >
+                    Distribuir
+                  </Button>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  Distribuye automáticamente en promos + unidades sueltas para minimizar el precio.
+                </p>
+              </div>
+            )}
 
             {!tieneProductos && (
               <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">

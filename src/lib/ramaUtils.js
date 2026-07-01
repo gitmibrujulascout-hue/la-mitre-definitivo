@@ -38,6 +38,52 @@ export function marzoEsBonificado(afiliacionAnio, esPrimeraVez) {
 export const CUOTA_EFECTIVO = 25000;
 export const CUOTA_TRANSFERENCIA = 27000;
 
+// === Configuración de cuotas por mes ===
+// Permite definir valores específicos por mes. null = usa CUOTA_EFECTIVO.
+// Meses sin actividad (Enero, Febrero) = 0 (no generan deuda)
+export const CUOTAS_MENSUALES = {
+  'Enero': 0,
+  'Febrero': 0,
+  'Marzo': null,    // usa CUOTA_EFECTIVO (bonificado si pagó afiliación a tiempo)
+  'Abril': null,
+  'Mayo': null,
+  'Junio': null,
+  'Julio': null,    // 50% descuento para beneficiarios al día (ver JULIO_DESCUENTO)
+  'Agosto': null,
+  'Septiembre': null,
+  'Octubre': null,
+  'Noviembre': null,
+  'Diciembre': null,
+};
+
+// Julio: beneficiarios al día pagan solo el 50% de la cuota
+export const JULIO_DESCUENTO_AL_DIA = 0.5;
+
+// Verifica si el beneficiario tiene todos los meses (excluyendo Julio) pagados
+export function estaAlDia(b, pagosCuotasAnio, mesesQueGeneranDeuda) {
+  const mesesCubiertos = new Set(
+    pagosCuotasAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []))
+  );
+  return mesesQueGeneranDeuda
+    .filter(m => m !== 'Julio')
+    .every(m => mesesCubiertos.has(m));
+}
+
+// Devuelve la cuota base para un mes específico (antes de descuentos)
+export function getCuotaBaseMes(mes) {
+  const config = CUOTAS_MENSUALES[mes];
+  if (config !== null && config !== undefined) return config;
+  return CUOTA_EFECTIVO;
+}
+
+// Devuelve la cuota efectiva para un mes específico, aplicando descuento de Julio
+export function getCuotaMes(mes, cuotaBase, alDia = false) {
+  if (mes === 'Julio' && alDia) {
+    return Math.round(cuotaBase * (1 - JULIO_DESCUENTO_AL_DIA));
+  }
+  return cuotaBase;
+}
+
 // Descuentos por grupo familiar (hermanos que pagan cuota)
 // 2 hermanos: 50% de descuento c/u ($22.500 cada uno sobre base $45.000)
 // 4 hermanos: 25% de descuento c/u

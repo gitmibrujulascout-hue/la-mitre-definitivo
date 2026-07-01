@@ -14,7 +14,8 @@ import FichaSaludFamiliaDialog from '@/components/beneficiarios/FichaSaludFamili
 import RamaBadge from '@/components/shared/RamaBadge';
 import {
   MESES, MESES_SIN_CUOTA,
-  CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado
+  CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado,
+  estaAlDia, getCuotaMes, JULIO_DESCUENTO_AL_DIA
 } from '@/lib/ramaUtils';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 import { cn } from '@/lib/utils';
@@ -120,14 +121,15 @@ export default function EstadoCuenta() {
     // Esto evita que pagar por transferencia (monto mayor) genere saldo a favor irreal.
     let deudaCuotas = 0;
     let pagadoCuotas = 0;
+    const alDia = esBeneficiarioConCuota(b) ? estaAlDia(b, pagosCuotasAnio, mesesQueGeneranDeuda) : false;
     if (esBeneficiarioConCuota(b)) {
       // Meses efectivamente cubiertos por algún pago
       const mesesCubiertos = new Set(
         pagosCuotasAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []))
       );
       const mesesPendientes = mesesQueGeneranDeuda.filter(m => !mesesCubiertos.has(m));
-      // Deuda = meses no pagados × cuota base (sin importar si pagaron transferencia o efectivo)
-      deudaCuotas = mesesPendientes.length * cuotaIndividual;
+      // Deuda = suma de cuota de cada mes pendiente (Julio al 50% si está al día)
+      deudaCuotas = mesesPendientes.reduce((s, m) => s + getCuotaMes(m, cuotaIndividual, alDia), 0);
       pagadoCuotas = pagosCuotasAnio.reduce((s, p) => s + (p.monto || 0), 0);
     } else {
       pagadoCuotas = pagosCuotasAnio.reduce((s, p) => s + (p.monto || 0), 0);
@@ -179,6 +181,8 @@ export default function EstadoCuenta() {
       creditosDisp,
       marzoGratis,
       cuotaTransferencia,
+      alDia,
+      descuentoJulio: alDia && mesesQueGeneranDeuda.includes('Julio'),
       tieneDescuento: cuotaIndividual < CUOTA_EFECTIVO && esBeneficiarioConCuota(b),
     };
   };
@@ -278,6 +282,11 @@ export default function EstadoCuenta() {
                         {cuenta.tieneDescuento && (
                           <Badge className="bg-blue-100 text-blue-700 border-blue-300 border">
                             Descuento hermanos
+                          </Badge>
+                        )}
+                        {cuenta.descuentoJulio && (
+                          <Badge className="bg-cyan-100 text-cyan-700 border-cyan-300 border">
+                            Julio {Math.round((1 - JULIO_DESCUENTO_AL_DIA) * 100)}% al día
                           </Badge>
                         )}
                       </div>
@@ -492,6 +501,11 @@ export default function EstadoCuenta() {
                       <span className="text-muted-foreground"> /mes</span>
                     </span>
                   </div>
+                )}
+                {cuenta.descuentoJulio && (
+                  <p className="text-xs text-cyan-600 mt-1 px-1">
+                    Julio al día: pagás solo {formatMoney(Math.round(cuenta.cuotaIndividual * (1 - JULIO_DESCUENTO_AL_DIA)))} (50% de descuento)
+                  </p>
                 )}
               </div>
 
