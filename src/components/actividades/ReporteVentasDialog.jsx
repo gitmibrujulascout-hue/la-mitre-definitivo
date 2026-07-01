@@ -10,6 +10,24 @@ function apellido(nombre = '') {
   return partes[partes.length - 1].toLowerCase();
 }
 
+// Orden de prioridad de ramas
+const RAMA_ORDER = {
+  'Lobatos': 1,
+  'Tropa': 2,
+  'KM': 3,
+  'Rovers': 4,
+  'Voluntario': 5,
+  'Educador': 5,
+};
+const RAMA_LABEL = {
+  'Lobatos': 'Lobatos',
+  'Tropa': 'Tropa',
+  'KM': 'Caminantes',
+  'Rovers': 'Rovers',
+  'Voluntario': 'Adultos',
+  'Educador': 'Adultos',
+};
+
 // Estado rendición helpers
 const RENDICION_CONFIG = {
   'Sin rendir':  { label: 'Sin rendir',  color: 'text-red-600',    bg: 'bg-red-50',    border: 'border-red-200' },
@@ -27,7 +45,7 @@ function getSaldo(v) {
   return total - rendido;
 }
 
-export default function ReporteVentasDialog({ open, onClose, actividad, ventas }) {
+export default function ReporteVentasDialog({ open, onClose, actividad, ventas, beneficiarios = [] }) {
   const printRef = useRef();
 
   const totalRecaudado = ventas.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
@@ -40,20 +58,24 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
   const entregadas = ventas.filter(v => v.entregado).length;
   const pendientes = ventas.filter(v => !v.entregado).length;
 
-  // Agrupar por vendedor, ordenado alfabéticamente por apellido
+  // Agrupar por vendedor
   const ventasPorVendedor = {};
   ventas.forEach(v => {
     const key = v.beneficiario_id || v.beneficiario_nombre;
     if (!ventasPorVendedor[key]) {
-      ventasPorVendedor[key] = { nombre: v.beneficiario_nombre, ventas: [] };
+      const ben = beneficiarios.find(b => b.id === v.beneficiario_id);
+      ventasPorVendedor[key] = { nombre: v.beneficiario_nombre, ventas: [], rama: ben?.rama || '', ben };
     }
     ventasPorVendedor[key].ventas.push(v);
   });
 
-  // Ordenar vendedores por apellido
-  const vendedoresOrdenados = Object.values(ventasPorVendedor).sort((a, b) =>
-    apellido(a.nombre).localeCompare(apellido(b.nombre), 'es')
-  );
+  // Ordenar vendedores: primero por rama (Lobatos, Tropa, KM, Rovers, Adultos), luego por apellido
+  const vendedoresOrdenados = Object.values(ventasPorVendedor).sort((a, b) => {
+    const ra = RAMA_ORDER[a.rama] ?? 99;
+    const rb = RAMA_ORDER[b.rama] ?? 99;
+    if (ra !== rb) return ra - rb;
+    return apellido(a.nombre).localeCompare(apellido(b.nombre), 'es');
+  });
 
   // Dentro de cada vendedor, ordenar sus ventas por comprador_nombre (alfabéticamente)
   vendedoresOrdenados.forEach(v => {
@@ -64,12 +86,30 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
     });
   });
 
+  // Agrupar vendedores por rama preservando el orden
+  const ramaSections = [];
+  let currentRama = null;
+  vendedoresOrdenados.forEach(v => {
+    const ramaKey = v.rama || '__sin_rama__';
+    if (ramaKey !== currentRama) {
+      currentRama = ramaKey;
+      ramaSections.push({ rama: v.rama, vendedores: [v] });
+    } else {
+      ramaSections[ramaSections.length - 1].vendedores.push(v);
+    }
+  });
+
   // ---- EXPORTAR XLS (tabla HTML que Excel abre perfectamente) ----
   const handleExportXLS = () => {
     const fmt = (n) => (n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     let rn = 0;
 
-    const filas = vendedoresOrdenados.map(({ nombre, ventas: vv }) => {
+    const filas = ramaSections.map(({ rama, vendedores }) => {
+      const ramaLabel = rama ? RAMA_LABEL[rama] || rama : 'Sin rama';
+      const ramaHeader = `<tr style="background:#d1d5e8">
+        <td colspan="10" style="padding:8px 10px;border:1px solid #9ca3c0;font-weight:bold;font-size:12px;color:#312e81;text-transform:uppercase">${ramaLabel}</td>
+      </tr>`;
+      const vendedorFilas = vendedores.map(({ nombre, ventas: vv }) => {
       const subtotal = vv.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
       const subRendido = vv.reduce((s, v) => s + (v.monto_rendido || (v.estado_rendicion === 'Rendido' ? v.monto_recaudado : 0) || 0), 0);
       const subSaldo = subtotal - subRendido;
@@ -102,7 +142,9 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
         <td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:right;font-weight:bold;color:#dc2626">${subSaldo > 0 ? fmt(subSaldo) : '—'}</td>
       </tr>`;
 
-      return vendedorFila + subFilas;
+        return vendedorFila + subFilas;
+      }).join('');
+      return ramaHeader + vendedorFilas;
     }).join('');
 
     const html = `
@@ -252,7 +294,14 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
               </tr>
             </thead>
             <tbody>
-              {vendedoresOrdenados.map(({ nombre, ventas: vv }) => {
+              {ramaSections.map(({ rama, vendedores }) => (
+                <React.Fragment key={rama || '__sin_rama__'}>
+                  <tr className="rama-row">
+                    <td colSpan={8} className="px-2 py-1.5 bg-slate-200 font-bold text-xs uppercase text-slate-700 tracking-wide border-y-2 border-slate-300">
+                      {rama ? RAMA_LABEL[rama] || rama : 'Sin rama'}
+                    </td>
+                  </tr>
+                  {vendedores.map(({ nombre, ventas: vv }) => {
                 const subtotal = vv.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
                 const subRendido = vv.reduce((s, v) => s + (v.monto_rendido || (v.estado_rendicion === 'Rendido' ? v.monto_recaudado : 0) || 0), 0);
                 const subSaldo = subtotal - subRendido;
@@ -327,10 +376,12 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas }
                        </tr>
                      );
                     })}
-                  </React.Fragment>
-                );
-              })}
-              {/* Fila total */}
+                    </React.Fragment>
+                    );
+                    })}
+                    </React.Fragment>
+                    ))}
+                    {/* Fila total */}
               <tr className="total-row bg-green-50 border-t-2 border-green-300">
                 <td colSpan={3} className="px-2 py-1 text-sm font-bold">TOTAL GENERAL</td>
                 <td className="px-2 py-1 text-center font-bold">{totalUnidades || '—'}</td>

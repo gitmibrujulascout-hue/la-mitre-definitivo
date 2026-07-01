@@ -480,6 +480,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
           open
           actividad={actividad}
           ventas={ventas}
+          beneficiarios={beneficiarios}
           onClose={() => setShowReporte(false)}
         />
       )}
