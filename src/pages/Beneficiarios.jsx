@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye, MessageCircle, AlertCircle, HeartPulse, Bell, Shirt } from 'lucide-react';
+import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye, MessageCircle, AlertCircle, HeartPulse, Bell, Medal } from 'lucide-react';
 import ImportarFichaSaludDialog from '@/components/beneficiarios/ImportarFichaSaludDialog';
 import RevisionSolicitudesSaludDialog from '@/components/beneficiarios/RevisionSolicitudesSaludDialog';
 import PageHeader from '@/components/shared/PageHeader';
@@ -344,7 +344,7 @@ export default function Beneficiarios() {
                       )}
                       {b.estado_panuelo && (
                         <Badge className={b.estado_panuelo === 'Promesa' ? 'bg-blue-100 text-blue-700 border-blue-300 border' : 'bg-indigo-100 text-indigo-700 border-indigo-300 border'} title={`Pañuelo: ${b.estado_panuelo}`}>
-                          <Shirt className="w-3 h-3 mr-1" />{b.estado_panuelo}
+                          {b.estado_panuelo === 'Promesa' ? <Award className="w-3 h-3 mr-1" /> : <Medal className="w-3 h-3 mr-1" />}{b.estado_panuelo}
                         </Badge>
                       )}
                     </div>

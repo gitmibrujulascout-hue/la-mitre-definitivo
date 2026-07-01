@@ -4,24 +4,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { formatMoney } from '@/lib/ramaUtils';
-import { Calculator, TrendingUp, TrendingDown, Users, Calendar, Utensils, Bus, MapPin, Package } from 'lucide-react';
+import { Calculator, TrendingUp, TrendingDown, Users, Calendar, Utensils, Bus, Truck, MapPin, Package, Pill, Plus, AlertTriangle } from 'lucide-react';
 
-export default function PresupuestoCampamento({ open, onClose, campamento, beneficiarios }) {
+const DEFAULT_ITEMS = [
+  { id: 'comida', label: 'Comida', icon: Utensils, perPersonPerDay: true, splitWithAdults: true },
+  { id: 'transporte', label: 'Transporte', icon: Bus, perPersonPerDay: false, splitWithAdults: true },
+  { id: 'flete', label: 'Flete / Traslado', icon: Truck, perPersonPerDay: false, splitWithAdults: true },
+  { id: 'alojamiento', label: 'Alojamiento / Lugar', icon: MapPin, perPersonPerDay: false, splitWithAdults: true },
+  { id: 'materiales', label: 'Materiales', icon: Package, perPersonPerDay: false, splitWithAdults: false },
+  { id: 'medicamentos', label: 'Medicamentos', icon: Pill, perPersonPerDay: false, splitWithAdults: false },
+  { id: 'extras', label: 'Extras', icon: Plus, perPersonPerDay: false, splitWithAdults: false },
+  { id: 'imprevistos', label: 'Reserva imprevistos', icon: AlertTriangle, perPersonPerDay: false, splitWithAdults: true },
+];
+
+export default function PresupuestoCampamento({ open, onClose, campamento }) {
   const [comidaPorPersonaDia, setComidaPorPersonaDia] = useState('');
-  const [transporteTotal, setTransporteTotal] = useState('');
-  const [alojamientoTotal, setAlojamientoTotal] = useState('');
-  const [materialesTotal, setMaterialesTotal] = useState('');
-  const [otrosTotal, setOtrosTotal] = useState('');
+  const [itemValues, setItemValues] = useState({});
+  const [itemSplits, setItemSplits] = useState(() =>
+    Object.fromEntries(DEFAULT_ITEMS.map(i => [i.id, i.splitWithAdults]))
+  );
 
-  const beneficiariosCamp = useMemo(() =>
-    (campamento?.beneficiarios_ids || []).length,
-    [campamento]
-  );
-  const adultosCamp = useMemo(() =>
-    (campamento?.adultos_ids || []).length,
-    [campamento]
-  );
+  const beneficiariosCamp = (campamento?.beneficiarios_ids || []).length;
+  const adultosCamp = (campamento?.adultos_ids || []).length;
   const totalPersonas = beneficiariosCamp + adultosCamp;
 
   const dias = useMemo(() => {
@@ -33,29 +39,45 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
   }, [campamento]);
 
   const comidaTotal = (parseFloat(comidaPorPersonaDia) || 0) * totalPersonas * dias;
-  const transporte = parseFloat(transporteTotal) || 0;
-  const alojamiento = parseFloat(alojamientoTotal) || 0;
-  const materiales = parseFloat(materialesTotal) || 0;
-  const otros = parseFloat(otrosTotal) || 0;
 
-  const costoTotalEstimado = comidaTotal + transporte + alojamiento + materiales + otros;
+  const itemTotals = useMemo(() => {
+    const totals = {};
+    for (const item of DEFAULT_ITEMS) {
+      totals[item.id] = item.perPersonPerDay ? comidaTotal : (parseFloat(itemValues[item.id]) || 0);
+    }
+    return totals;
+  }, [comidaTotal, itemValues]);
+
+  const costoTotalEstimado = Object.values(itemTotals).reduce((s, v) => s + v, 0);
+
+  // Costo por beneficiario: items divididos con adultos usan totalPersonas, el resto solo beneficiarios
+  const costoPorBeneficiario = useMemo(() => {
+    if (beneficiariosCamp === 0) return 0;
+    let totalBen = 0;
+    for (const item of DEFAULT_ITEMS) {
+      const val = itemTotals[item.id];
+      const divisors = itemSplits[item.id] ? totalPersonas : beneficiariosCamp;
+      if (divisors > 0) totalBen += (val / divisors) * beneficiariosCamp;
+    }
+    return totalBen / beneficiariosCamp;
+  }, [itemTotals, itemSplits, totalPersonas, beneficiariosCamp]);
 
   const ingresoBeneficiarios = beneficiariosCamp * (campamento?.costo_por_persona || 0);
   const ingresoAdultos = campamento?.adultos_pagan
     ? adultosCamp * (campamento?.costo_adultos || campamento?.costo_por_persona || 0)
     : 0;
   const ingresoTotal = ingresoBeneficiarios + ingresoAdultos;
-
   const resultado = ingresoTotal - costoTotalEstimado;
-  const costoPorPersona = totalPersonas > 0 ? costoTotalEstimado / totalPersonas : 0;
 
-  const rows = [
-    { label: 'Comida', icon: Utensils, value: comidaTotal, detail: `${formatMoney(parseFloat(comidaPorPersonaDia) || 0)} × ${totalPersonas} pers × ${dias} días` },
-    { label: 'Transporte', icon: Bus, value: transporte },
-    { label: 'Alojamiento / Lugar', icon: MapPin, value: alojamiento },
-    { label: 'Materiales', icon: Package, value: materiales },
-    { label: 'Otros gastos', icon: Calculator, value: otros },
-  ];
+  const rows = DEFAULT_ITEMS.map(item => ({
+    ...item,
+    value: itemTotals[item.id],
+    detail: item.perPersonPerDay && dias > 0 && totalPersonas > 0 && comidaPorPersonaDia
+      ? `${formatMoney(parseFloat(comidaPorPersonaDia) || 0)} × ${totalPersonas} pers × ${dias} días`
+      : null,
+    split: itemSplits[item.id],
+    divisors: itemSplits[item.id] ? totalPersonas : beneficiariosCamp,
+  }));
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -89,8 +111,18 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
 
           {/* Inputs de gastos estimados */}
           <div className="space-y-3">
+            {/* Comida (per person per day) */}
             <div>
-              <Label>Comida por persona por día</Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label>Comida por persona por día</Label>
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                  <Checkbox
+                    checked={itemSplits.comida}
+                    onCheckedChange={(v) => setItemSplits(prev => ({ ...prev, comida: v }))}
+                  />
+                  Dividir con adultos
+                </label>
+              </div>
               <Input
                 type="number"
                 value={comidaPorPersonaDia}
@@ -99,39 +131,45 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
               />
               {dias > 0 && totalPersonas > 0 && comidaPorPersonaDia && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  = {formatMoney(comidaTotal)} ({totalPersonas} pers × {dias} días)
+                  = {formatMoney(comidaTotal)} ({itemSplits.comida ? totalPersonas : beneficiariosCamp} pers × {dias} días)
                 </p>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Transporte (total)</Label>
-                <Input type="number" value={transporteTotal} onChange={e => setTransporteTotal(e.target.value)} placeholder="0" />
+
+            {/* Other items */}
+            {DEFAULT_ITEMS.filter(i => !i.perPersonPerDay).map(item => (
+              <div key={item.id}>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="flex items-center gap-1.5">
+                    <item.icon className="w-3.5 h-3.5 text-muted-foreground" />
+                    {item.label}
+                  </Label>
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                    <Checkbox
+                      checked={itemSplits[item.id]}
+                      onCheckedChange={(v) => setItemSplits(prev => ({ ...prev, [item.id]: v }))}
+                    />
+                    Dividir con adultos
+                  </label>
+                </div>
+                <Input
+                  type="number"
+                  value={itemValues[item.id] || ''}
+                  onChange={e => setItemValues(prev => ({ ...prev, [item.id]: e.target.value }))}
+                  placeholder="0"
+                />
               </div>
-              <div>
-                <Label>Alojamiento (total)</Label>
-                <Input type="number" value={alojamientoTotal} onChange={e => setAlojamientoTotal(e.target.value)} placeholder="0" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Materiales (total)</Label>
-                <Input type="number" value={materialesTotal} onChange={e => setMaterialesTotal(e.target.value)} placeholder="0" />
-              </div>
-              <div>
-                <Label>Otros gastos</Label>
-                <Input type="number" value={otrosTotal} onChange={e => setOtrosTotal(e.target.value)} placeholder="0" />
-              </div>
-            </div>
+            ))}
           </div>
 
           {/* Resumen de costos */}
           <div className="space-y-1.5">
             {rows.map(r => (
-              <div key={r.label} className="flex items-center justify-between py-1.5 px-3 bg-muted/30 rounded-md">
+              <div key={r.id} className="flex items-center justify-between py-1.5 px-3 bg-muted/30 rounded-md">
                 <div className="flex items-center gap-2">
                   <r.icon className="w-3.5 h-3.5 text-muted-foreground" />
                   <span className="text-sm">{r.label}</span>
+                  {r.split && <span className="text-xs text-purple-600">↗ {r.divisors} pers</span>}
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-medium">{formatMoney(r.value)}</span>
@@ -144,8 +182,8 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
               <span className="text-sm font-bold text-slate-700">{formatMoney(costoTotalEstimado)}</span>
             </div>
             <div className="flex items-center justify-between py-2 px-3 bg-muted/30 rounded-md">
-              <span className="text-sm text-muted-foreground">Costo por persona</span>
-              <span className="text-sm font-medium">{formatMoney(costoPorPersona)}</span>
+              <span className="text-sm text-muted-foreground">Costo por beneficiario</span>
+              <span className="text-sm font-medium">{formatMoney(costoPorBeneficiario)}</span>
             </div>
           </div>
 

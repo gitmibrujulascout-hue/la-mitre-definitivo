@@ -32,9 +32,16 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
 
   const ben = beneficiarios.find(b => b.id === beneficiario_id);
 
+  const actividadAdultosIds = new Set(actividad?.adultos_ids || []);
+  const ramasPart = new Set(actividad?.ramas_participantes || []);
   const benOptions = beneficiarios
     .filter(b => b.activo !== false)
-    .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
+    .sort((a, b) => {
+      const aInActivity = actividadAdultosIds.has(a.id) || (a.rama && ramasPart.has(a.rama));
+      const bInActivity = actividadAdultosIds.has(b.id) || (b.rama && ramasPart.has(b.rama));
+      if (aInActivity !== bInActivity) return aInActivity ? -1 : 1;
+      return (a.nombre || '').localeCompare(b.nombre || '', 'es');
+    });
 
   const getProducto = (id) => productos.find(p => p.id === id);
 
@@ -56,36 +63,47 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
   const addLinea = () => setLineas(prev => [...prev, { ...emptyLinea }]);
   const removeLinea = (i) => setLineas(prev => prev.filter((_, idx) => idx !== i));
 
-  // Distribución automática: dada una cantidad total, arma líneas con promos + unidades sueltas
+  // Distribución automática: dada una cantidad total, arma líneas combinando múltiples
+  // niveles de promo (de mayor eficiencia a menor) + unidades sueltas para minimizar el precio.
   const distribuirAutomatico = () => {
     const total = parseInt(cantidadTotal) || 0;
     if (total <= 0 || sorted.length === 0) return;
 
-    // Buscar la promo con mayor cantidad_promo (mejor relación precio/unidad)
     const promos = sorted.filter(p => p.es_promo && p.cantidad_promo > 0);
     const unidades = sorted.filter(p => !p.es_promo);
 
     const nuevasLineas = [];
+    let restante = total;
 
     if (promos.length > 0) {
-      // Usar la promo de mayor cantidad primero
-      const promo = promos.sort((a, b) => b.cantidad_promo - a.cantidad_promo)[0];
-      const cantPromos = Math.floor(total / promo.cantidad_promo);
-      const resto = total % promo.cantidad_promo;
-      if (cantPromos > 0) {
-        nuevasLineas.push({ producto_id: promo.id, cantidad_vendida: cantPromos.toString() });
+      // Ordenar promos por eficiencia: menor precio por unidad física primero
+      const promosOrdenados = [...promos].sort((a, b) => {
+        const precioUnitA = (a.precio_venta || 0) / a.cantidad_promo;
+        const precioUnitB = (b.precio_venta || 0) / b.cantidad_promo;
+        return precioUnitA - precioUnitB;
+      });
+
+      // Usar cada nivel de promo mientras queden unidades suficientes
+      for (const promo of promosOrdenados) {
+        if (restante <= 0) break;
+        const cantPromos = Math.floor(restante / promo.cantidad_promo);
+        if (cantPromos > 0) {
+          nuevasLineas.push({ producto_id: promo.id, cantidad_vendida: cantPromos.toString() });
+          restante -= cantPromos * promo.cantidad_promo;
+        }
       }
-      if (resto > 0 && unidades.length > 0) {
-        const unitario = unidades.sort((a, b) => (a.precio_venta || 0) - (b.precio_venta || 0))[0];
-        nuevasLineas.push({ producto_id: unitario.id, cantidad_vendida: resto.toString() });
-      } else if (resto > 0 && promos.length > 0 && cantPromos === 0) {
-        // Si no hay unitario y la promo no alcanza, igual registrar la promo como 1
-        nuevasLineas.push({ producto_id: promo.id, cantidad_vendida: '1' });
-      }
-    } else if (unidades.length > 0) {
-      // Sin promos: todo al unitario más barato
-      const unitario = unidades.sort((a, b) => (a.precio_venta || 0) - (b.precio_venta || 0))[0];
-      nuevasLineas.push({ producto_id: unitario.id, cantidad_vendida: total.toString() });
+    }
+
+    // Completar el resto con la unidad suelta más barata
+    if (restante > 0 && unidades.length > 0) {
+      const unitario = [...unidades].sort((a, b) => (a.precio_venta || 0) - (b.precio_venta || 0))[0];
+      nuevasLineas.push({ producto_id: unitario.id, cantidad_vendida: restante.toString() });
+    } else if (restante > 0 && promos.length > 0) {
+      // Sin producto unitario: registrar una promo extra como 1
+      const promo = [...promos].sort((a, b) =>
+        (a.precio_venta / a.cantidad_promo) - (b.precio_venta / b.cantidad_promo)
+      )[0];
+      nuevasLineas.push({ producto_id: promo.id, cantidad_vendida: '1' });
     }
 
     if (nuevasLineas.length > 0) {
@@ -144,7 +162,9 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
               <SelectTrigger><SelectValue placeholder="Seleccionar vendedor" /></SelectTrigger>
               <SelectContent>
                 {benOptions.map(b => (
-                  <SelectItem key={b.id} value={b.id}>{b.nombre}</SelectItem>
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.nombre}{b.tipo === 'Voluntario' ? ' (Voluntario)' : ''}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

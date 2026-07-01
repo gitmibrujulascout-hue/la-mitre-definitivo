@@ -39,6 +39,7 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
   const costo = (ben) => {
     if (!ben) return campamento.costo_por_persona;
     const esAdulto = ben.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(ben.rama);
+    if (esAdulto && !campamento.adultos_pagan) return 0;
     if (esAdulto && campamento.adultos_pagan) return campamento.costo_adultos || campamento.costo_por_persona;
     return campamento.costo_por_persona;
   };
@@ -331,6 +332,7 @@ export default function CampamentoPublico() {
   const pagadoPor = (id) => pagos.filter(p => p.beneficiario_id === id).reduce((s, p) => s + p.monto, 0);
   const costo = (ben) => {
     const esAdulto = ben.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(ben.rama);
+    if (esAdulto && !campamento?.adultos_pagan) return 0;
     if (esAdulto && campamento?.adultos_pagan) return campamento.costo_adultos || campamento.costo_por_persona;
     return campamento?.costo_por_persona;
   };
@@ -412,7 +414,10 @@ export default function CampamentoPublico() {
         <div className="max-w-3xl mx-auto">
           <p className="text-xs opacity-70 mb-1 uppercase tracking-wide">Acceso externo</p>
           <h1 className="text-2xl font-bold">{campamento.nombre}</h1>
-          <div className="flex flex-wrap gap-3 mt-2 text-sm opacity-90">
+          <div className="flex flex-wrap gap-3 mt-2 text-sm opacity-90 items-center">
+            {campamento.es_privado && (
+              <Badge className="bg-white/20 text-white border-white/30 border text-xs">🔒 Privado</Badge>
+            )}
             {campamento.ubicacion && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{campamento.ubicacion}</span>}
             {campamento.fecha_inicio && <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{campamento.fecha_inicio}{campamento.fecha_fin ? ` — ${campamento.fecha_fin}` : ''}</span>}
             <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{ninos.length + adultos.length} personas</span>
@@ -553,6 +558,8 @@ export default function CampamentoPublico() {
                       <span className={`text-xs font-semibold ${saldo <= 0 ? 'text-green-600' : 'text-red-500'}`}>
                         {saldo <= 0 ? '✓ Pagado' : `Debe ${formatMoney(saldo)}`}
                       </span>
+                    ) : pagado > 0 ? (
+                      <span className="text-xs font-semibold text-green-600">Saldo a favor: {formatMoney(pagado)}</span>
                     ) : (
                       <Badge variant="secondary" className="text-xs">No abona</Badge>
                     )}

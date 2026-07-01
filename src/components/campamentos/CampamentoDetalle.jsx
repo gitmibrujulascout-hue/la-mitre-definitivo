@@ -183,6 +183,9 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
           <div>
             <h2 className="text-2xl font-bold">{campamento.nombre}</h2>
             <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1 flex-wrap">
+              {campamento.es_privado && (
+                <Badge className="bg-purple-100 text-purple-700 border-purple-300 border text-xs shrink-0">🔒 Privado</Badge>
+              )}
               {campamento.ubicacion && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{campamento.ubicacion}</span>}
               {campamento.fecha_inicio && <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{campamento.fecha_inicio}{campamento.fecha_fin ? ` — ${campamento.fecha_fin}` : ''}</span>}
             </div>

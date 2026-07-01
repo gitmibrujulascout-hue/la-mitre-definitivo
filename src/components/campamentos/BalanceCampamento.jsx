@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, Scale } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 
@@ -17,11 +18,17 @@ export default function BalanceCampamento({ campamento, pagos = [], gastos = [] 
   const positivo = saldo >= 0;
 
   return (
-    <Card>
+    <Card className={campamento.es_privado ? 'border-purple-200' : ''}>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Scale className="w-4 h-4" />Balance del campamento
+          {campamento.es_privado && (
+            <Badge className="bg-purple-100 text-purple-700 border-purple-300 border text-xs ml-auto">🔒 Privado</Badge>
+          )}
         </CardTitle>
+        {campamento.es_privado && (
+          <p className="text-xs text-purple-600 mt-1">Los movimientos de este campamento son independientes de la caja general del grupo.</p>
+        )}
       </CardHeader>
       <CardContent className="pt-0 space-y-3">
         {/* Ingresos */}
