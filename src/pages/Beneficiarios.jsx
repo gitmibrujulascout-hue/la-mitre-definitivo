@@ -354,9 +354,13 @@ export default function Beneficiarios() {
                       )}
                       {b.estado_panuelo && b.estado_panuelo !== 'Paturuzú' && (
                         <Badge className={b.estado_panuelo === 'Promesa' ? 'bg-blue-100 text-blue-700 border-blue-300 border' : 'bg-indigo-100 text-indigo-700 border-indigo-300 border'} title={`Pañuelo: ${b.estado_panuelo}`}>
-                          {b.estado_panuelo === 'Promesa'
-                            ? <img src="https://media.base44.com/images/public/69f1ed5d29db0dc5bc7e0ef8/9f0e84abb_Gemini_Generated_Image_pm52inpm52inpm52.png" alt="Promesa" className="w-3.5 h-3.5 mr-1 object-contain inline-block align-middle" />
-                            : <Medal className="w-3 h-3 mr-1" />}{b.estado_panuelo}
+                          <img
+                            src={b.estado_panuelo === 'Promesa'
+                              ? "https://media.base44.com/images/public/69f1ed5d29db0dc5bc7e0ef8/9f0e84abb_Gemini_Generated_Image_pm52inpm52inpm52.png"
+                              : "https://media.base44.com/images/public/69f1ed5d29db0dc5bc7e0ef8/030bc09bd_Gemini_Generated_Image_pm52inpm52inpm52-copia.png"}
+                            alt={b.estado_panuelo}
+                            className="w-3.5 h-3.5 mr-1 object-contain inline-block align-middle"
+                          />{b.estado_panuelo}
                         </Badge>
                       )}
                     </div>

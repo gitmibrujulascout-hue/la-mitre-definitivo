@@ -8,6 +8,7 @@ import EditarSaludDialog from '@/components/beneficiarios/EditarSaludDialog';
 import { MapPin, User, Shield, BookOpen, Award, UserCog, HeartPulse, Pencil, Medal, Crown } from 'lucide-react';
 
 const PANUELO_PROMESA_IMG = "https://media.base44.com/images/public/69f1ed5d29db0dc5bc7e0ef8/9f0e84abb_Gemini_Generated_Image_pm52inpm52inpm52.png";
+const PANUELO_INVESTIDURA_IMG = "https://media.base44.com/images/public/69f1ed5d29db0dc5bc7e0ef8/030bc09bd_Gemini_Generated_Image_pm52inpm52inpm52-copia.png";
 
 function Field({ label, value }) {
   if (!value) return null;
@@ -77,7 +78,7 @@ export default function BeneficiarioFichaDialog({ open, onClose, beneficiario: b
             )}
             {b.estado_panuelo === 'Investidura' && (
               <Badge className="bg-indigo-100 text-indigo-700 border-indigo-300 border" title="Pañuelo: Investidura">
-                <Medal className="w-3 h-3 mr-1" />Investidura
+                <img src={PANUELO_INVESTIDURA_IMG} alt="Investidura" className="w-3.5 h-3.5 mr-1 object-contain inline-block align-middle" />Investidura
               </Badge>
             )}
             {b.estado_panuelo === 'Paturuzú' && (
