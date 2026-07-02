@@ -8,8 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye, MessageCircle, AlertCircle, HeartPulse, Bell, Medal, Crown } from 'lucide-react';
+import { Plus, Search, Upload, MoreHorizontal, Pencil, Trash2, Award, UserCog, Download, Eye, MessageCircle, AlertCircle, HeartPulse, Bell, Crown } from 'lucide-react';
+import PanueloIcon from '@/components/shared/PanueloIcon';
 import AsignarPanueloMasivoDialog from '@/components/beneficiarios/AsignarPanueloMasivoDialog';
+import EditarMasivoDialog from '@/components/beneficiarios/EditarMasivoDialog';
 import ImportarFichaSaludDialog from '@/components/beneficiarios/ImportarFichaSaludDialog';
 import RevisionSolicitudesSaludDialog from '@/components/beneficiarios/RevisionSolicitudesSaludDialog';
 import PageHeader from '@/components/shared/PageHeader';
@@ -41,6 +43,7 @@ export default function Beneficiarios() {
   const [bajaConDeudaDialog, setBajaConDeudaDialog] = useState(null); // { data, hermanosIds, mesesDeudores, cuota }
   const [showRevisionSalud, setShowRevisionSalud] = useState(false);
   const [showPanueloMasivo, setShowPanueloMasivo] = useState(false);
+  const [showEditarMasivo, setShowEditarMasivo] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: beneficiarios = [], isLoading } = useQuery({
@@ -283,8 +286,11 @@ export default function Beneficiarios() {
       {someSelected && (
         <div className="flex items-center gap-3 mb-3 px-4 py-2 bg-primary/10 border border-primary/20 rounded-lg">
           <span className="text-sm font-medium text-primary">{selected.length} seleccionado(s)</span>
+          <Button size="sm" onClick={() => setShowEditarMasivo(true)}>
+            <Pencil className="w-4 h-4 mr-1" />Editar campos
+          </Button>
           <Button size="sm" variant="destructive" onClick={deleteSelected}>
-            <Trash2 className="w-4 h-4 mr-1" />Eliminar seleccionados
+            <Trash2 className="w-4 h-4 mr-1" />Eliminar
           </Button>
           <Button size="sm" variant="outline" onClick={() => setSelected([])}>Deseleccionar</Button>
         </div>
@@ -324,8 +330,11 @@ export default function Beneficiarios() {
                     <Checkbox checked={isChecked} onCheckedChange={() => toggleSelect(b.id)} />
                   </TableCell>
                   <TableCell className="font-medium">
-                    {b.nombre}
-                    {edad !== null && edad < 25 && <span className="text-muted-foreground font-normal ml-1">({edad} años)</span>}
+                    <div className="flex items-center gap-1.5">
+                      {b.estado_panuelo && <PanueloIcon estado={b.estado_panuelo} className="w-4 h-4 flex-shrink-0" />}
+                      <span>{b.nombre}</span>
+                      {edad !== null && edad < 25 && <span className="text-muted-foreground font-normal ml-1">({edad} años)</span>}
+                    </div>
                   </TableCell>
                   <TableCell><RamaBadge rama={b.rama} /></TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground">{b.dni || '—'}</TableCell>
@@ -350,17 +359,6 @@ export default function Beneficiarios() {
                       {b.estado_panuelo === 'Paturuzú' && (
                         <Badge className="bg-amber-100 text-amber-800 border-amber-400 border" title="Pañuelo: Paturuzú (equipo especial)">
                           <Crown className="w-3 h-3 mr-1" />Paturuzú
-                        </Badge>
-                      )}
-                      {b.estado_panuelo && b.estado_panuelo !== 'Paturuzú' && (
-                        <Badge className={b.estado_panuelo === 'Promesa' ? 'bg-blue-100 text-blue-700 border-blue-300 border' : 'bg-indigo-100 text-indigo-700 border-indigo-300 border'} title={`Pañuelo: ${b.estado_panuelo}`}>
-                          <img
-                            src={b.estado_panuelo === 'Promesa'
-                              ? "https://media.base44.com/images/public/69f1ed5d29db0dc5bc7e0ef8/9f0e84abb_Gemini_Generated_Image_pm52inpm52inpm52.png"
-                              : "https://media.base44.com/images/public/69f1ed5d29db0dc5bc7e0ef8/030bc09bd_Gemini_Generated_Image_pm52inpm52inpm52-copia.png"}
-                            alt={b.estado_panuelo}
-                            className="w-3.5 h-3.5 mr-1 object-contain inline-block align-middle"
-                          />{b.estado_panuelo}
                         </Badge>
                       )}
                     </div>
@@ -411,6 +409,15 @@ export default function Beneficiarios() {
           onClose={() => setShowPanueloMasivo(false)}
           beneficiarios={beneficiarios}
           onDone={() => queryClient.invalidateQueries({ queryKey: ['beneficiarios'] })}
+        />
+      )}
+      {showEditarMasivo && (
+        <EditarMasivoDialog
+          open
+          onClose={() => setShowEditarMasivo(false)}
+          selectedIds={selected}
+          beneficiarios={beneficiarios}
+          onDone={() => { queryClient.invalidateQueries({ queryKey: ['beneficiarios'] }); setSelected([]); }}
         />
       )}
       {fichaOpen && <BeneficiarioFichaDialog open onClose={() => setFichaOpen(null)} beneficiario={fichaOpen} />}

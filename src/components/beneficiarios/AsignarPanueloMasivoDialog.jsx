@@ -8,19 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Search, Crown } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
-
-const PANUELO_PROMESA_IMG = "https://media.base44.com/images/public/69f1ed5d29db0dc5bc7e0ef8/9f0e84abb_Gemini_Generated_Image_pm52inpm52inpm52.png";
-const PANUELO_INVESTIDURA_IMG = "https://media.base44.com/images/public/69f1ed5d29db0dc5bc7e0ef8/030bc09bd_Gemini_Generated_Image_pm52inpm52inpm52-copia.png";
-
-const PromesaImg = ({ className }) => <img src={PANUELO_PROMESA_IMG} alt="Promesa" className={className} />;
-const InvestiduraImg = ({ className }) => <img src={PANUELO_INVESTIDURA_IMG} alt="Investidura" className={className} />;
-
-const PANUELO_OPTIONS = [
-  { value: '', label: 'Sin pañuelo', icon: null },
-  { value: 'Promesa', label: 'Promesa', icon: PromesaImg },
-  { value: 'Investidura', label: 'Investidura', icon: InvestiduraImg },
-  { value: 'Paturuzú', label: 'Paturuzú', icon: Crown },
-];
+import PanueloIcon, { PANUELO_OPTIONS } from '@/components/shared/PanueloIcon';
 
 export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiarios, onDone }) {
   const [selected, setSelected] = useState([]);
@@ -58,7 +46,7 @@ export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiario
     }
   };
 
-  const currentIcon = PANUELO_OPTIONS.find(p => p.value === panuelo)?.icon;
+  const currentIcon = panuelo;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -79,7 +67,7 @@ export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiario
                 {PANUELO_OPTIONS.map(opt => (
                   <SelectItem key={opt.value || '__blank__'} value={opt.value}>
                     <span className="flex items-center gap-2">
-                      {opt.icon && <opt.icon className="w-4 h-4" />}
+                      <PanueloIcon estado={opt.value} className="w-4 h-4" />
                       {opt.label}
                     </span>
                   </SelectItem>
@@ -88,7 +76,7 @@ export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiario
             </Select>
             {currentIcon && (
               <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                <currentIcon className="w-3 h-3" />
+                <PanueloIcon estado={panuelo} className="w-3.5 h-3.5" />
                 Se mostrará este ícono junto al nombre en el listado
               </p>
             )}
@@ -108,12 +96,11 @@ export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiario
             <div className="border rounded-lg max-h-64 overflow-y-auto">
               {filtered.map(b => {
                 const checked = selected.includes(b.id);
-                const Icon = PANUELO_OPTIONS.find(p => p.value === b.estado_panuelo)?.icon;
                 return (
                   <div key={b.id} className={`flex items-center gap-2 px-3 py-1.5 border-b last:border-0 cursor-pointer hover:bg-muted/30 ${checked ? 'bg-primary/5' : ''}`}
                     onClick={() => toggle(b.id)}>
                     <Checkbox checked={checked} onCheckedChange={() => toggle(b.id)} />
-                    {Icon && <Icon className="w-3.5 h-3.5 text-muted-foreground" />}
+                    <PanueloIcon estado={b.estado_panuelo} className="w-3.5 h-3.5" />
                     <span className="text-sm flex-1">{b.nombre}</span>
                     <span className="text-xs text-muted-foreground">{b.rama}</span>
                     {b.estado_panuelo && (
