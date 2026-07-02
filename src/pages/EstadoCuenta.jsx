@@ -283,8 +283,8 @@ export default function EstadoCuenta() {
               <Card className="p-5 border-2 border-primary/20 bg-primary/5">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   {b.estado_panuelo && (
-                    <div className="flex-shrink-0 flex items-center justify-center w-24 h-24 rounded-xl bg-white/60 border border-primary/15 self-stretch">
-                      <PanueloIcon estado={b.estado_panuelo} className="w-20 h-20" />
+                    <div className="flex-shrink-0 flex items-center justify-center w-28 rounded-xl bg-white/60 border border-primary/15 self-stretch py-2">
+                      <PanueloIcon estado={b.estado_panuelo} className="w-full h-full max-h-[140px]" />
                     </div>
                   )}
                   <div className="space-y-3 flex-1">
