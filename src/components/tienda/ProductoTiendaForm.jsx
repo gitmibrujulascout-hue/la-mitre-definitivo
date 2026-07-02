@@ -36,6 +36,8 @@ export default function ProductoTiendaForm({ open, onClose, producto }) {
         ...producto,
         imagen_url: producto.imagen_url ?? '',
         visible_familias: producto.visible_familias ?? false,
+        talles: producto.talles ?? [],
+        stock_por_talle: producto.stock_por_talle ?? {},
         precio_venta: producto.precio_venta ?? '',
         precio_costo: producto.precio_costo ?? '',
         stock: producto.stock ?? '',
