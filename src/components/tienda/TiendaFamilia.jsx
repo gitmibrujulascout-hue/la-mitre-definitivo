@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingBag, Plus, Minus, Package, Check, Clock, X, CheckCircle2 } from 'lucide-react';
+import { ShoppingBag, Plus, Minus, Package, Check, Clock, X, CheckCircle2, Ruler } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
+import ProductoGaleria from '@/components/tienda/ProductoGaleria';
 
 export default function TiendaFamilia({ grupoFamiliar }) {
   const [encargos, setEncargos] = useState({});
+  const [tablaTallesOpen, setTablaTallesOpen] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: productos = [] } = useQuery({
@@ -115,13 +117,11 @@ export default function TiendaFamilia({ grupoFamiliar }) {
 
           return (
             <Card key={p.id} className="overflow-hidden flex flex-col">
-              {p.imagen_url ? (
-                <img src={p.imagen_url} alt={p.nombre} className="w-full h-48 object-cover" />
-              ) : (
-                <div className="w-full h-48 bg-muted flex items-center justify-center">
-                  <Package className="w-12 h-12 text-muted-foreground/40" />
-                </div>
-              )}
+              <ProductoGaleria
+                imagenes={(p.imagenes_url?.length ? p.imagenes_url : (p.imagen_url ? [p.imagen_url] : []))}
+                nombre={p.nombre}
+                height="h-48"
+              />
               <div className="p-4 flex flex-col flex-1">
                 <h4 className="font-semibold text-sm">{p.nombre}</h4>
                 {p.descripcion && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{p.descripcion}</p>}
@@ -138,12 +138,23 @@ export default function TiendaFamilia({ grupoFamiliar }) {
                   </Select>
 
                   {p.tiene_talles && p.talles?.length > 0 && (
-                    <Select value={enc.talle || ''} onValueChange={v => setEncargo(p.id, 'talle', v)}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Talle..." /></SelectTrigger>
-                      <SelectContent>
-                        {p.talles.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <>
+                      <Select value={enc.talle || ''} onValueChange={v => setEncargo(p.id, 'talle', v)}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Talle..." /></SelectTrigger>
+                        <SelectContent>
+                          {p.talles.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      {p.tabla_talles_url && (
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 text-xs text-primary hover:underline"
+                          onClick={() => setTablaTallesOpen(p.tabla_talles_url)}
+                        >
+                          <Ruler className="w-3.5 h-3.5" /> Ver tabla de talles
+                        </button>
+                      )}
+                    </>
                   )}
 
                   <div className="flex items-center gap-2">
@@ -180,6 +191,19 @@ export default function TiendaFamilia({ grupoFamiliar }) {
           );
         })}
       </div>
+
+      {/* Lightbox tabla de talles */}
+      {tablaTallesOpen && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setTablaTallesOpen(null)}
+        >
+          <button className="absolute top-4 right-4 text-white/80 hover:text-white" onClick={() => setTablaTallesOpen(null)}>
+            <X className="w-8 h-8" />
+          </button>
+          <img src={tablaTallesOpen} alt="Tabla de talles" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
+        </div>
+      )}
     </div>
   );
 }

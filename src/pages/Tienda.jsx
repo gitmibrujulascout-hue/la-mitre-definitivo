@@ -11,6 +11,7 @@ import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, 
 import PageHeader from '@/components/shared/PageHeader';
 import ProductoTiendaForm from '@/components/tienda/ProductoTiendaForm';
 import VentaTiendaForm from '@/components/tienda/VentaTiendaForm';
+import ProductoGaleria from '@/components/tienda/ProductoGaleria';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -222,9 +223,11 @@ export default function Tienda() {
               const bajo = stockTotal <= (p.stock_minimo || 0);
               return (
                 <Card key={p.id} className={cn('overflow-hidden', bajo && 'border-amber-300')}>
-                   {p.imagen_url && (
-                     <img src={p.imagen_url} alt={p.nombre} className="w-full h-32 object-cover" />
-                   )}
+                    <ProductoGaleria
+                      imagenes={(p.imagenes_url?.length ? p.imagenes_url : (p.imagen_url ? [p.imagen_url] : []))}
+                      nombre={p.nombre}
+                      height="h-32"
+                    />
                    <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-3">
                       <div className="flex-1 min-w-0">

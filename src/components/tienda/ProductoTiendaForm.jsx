@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Trash2, Upload, Eye, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Upload, Eye, Image as ImageIcon, Ruler } from 'lucide-react';
 import { toast } from 'sonner';
+import ProductoGaleria from '@/components/tienda/ProductoGaleria';
 
 const CATEGORIAS = ['Uniforme', 'Merchandising', 'Libro', 'Accesorio', 'Combo', 'Otro'];
 const TALLES_SUGERIDOS = ['S', 'M', 'L', 'XL', 'XXL', '2', '4', '6', '8', '10', '12', '14', '16'];
@@ -17,7 +18,7 @@ const TALLES_SUGERIDOS = ['S', 'M', 'L', 'XL', 'XXL', '2', '4', '6', '8', '10', 
 const emptyForm = {
   nombre: '', descripcion: '', categoria: 'Uniforme',
   precio_venta: '', precio_costo: '',
-  imagen_url: '', visible_familias: false,
+  imagen_url: '', imagenes_url: [], tabla_talles_url: '', visible_familias: false,
   tiene_talles: false, talles: [], stock_por_talle: {},
   stock: '', stock_minimo: '3', activo: true,
   es_combo: false, productos_combo: [],
@@ -35,6 +36,8 @@ export default function ProductoTiendaForm({ open, onClose, producto }) {
         ...emptyForm,
         ...producto,
         imagen_url: producto.imagen_url ?? '',
+        imagenes_url: producto.imagenes_url ?? (producto.imagen_url ? [producto.imagen_url] : []),
+        tabla_talles_url: producto.tabla_talles_url ?? '',
         visible_familias: producto.visible_familias ?? false,
         talles: producto.talles ?? [],
         stock_por_talle: producto.stock_por_talle ?? {},
@@ -69,6 +72,8 @@ export default function ProductoTiendaForm({ open, onClose, producto }) {
     if (!form.nombre || !form.precio_venta) return;
     saveMutation.mutate({
       ...form,
+      imagenes_url: form.imagenes_url,
+      imagen_url: form.imagenes_url[0] || '',
       precio_venta: parseFloat(form.precio_venta) || 0,
       precio_costo: parseFloat(form.precio_costo) || 0,
       stock: form.tiene_talles ? 0 : (parseInt(form.stock) || 0),
@@ -143,21 +148,72 @@ export default function ProductoTiendaForm({ open, onClose, producto }) {
             </div>
           </div>
 
-          {/* Imagen del producto */}
+          {/* Imágenes del producto (múltiples) */}
           <div>
-            <Label>Imagen del producto</Label>
+            <Label>Imágenes del producto</Label>
+            <p className="text-xs text-muted-foreground mb-2">Subí varias fotos para mostrar el producto desde distintos ángulos</p>
+            {form.imagenes_url.length > 0 && (
+              <div className="mb-3">
+                <ProductoGaleria imagenes={form.imagenes_url} nombre={form.nombre} height="h-32" />
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {form.imagenes_url.map((url, i) => (
+                    <div key={i} className="relative group">
+                      <img src={url} alt="" className="w-14 h-14 rounded-lg object-cover border" />
+                      <button
+                        type="button"
+                        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => setForm(p => ({ ...p, imagenes_url: p.imagenes_url.filter((_, idx) => idx !== i) }))}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <label className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md border border-input bg-transparent shadow-sm hover:bg-accent cursor-pointer">
+              <Upload className="w-4 h-4" />
+              Subir imagen
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (files.length === 0) return;
+                  try {
+                    const urls = [];
+                    for (const file of files) {
+                      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                      urls.push(file_url);
+                    }
+                    setForm(p => ({ ...p, imagenes_url: [...(p.imagenes_url || []), ...urls] }));
+                    toast.success(`${urls.length} imagen(es) subida(s)`);
+                  } catch (err) {
+                    toast.error('Error al subir imagen');
+                  }
+                }}
+              />
+            </label>
+          </div>
+
+          {/* Tabla de talles */}
+          <div>
+            <Label className="flex items-center gap-1.5"><Ruler className="w-4 h-4" /> Tabla de talles (imagen)</Label>
+            <p className="text-xs text-muted-foreground mb-2">Imagen con la guía de talles para que las familias sepan cuál elegir</p>
             <div className="flex items-center gap-3">
-              {form.imagen_url ? (
-                <img src={form.imagen_url} alt="" className="w-20 h-20 rounded-lg object-cover border" />
+              {form.tabla_talles_url ? (
+                <img src={form.tabla_talles_url} alt="Tabla de talles" className="w-20 h-20 rounded-lg object-cover border" />
               ) : (
                 <div className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                  <ImageIcon className="w-8 h-8 text-muted-foreground/40" />
+                  <Ruler className="w-8 h-8 text-muted-foreground/40" />
                 </div>
               )}
               <div className="flex-1">
                 <label className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md border border-input bg-transparent shadow-sm hover:bg-accent cursor-pointer">
                   <Upload className="w-4 h-4" />
-                  {form.imagen_url ? 'Cambiar imagen' : 'Subir imagen'}
+                  {form.tabla_talles_url ? 'Cambiar' : 'Subir tabla'}
                   <input
                     type="file"
                     accept="image/*"
@@ -167,17 +223,17 @@ export default function ProductoTiendaForm({ open, onClose, producto }) {
                       if (!file) return;
                       try {
                         const { file_url } = await base44.integrations.Core.UploadFile({ file });
-                        setForm(p => ({ ...p, imagen_url: file_url }));
-                        toast.success('Imagen subida');
+                        setForm(p => ({ ...p, tabla_talles_url: file_url }));
+                        toast.success('Tabla de talles subida');
                       } catch (err) {
                         toast.error('Error al subir imagen');
                       }
                     }}
                   />
                 </label>
-                {form.imagen_url && (
+                {form.tabla_talles_url && (
                   <Button type="button" variant="ghost" size="sm" className="ml-2 text-xs text-red-500"
-                    onClick={() => setForm(p => ({ ...p, imagen_url: '' }))}>
+                    onClick={() => setForm(p => ({ ...p, tabla_talles_url: '' }))}>
                     Quitar
                   </Button>
                 )}
