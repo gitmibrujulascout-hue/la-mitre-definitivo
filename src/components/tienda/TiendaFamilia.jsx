@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ShoppingBag, Plus, Minus, Package, Check, Clock, X, CheckCircle2, Ruler } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import ProductoGaleria from '@/components/tienda/ProductoGaleria';
 
@@ -39,12 +40,24 @@ export default function TiendaFamilia({ grupoFamiliar }) {
 
   const crearEncargo = useMutation({
     mutationFn: async ({ producto, benId, benNombre, cantidad, talle }) => {
+      // Re-fetch del producto para stock actualizado
+      const prod = await base44.entities.ProductoTienda.get(producto.id);
+
+      // Validar stock disponible
+      if (prod.tiene_talles && talle) {
+        const stockDisp = prod.stock_por_talle?.[talle] ?? 0;
+        if (stockDisp < cantidad) throw new Error(`Stock insuficiente para talle ${talle}. Disponible: ${stockDisp}`);
+      } else if (!prod.tiene_talles) {
+        if ((prod.stock || 0) < cantidad) throw new Error(`Stock insuficiente. Disponible: ${prod.stock || 0}`);
+      }
+
+      // Crear pre-encargo
       await base44.entities.PreEncargoTienda.create({
         beneficiario_id: benId,
         beneficiario_nombre: benNombre,
         producto_id: producto.id,
         producto_nombre: producto.nombre,
-        producto_imagen_url: producto.imagen_url,
+        producto_imagen_url: prod.imagenes_url?.[0] || prod.imagen_url,
         talle: talle || undefined,
         cantidad,
         precio_unitario: producto.precio_venta,
@@ -52,10 +65,23 @@ export default function TiendaFamilia({ grupoFamiliar }) {
         estado: 'Pendiente',
         fecha: new Date().toISOString().split('T')[0],
       });
+
+      // Reservar stock (decrementar)
+      if (prod.tiene_talles && talle) {
+        const stockActual = prod.stock_por_talle?.[talle] ?? 0;
+        await base44.entities.ProductoTienda.update(prod.id, {
+          stock_por_talle: { ...prod.stock_por_talle, [talle]: stockActual - cantidad },
+        });
+      } else {
+        await base44.entities.ProductoTienda.update(prod.id, {
+          stock: (prod.stock || 0) - cantidad,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
-      toast.success('Pre-encargo enviado. El grupo lo confirmará pronto.');
+      queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
+      toast.success('Pre-encargo enviado. El stock fue reservado.');
       setEncargos({});
     },
     onError: (err) => toast.error('Error: ' + err.message),
@@ -125,7 +151,14 @@ export default function TiendaFamilia({ grupoFamiliar }) {
               <div className="p-4 flex flex-col flex-1">
                 <h4 className="font-semibold text-sm">{p.nombre}</h4>
                 {p.descripcion && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{p.descripcion}</p>}
-                <p className="text-lg font-bold mt-2">{formatMoney(p.precio_venta)}</p>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-lg font-bold">{formatMoney(p.precio_venta)}</span>
+                  {!p.tiene_talles && (
+                    <Badge className={cn('text-xs', (p.stock || 0) === 0 ? 'bg-red-100 text-red-700' : (p.stock || 0) <= (p.stock_minimo || 0) ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700')}>
+                      {(p.stock || 0)} disp.
+                    </Badge>
+                  )}
+                </div>
 
                 <div className="mt-3 space-y-2">
                   <Select value={enc.benId || ''} onValueChange={v => setEncargo(p.id, 'benId', v)}>
@@ -142,9 +175,15 @@ export default function TiendaFamilia({ grupoFamiliar }) {
                       <Select value={enc.talle || ''} onValueChange={v => setEncargo(p.id, 'talle', v)}>
                         <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Talle..." /></SelectTrigger>
                         <SelectContent>
-                          {p.talles.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                          {p.talles.map(t => {
+                            const st = p.stock_por_talle?.[t] ?? 0;
+                            return <SelectItem key={t} value={t} disabled={st === 0}>{t} ({st} disp.)</SelectItem>;
+                          })}
                         </SelectContent>
                       </Select>
+                      {enc.talle && (p.stock_por_talle?.[enc.talle] ?? 0) === 0 && (
+                        <p className="text-xs text-red-500">Sin stock para este talle</p>
+                      )}
                       {p.tabla_talles_url && (
                         <button
                           type="button"
@@ -176,15 +215,22 @@ export default function TiendaFamilia({ grupoFamiliar }) {
                     <span className="font-bold">{formatMoney(total)}</span>
                   </div>
 
-                  <Button
-                    size="sm"
-                    className="w-full"
-                    disabled={!enc.benId || (p.tiene_talles && !enc.talle) || crearEncargo.isPending}
-                    onClick={() => crearEncargo.mutate({ producto: p, benId: enc.benId, benNombre: benSel?.nombre, cantidad: cant, talle: enc.talle })}
-                  >
-                    <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
-                    Solicitar pre-encargo
-                  </Button>
+                  {(() => {
+                    const sinStock = p.tiene_talles
+                      ? (enc.talle ? (p.stock_por_talle?.[enc.talle] ?? 0) < cant : false)
+                      : (p.stock || 0) < cant;
+                    return (
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        disabled={!enc.benId || (p.tiene_talles && !enc.talle) || sinStock || crearEncargo.isPending}
+                        onClick={() => crearEncargo.mutate({ producto: p, benId: enc.benId, benNombre: benSel?.nombre, cantidad: cant, talle: enc.talle })}
+                      >
+                        <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
+                        {sinStock ? 'Sin stock' : 'Solicitar pre-encargo'}
+                      </Button>
+                    );
+                  })()}
                 </div>
               </div>
             </Card>

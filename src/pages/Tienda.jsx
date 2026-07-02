@@ -12,6 +12,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import ProductoTiendaForm from '@/components/tienda/ProductoTiendaForm';
 import VentaTiendaForm from '@/components/tienda/VentaTiendaForm';
 import ProductoGaleria from '@/components/tienda/ProductoGaleria';
+import EntregarEncargoDialog from '@/components/tienda/EntregarEncargoDialog';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ export default function Tienda() {
   const [showVentaForm, setShowVentaForm] = useState(false);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('todas');
+  const [entregarEncargo, setEntregarEncargo] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: productos = [] } = useQuery({
@@ -82,12 +84,35 @@ export default function Tienda() {
 
   const actualizarEncargo = useMutation({
     mutationFn: async ({ id, estado }) => {
+      const encargo = preEncargos.find(e => e.id === id);
+      if (!encargo) return;
       const update = { estado };
       if (estado === 'Confirmado') update.fecha_confirmacion = new Date().toISOString().split('T')[0];
+
+      // Si se cancela, restaurar stock reservado
+      if (estado === 'Cancelado') {
+        const prod = await base44.entities.ProductoTienda.get(encargo.producto_id);
+        if (prod) {
+          if (prod.tiene_talles && encargo.talle) {
+            const stockActual = prod.stock_por_talle?.[encargo.talle] ?? 0;
+            await base44.entities.ProductoTienda.update(prod.id, {
+              stock_por_talle: { ...prod.stock_por_talle, [encargo.talle]: stockActual + (encargo.cantidad || 0) },
+            });
+          } else {
+            await base44.entities.ProductoTienda.update(prod.id, {
+              stock: (prod.stock || 0) + (encargo.cantidad || 0),
+            });
+          }
+        }
+      }
+
       await base44.entities.PreEncargoTienda.update(id, update);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
+      queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
+      queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
       toast.success('Pre-encargo actualizado');
     },
   });
@@ -384,8 +409,8 @@ export default function Tienda() {
                           )}
                           {e.estado === 'Confirmado' && (
                             <>
-                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => actualizarEncargo.mutate({ id: e.id, estado: 'Entregado' })}>
-                                <CheckCircle2 className="w-3 h-3 mr-1" />Entregado
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEntregarEncargo(e)}>
+                                <CheckCircle2 className="w-3 h-3 mr-1" />Entregar
                               </Button>
                               <Button variant="ghost" size="icon" className="h-7" onClick={() => actualizarEncargo.mutate({ id: e.id, estado: 'Cancelado' })}>
                                 <X className="w-3.5 h-3.5 text-red-500" />
@@ -409,6 +434,13 @@ export default function Tienda() {
       )}
       {showVentaForm && (
         <VentaTiendaForm open onClose={() => setShowVentaForm(false)} productos={productos} beneficiarios={beneficiarios} />
+      )}
+      {entregarEncargo && (
+        <EntregarEncargoDialog
+          encargo={entregarEncargo}
+          producto={productos.find(p => p.id === entregarEncargo.producto_id)}
+          onClose={() => setEntregarEncargo(null)}
+        />
       )}
     </div>
   );
