@@ -19,6 +19,7 @@ import {
 } from '@/lib/ramaUtils';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 import { cn } from '@/lib/utils';
+import PanueloIcon from '@/components/shared/PanueloIcon';
 
 const AÑO_INICIO = 2026;
 
@@ -281,7 +282,12 @@ export default function EstadoCuenta() {
               {/* Encabezado del scout */}
               <Card className="p-5 border-2 border-primary/20 bg-primary/5">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div className="space-y-3">
+                  {b.estado_panuelo && (
+                    <div className="flex-shrink-0 flex items-center justify-center w-16 h-16 rounded-xl bg-white/60 border border-primary/15">
+                      <PanueloIcon estado={b.estado_panuelo} className="w-14 h-14" />
+                    </div>
+                  )}
+                  <div className="space-y-3 flex-1">
                     <div>
                       <h2 className="text-xl font-bold">{b.nombre}</h2>
                       <div className="flex flex-wrap items-center gap-2 mt-1.5">

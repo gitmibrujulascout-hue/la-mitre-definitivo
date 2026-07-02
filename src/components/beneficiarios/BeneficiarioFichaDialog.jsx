@@ -58,7 +58,7 @@ export default function BeneficiarioFichaDialog({ open, onClose, beneficiario: b
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg flex items-center gap-2">
-            {b.estado_panuelo && <PanueloIcon estado={b.estado_panuelo} className="w-5 h-5" />}
+            {b.estado_panuelo && <PanueloIcon estado={b.estado_panuelo} className="w-8 h-8" />}
             {b.nombre}
           </DialogTitle>
           <div className="flex items-center gap-2 flex-wrap pt-1">

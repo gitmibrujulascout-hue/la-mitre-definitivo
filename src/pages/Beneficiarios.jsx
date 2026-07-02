@@ -331,7 +331,7 @@ export default function Beneficiarios() {
                   </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-1.5">
-                      {b.estado_panuelo && <PanueloIcon estado={b.estado_panuelo} className="w-4 h-4 flex-shrink-0" />}
+                      {b.estado_panuelo && <PanueloIcon estado={b.estado_panuelo} className="w-7 h-7 flex-shrink-0" />}
                       <span>{b.nombre}</span>
                       {edad !== null && edad < 25 && <span className="text-muted-foreground font-normal ml-1">({edad} años)</span>}
                     </div>

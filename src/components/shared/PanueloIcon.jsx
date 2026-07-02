@@ -14,7 +14,7 @@ export const PANUELO_OPTIONS = [
 export default function PanueloIcon({ estado, className = "w-4 h-4" }) {
   const opt = PANUELO_OPTIONS.find(p => p.value === estado);
   if (!opt) return null;
-  if (opt.img) return <img src={opt.img} alt={opt.label} className={`${className} object-contain inline-block align-middle`} />;
+  if (opt.img) return <img src={opt.img} alt={opt.label} className={`${className} object-contain inline-block align-middle mix-blend-multiply`} />;
   if (opt.icon) { const Icon = opt.icon; return <Icon className={`${className} inline-block align-middle`} />; }
   return null;
 }
