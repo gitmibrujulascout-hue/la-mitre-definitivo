@@ -6,11 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, CheckCircle2, AlertCircle, Award, User, Plus, UserX, Gift, LayoutGrid, List } from 'lucide-react';
+import { Search, CheckCircle2, AlertCircle, Award, User, Plus, UserX, Gift, LayoutGrid, List, CalendarDays } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
 import ResumenDeudas from '@/components/cuenta/ResumenDeudas';
+import GrillaCuotasMensuales from '@/components/cuenta/GrillaCuotasMensuales';
 import PagoForm from '@/components/pagos/PagoForm';
 import { RAMAS, TODOS_LOS_ROLES, MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado } from '@/lib/ramaUtils';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
@@ -30,7 +31,7 @@ export default function CuentaCorriente() {
   const [anio, setAnio] = useState(new Date().getFullYear());
   const [showPagoForm, setShowPagoForm] = useState(false);
   const [pagoPreselected, setPagoPreselected] = useState(null);
-  const [viewMode, setViewMode] = useState('lista');
+  const [viewMode, setViewMode] = useState('lista'); // 'lista' | 'resumen' | 'grilla'
 
   const { data: beneficiarios = [] } = useQuery({
     queryKey: ['beneficiarios'],
@@ -162,6 +163,7 @@ export default function CuentaCorriente() {
         cuotaIndividual,
         tieneDescuentoHermanos: !esAdulto && cuotaIndividual < CUOTA_EFECTIVO_REF && esBeneficiarioConCuota(b),
         alDia: b.becado || saldo >= 0,
+        marzoGratis,
         creditoDisponible,
         mesesDeuda: esBeneficiarioConCuota(b) ? mesesQueGeneranDeuda.filter(m => !mesesPagados.includes(m)) : [],
         deudaCampamento: Math.max(0, totalCampamentos - pagadoCamp),
@@ -211,10 +213,15 @@ export default function CuentaCorriente() {
   return (
     <div>
       <PageHeader title="Cuenta Corriente" description={`${alDiaCount} al día · ${conDeudaCount} con deuda`}>
-        <div className="flex gap-2">
-          <Button variant={viewMode === 'resumen' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode(viewMode === 'resumen' ? 'lista' : 'resumen')}>
-            {viewMode === 'resumen' ? <List className="w-4 h-4 mr-2" /> : <LayoutGrid className="w-4 h-4 mr-2" />}
-            {viewMode === 'resumen' ? 'Ver lista' : 'Resumen deudas'}
+        <div className="flex gap-2 flex-wrap">
+          <Button variant={viewMode === 'lista' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('lista')}>
+            <List className="w-4 h-4 mr-2" />Lista
+          </Button>
+          <Button variant={viewMode === 'grilla' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('grilla')}>
+            <CalendarDays className="w-4 h-4 mr-2" />Grilla mensual
+          </Button>
+          <Button variant={viewMode === 'resumen' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('resumen')}>
+            <LayoutGrid className="w-4 h-4 mr-2" />Resumen deudas
           </Button>
           <Button onClick={() => { setPagoPreselected(null); setShowPagoForm(true); }}>
             <Plus className="w-4 h-4 mr-2" />Registrar pago
@@ -274,6 +281,8 @@ export default function CuentaCorriente() {
 
       {viewMode === 'resumen' ? (
         <ResumenDeudas cuentas={filtered} anio={anio} onSelectBen={setSelectedBen} onRegisterPago={(id) => { setPagoPreselected(id); setShowPagoForm(true); }} />
+      ) : viewMode === 'grilla' ? (
+        <GrillaCuotasMensuales cuentas={filtered} anio={anio} onSelectBen={setSelectedBen} />
       ) : (
       <Card className="overflow-hidden">
         <Table>
