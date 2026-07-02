@@ -68,13 +68,14 @@ export default function ResumenUnidades({ actividad, ventas }) {
                     merged[key].unidades += d.unidades;
                   });
                   return Object.values(merged).map(d => (
-                    <div key={`${d.nombre}-${d.es_promo}-${d.cantidad_promo}`} className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">
+                    <div key={`${d.nombre}-${d.es_promo}-${d.cantidad_promo}`} className="flex justify-between text-xs gap-2">
+                      <span className="text-muted-foreground min-w-0 truncate">
+                        <span className="font-medium text-foreground/70">{d.nombre}</span>
                         {d.es_promo
-                          ? `${d.count} promo${d.count !== 1 ? 's' : ''} de ${d.cantidad_promo}`
-                          : `${d.count} individual${d.count !== 1 ? 'es' : ''}`}
+                          ? ` · ${d.count} promo${d.count !== 1 ? 's' : ''} de ${d.cantidad_promo}`
+                          : ` · ${d.count} individual${d.count !== 1 ? 'es' : ''}`}
                       </span>
-                      <span className="font-medium text-foreground/80">{d.unidades} uds</span>
+                      <span className="font-medium text-foreground/80 shrink-0">{d.unidades} uds</span>
                     </div>
                   ));
                 })()}
