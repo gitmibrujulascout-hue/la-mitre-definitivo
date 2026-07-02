@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, TrendingUp, DollarSign, Users } from 'lucide-react';
+import { Plus, Search, TrendingUp, DollarSign, Users, Wallet } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import ActividadForm from '@/components/actividades/ActividadForm';
 import ActividadDetalle from '@/components/actividades/ActividadDetalle';
+import CreditosConsulta from '@/components/actividades/CreditosConsulta';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatMoney } from '@/lib/ramaUtils';
 
 const ESTADO_COLORS = {
@@ -61,6 +63,12 @@ export default function ActividadesEconomicas() {
         <Button onClick={() => setShowForm(true)}><Plus className="w-4 h-4 mr-2" />Nueva Actividad</Button>
       </PageHeader>
 
+      <Tabs defaultValue="actividades">
+        <TabsList className="mb-6">
+          <TabsTrigger value="actividades">Actividades</TabsTrigger>
+          <TabsTrigger value="creditos"><Wallet className="w-4 h-4 mr-1" />Créditos</TabsTrigger>
+        </TabsList>
+        <TabsContent value="actividades">
       <Card className="p-4 mb-6">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -130,6 +138,11 @@ export default function ActividadesEconomicas() {
           onSaved={handleSaved}
         />
       )}
+        </TabsContent>
+        <TabsContent value="creditos">
+          <CreditosConsulta beneficiarios={beneficiarios} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -80,6 +80,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
       queryClient.invalidateQueries({ queryKey: ['pagos'] });
       queryClient.invalidateQueries({ queryKey: ['movimientos'] });
       queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario'] });
+      queryClient.invalidateQueries({ queryKey: ['creditos-todos'] });
       onClose();
       toast.success('Pago con crédito registrado');
     },
