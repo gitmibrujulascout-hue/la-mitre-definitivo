@@ -6,146 +6,198 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Trash2 } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 
-export default function VentaTiendaForm({ open, onClose, productos, beneficiarios, ventas = [] }) {
-  const [productoId, setProductoId] = useState('');
-  const [talle, setTalle] = useState('');
-  const [cantidad, setCantidad] = useState('1');
-  const [precioUnitario, setPrecioUnitario] = useState('');
+export default function VentaTiendaForm({ open, onClose, productos, beneficiarios }) {
+  const [items, setItems] = useState([]);
   const [beneficiarioId, setBeneficiarioId] = useState('');
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const queryClient = useQueryClient();
 
-  const producto = productos.find(p => p.id === productoId);
   const ben = beneficiarios.find(b => b.id === beneficiarioId);
 
   useEffect(() => {
     if (!open) return;
-    setProductoId(''); setTalle(''); setCantidad('1'); setPrecioUnitario('');
+    setItems([{ productoId: '', talle: '', cantidad: '1', precioUnitario: '' }]);
     setBeneficiarioId('');
     setFecha(new Date().toISOString().split('T')[0]);
   }, [open]);
 
-  useEffect(() => {
-    if (producto) setPrecioUnitario(producto.precio_venta?.toString() || '');
-    setTalle(''); setCantidad('1');
-  }, [productoId]);
+  const updateItem = (idx, field, val) => {
+    setItems(prev => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], [field]: val };
+      if (field === 'productoId') {
+        const prod = productos.find(p => p.id === val);
+        next[idx].precioUnitario = prod ? (prod.precio_venta?.toString() || '') : '';
+        next[idx].talle = '';
+        next[idx].cantidad = '1';
+      }
+      return next;
+    });
+  };
 
-  const cantidadNum = parseInt(cantidad) || 0;
-  const precioNum = parseFloat(precioUnitario) || 0;
-  const montoTotal = cantidadNum * precioNum;
+  const addItem = () => setItems(prev => [...prev, { productoId: '', talle: '', cantidad: '1', precioUnitario: '' }]);
+  const removeItem = (idx) => setItems(prev => prev.filter((_, i) => i !== idx));
+
+  const totalGeneral = items.reduce((sum, it) => {
+    const cant = parseInt(it.cantidad) || 0;
+    const precio = parseFloat(it.precioUnitario) || 0;
+    return sum + (cant * precio);
+  }, 0);
 
   const ventaMutation = useMutation({
     mutationFn: async () => {
-      const destino = 'Caja';
-      await base44.entities.VentaTienda.create({
-        producto_id: producto.id,
-        producto_nombre: producto.nombre,
-        beneficiario_id: beneficiarioId,
-        beneficiario_nombre: ben?.nombre,
-        talle: producto.tiene_talles ? talle : undefined,
-        cantidad: cantidadNum,
-        precio_unitario: precioNum,
-        monto_total: montoTotal,
-        fecha,
-        forma_pago: 'Efectivo',
-        destino,
-      });
+      for (const it of items) {
+        const prod = productos.find(p => p.id === it.productoId);
+        if (!prod) continue;
+        const cant = parseInt(it.cantidad) || 0;
+        const precio = parseFloat(it.precioUnitario) || 0;
 
-      // Decrement stock
-      if (producto.tiene_talles) {
-        const stockActual = producto.stock_por_talle?.[talle] ?? 0;
-        const nuevoStock = { ...producto.stock_por_talle, [talle]: Math.max(0, stockActual - cantidadNum) };
-        await base44.entities.ProductoTienda.update(producto.id, { stock_por_talle: nuevoStock });
-      } else {
-        const nuevoStock = Math.max(0, (producto.stock || 0) - cantidadNum);
-        await base44.entities.ProductoTienda.update(producto.id, { stock: nuevoStock });
+        await base44.entities.VentaTienda.create({
+          producto_id: prod.id,
+          producto_nombre: prod.nombre,
+          beneficiario_id: beneficiarioId,
+          beneficiario_nombre: ben?.nombre,
+          talle: prod.tiene_talles ? it.talle : undefined,
+          cantidad: cant,
+          precio_unitario: precio,
+          monto_total: cant * precio,
+          fecha,
+          forma_pago: 'Efectivo',
+          destino: prod.caja_exclusiva ? 'Caja exclusiva' : 'Caja',
+        });
+
+        // Decrement stock
+        if (prod.tiene_talles && it.talle) {
+          const stockActual = prod.stock_por_talle?.[it.talle] ?? 0;
+          await base44.entities.ProductoTienda.update(prod.id, {
+            stock_por_talle: { ...prod.stock_por_talle, [it.talle]: Math.max(0, stockActual - cant) },
+          });
+        } else {
+          await base44.entities.ProductoTienda.update(prod.id, {
+            stock: Math.max(0, (prod.stock || 0) - cant),
+          });
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
       queryClient.invalidateQueries({ queryKey: ['ventas_tienda'] });
-      toast.success('Venta registrada en efectivo');
+      toast.success(`${items.length} venta(s) registrada(s) en efectivo`);
       onClose();
     },
     onError: (err) => toast.error('Error: ' + err.message),
   });
 
-  const puedeGuardar = producto && cantidadNum > 0 && beneficiarioId && (producto.tiene_talles ? !!talle : true);
+  const puedeGuardar = beneficiarioId && items.every(it => {
+    const prod = productos.find(p => p.id === it.productoId);
+    if (!prod) return false;
+    if ((parseInt(it.cantidad) || 0) <= 0) return false;
+    if (prod.tiene_talles && !it.talle) return false;
+    return true;
+  });
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nueva venta</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div>
-            <Label>Producto *</Label>
-            <Select value={productoId} onValueChange={setProductoId}>
-              <SelectTrigger><SelectValue placeholder="Seleccionar producto..." /></SelectTrigger>
-              <SelectContent className="max-h-60">
-                {productos.filter(p => p.activo !== false).map(p => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.nombre} — {formatMoney(p.precio_venta)}
-                    {p.es_combo ? ' 📦' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {producto?.tiene_talles && (
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Talle *</Label>
-              <Select value={talle} onValueChange={setTalle}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar talle..." /></SelectTrigger>
-                <SelectContent>
-                  {producto.talles?.map(t => (
-                    <SelectItem key={t} value={t} disabled={(producto.stock_por_talle?.[t] ?? 0) === 0}>
-                      {t} ({producto.stock_por_talle?.[t] ?? 0} disp.)
-                    </SelectItem>
+              <Label>Beneficiario *</Label>
+              <Select value={beneficiarioId} onValueChange={setBeneficiarioId}>
+                <SelectTrigger><SelectValue placeholder="Buscar..." /></SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {beneficiarios.sort((a, b) => a.nombre.localeCompare(b.nombre)).map(b => (
+                    <SelectItem key={b.id} value={b.id}>{b.nombre}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Cantidad *</Label>
-              <Input type="number" min="1" value={cantidad} onChange={e => setCantidad(e.target.value)} />
-            </div>
-            <div>
-              <Label>Precio unitario</Label>
-              <Input type="number" value={precioUnitario} onChange={e => setPrecioUnitario(e.target.value)} />
+              <Label>Fecha</Label>
+              <Input type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
             </div>
           </div>
 
-          <div>
-            <Label>Beneficiario *</Label>
-            <Select value={beneficiarioId} onValueChange={setBeneficiarioId}>
-              <SelectTrigger><SelectValue placeholder="Buscar beneficiario..." /></SelectTrigger>
-              <SelectContent className="max-h-60">
-                {beneficiarios.sort((a, b) => a.nombre.localeCompare(b.nombre)).map(b => (
-                  <SelectItem key={b.id} value={b.id}>{b.nombre}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Items */}
+          <div className="space-y-3">
+            {items.map((it, idx) => {
+              const prod = productos.find(p => p.id === it.productoId);
+              const cant = parseInt(it.cantidad) || 0;
+              const precio = parseFloat(it.precioUnitario) || 0;
+              return (
+                <div key={idx} className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1">
+                      <Label className="text-xs">Producto *</Label>
+                      <Select value={it.productoId} onValueChange={v => updateItem(idx, 'productoId', v)}>
+                        <SelectTrigger className="h-8"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          {productos.filter(p => p.activo !== false).map(p => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.nombre} — {formatMoney(p.precio_venta)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {items.length > 1 && (
+                      <Button variant="ghost" size="icon" className="h-8 mt-5 shrink-0" onClick={() => removeItem(idx)}>
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {prod?.tiene_talles && (
+                    <div>
+                      <Label className="text-xs">Talle *</Label>
+                      <Select value={it.talle} onValueChange={v => updateItem(idx, 'talle', v)}>
+                        <SelectTrigger className="h-8"><SelectValue placeholder="Talle..." /></SelectTrigger>
+                        <SelectContent>
+                          {prod.talles?.map(t => (
+                            <SelectItem key={t} value={t} disabled={(prod.stock_por_talle?.[t] ?? 0) === 0}>
+                              {t} ({prod.stock_por_talle?.[t] ?? 0} disp.)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <Label className="text-xs">Cant.</Label>
+                      <Input type="number" min="1" className="h-8" value={it.cantidad} onChange={e => updateItem(idx, 'cantidad', e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Precio unit.</Label>
+                      <Input type="number" className="h-8" value={it.precioUnitario} onChange={e => updateItem(idx, 'precioUnitario', e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Subtotal</Label>
+                      <div className="h-8 flex items-center font-semibold text-sm">{formatMoney(cant * precio)}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            <Button variant="outline" size="sm" onClick={addItem}>
+              <Plus className="w-4 h-4 mr-1" />Agregar producto
+            </Button>
           </div>
 
-          <div>
-            <Label>Fecha</Label>
-            <Input type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
-          </div>
-
-          <div className="p-3 bg-muted/50 rounded-lg space-y-1">
+          <div className="p-3 bg-muted/50 rounded-lg">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Total (efectivo)</span>
-              <span className="text-xl font-bold">{formatMoney(montoTotal)}</span>
+              <span className="text-xl font-bold">{formatMoney(totalGeneral)}</span>
             </div>
           </div>
         </div>
@@ -153,7 +205,7 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => ventaMutation.mutate()} disabled={!puedeGuardar || ventaMutation.isPending}>
-            {ventaMutation.isPending ? 'Registrando...' : 'Registrar venta'}
+            {ventaMutation.isPending ? 'Registrando...' : `Registrar ${items.length} venta(s)`}
           </Button>
         </DialogFooter>
       </DialogContent>

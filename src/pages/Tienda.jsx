@@ -50,8 +50,28 @@ export default function Tienda() {
   });
 
   const deleteVenta = useMutation({
-    mutationFn: id => base44.entities.VentaTienda.delete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['ventas_tienda'] }); toast.success('Venta eliminada'); },
+    mutationFn: async (venta) => {
+      await base44.entities.VentaTienda.delete(venta.id);
+      // Restaurar stock del producto
+      const prod = productos.find(p => p.id === venta.producto_id);
+      if (prod) {
+        if (prod.tiene_talles && venta.talle) {
+          const stockActual = prod.stock_por_talle?.[venta.talle] ?? 0;
+          await base44.entities.ProductoTienda.update(prod.id, {
+            stock_por_talle: { ...prod.stock_por_talle, [venta.talle]: stockActual + (venta.cantidad || 0) },
+          });
+        } else {
+          await base44.entities.ProductoTienda.update(prod.id, {
+            stock: (prod.stock || 0) + (venta.cantidad || 0),
+          });
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
+      queryClient.invalidateQueries({ queryKey: ['ventas_tienda'] });
+      toast.success('Venta eliminada y stock restaurado');
+    },
   });
 
   const toggleVisible = useMutation({
@@ -302,7 +322,7 @@ export default function Tienda() {
                       <Badge variant="outline" className="text-xs">{v.forma_pago}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => { if (confirm('¿Eliminar esta venta? El stock NO se restaurará automáticamente.')) deleteVenta.mutate(v.id); }}>
+                      <Button variant="ghost" size="icon" onClick={() => { if (confirm('¿Eliminar esta venta? Se restaurará el stock.')) deleteVenta.mutate(v); }}>
                         <Trash2 className="w-4 h-4 text-muted-foreground" />
                       </Button>
                     </TableCell>
@@ -385,7 +405,7 @@ export default function Tienda() {
         <ProductoTiendaForm open onClose={() => setShowProductoForm(false)} producto={editProducto} />
       )}
       {showVentaForm && (
-        <VentaTiendaForm open onClose={() => setShowVentaForm(false)} productos={productos} beneficiarios={beneficiarios} ventas={ventas} />
+        <VentaTiendaForm open onClose={() => setShowVentaForm(false)} productos={productos} beneficiarios={beneficiarios} />
       )}
     </div>
   );
