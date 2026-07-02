@@ -1,4 +1,6 @@
 import React, { useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Printer, FileSpreadsheet, PackageCheck, Package, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
@@ -48,6 +50,12 @@ function getSaldo(v) {
 export default function ReporteVentasDialog({ open, onClose, actividad, ventas, beneficiarios = [] }) {
   const printRef = useRef();
 
+  const { data: productos = [] } = useQuery({
+    queryKey: ['productos-actividad', actividad?.id],
+    queryFn: () => base44.entities.ProductoActividad.filter({ actividad_id: actividad.id }),
+    enabled: !!actividad?.id,
+  });
+
   const totalRecaudado = ventas.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
   const totalUnidades = ventas.reduce((s, v) => {
     const uds = v.es_promo && v.cantidad_promo ? (v.cantidad_vendida || 0) * v.cantidad_promo : (v.cantidad_vendida || 0);
@@ -57,6 +65,25 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
   const totalSaldo = totalRecaudado - totalRendido;
   const entregadas = ventas.filter(v => v.entregado).length;
   const pendientes = ventas.filter(v => !v.entregado).length;
+
+  // Desglose de unidades por grupo/producto
+  const grupoMap = {};
+  productos.forEach(p => { grupoMap[p.id] = p.grupo || p.nombre; });
+  const porGrupo = {};
+  ventas.forEach(v => {
+    const grupo = grupoMap[v.producto_id] || v.producto_nombre || actividad?.tipo_producto || 'Producto';
+    if (!porGrupo[grupo]) porGrupo[grupo] = { unidades: 0, detalles: [] };
+    const uds = v.es_promo ? (v.cantidad_vendida || 0) * (v.cantidad_promo || 1) : (v.cantidad_vendida || 0);
+    porGrupo[grupo].unidades += uds;
+    porGrupo[grupo].detalles.push({
+      nombre: v.producto_nombre || actividad?.tipo_producto || 'Producto',
+      unidades: uds,
+      cantidad_vendida: v.cantidad_vendida || 0,
+      es_promo: v.es_promo,
+      cantidad_promo: v.cantidad_promo,
+    });
+  });
+  const gruposDesglose = Object.entries(porGrupo).sort((a, b) => a[0].localeCompare(b[0], 'es'));
 
   // Agrupar por vendedor
   const ventasPorVendedor = {};
@@ -148,6 +175,41 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
       return ramaHeader + vendedorFilas;
     }).join('');
 
+    const desgloseRows = gruposDesglose.length > 0 ? `
+      <h3 style="font-family:Arial;font-size:13px;margin:16px 0 4px;color:#312e81">Unidades a preparar por producto</h3>
+      <table style="margin-bottom:12px">
+        <thead><tr style="background:#e0e7ff">
+          <th style="padding:6px 8px;border:1px solid #c7d2fe;text-align:left">Producto / Grupo</th>
+          <th style="padding:6px 8px;border:1px solid #c7d2fe;text-align:left">Detalle</th>
+          <th style="padding:6px 8px;border:1px solid #c7d2fe;text-align:right">Unidades</th>
+        </tr></thead>
+        <tbody>
+          ${gruposDesglose.map(([grupo, data]) => {
+            const merged = {};
+            data.detalles.forEach(d => {
+              const key = d.es_promo ? `${d.nombre} (promo x${d.cantidad_promo})` : d.nombre;
+              if (!merged[key]) merged[key] = { ...d, count: 0, unidades: 0 };
+              merged[key].count += d.cantidad_vendida;
+              merged[key].unidades += d.unidades;
+            });
+            const detalleStr = Object.values(merged).map(d =>
+              d.es_promo
+                ? `${d.nombre}: ${d.count} promo${d.count !== 1 ? 's' : ''} de ${d.cantidad_promo} (${d.unidades} uds)`
+                : `${d.nombre}: ${d.count} individual${d.count !== 1 ? 'es' : ''} (${d.unidades} uds)`
+            ).join(' · ');
+            return `<tr>
+              <td style="padding:5px 8px;border:1px solid #ddd;font-weight:bold">${grupo}</td>
+              <td style="padding:5px 8px;border:1px solid #ddd;font-size:10px;color:#555">${detalleStr}</td>
+              <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-weight:bold;font-size:14px;color:#312e81">${data.unidades}</td>
+            </tr>`;
+          }).join('')}
+          <tr style="background:#dcfce7;font-weight:bold">
+            <td colspan="2" style="padding:7px 8px;border:1px solid #86efac">TOTAL GENERAL</td>
+            <td style="padding:7px 8px;border:1px solid #86efac;text-align:right;font-size:14px;color:#15803d">${totalUnidades}</td>
+          </tr>
+        </tbody>
+      </table>` : '';
+
     const html = `
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
       <head><meta charset="UTF-8">
@@ -162,6 +224,7 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
         <p style="font-family:Arial;font-size:11px;color:#666;margin-bottom:16px">
           ${actividad.tipo_producto ? actividad.tipo_producto + ' · ' : ''}Fecha: ${actividad.fecha || ''}
         </p>
+        ${desgloseRows}
         <table>
           <thead>
             <tr>
@@ -279,6 +342,53 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
               </div>
             ))}
           </div>
+
+          {/* Resumen de unidades a preparar */}
+          {gruposDesglose.length > 0 && (
+            <div className="mb-6 border border-primary/20 bg-primary/5 rounded-lg p-4">
+              <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Package className="w-4 h-4 text-primary" />
+                Unidades a preparar por producto
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {gruposDesglose.map(([grupo, data]) => (
+                  <div key={grupo} className="rounded-lg bg-white/70 border border-primary/15 p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-semibold text-sm">{grupo}</p>
+                      <p className="text-2xl font-bold text-primary">{data.unidades}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-1.5">unidad{data.unidades !== 1 ? 'es' : ''} en total</p>
+                    <div className="space-y-0.5">
+                      {(() => {
+                        const merged = {};
+                        data.detalles.forEach(d => {
+                          const key = d.es_promo ? `${d.nombre} (promo x${d.cantidad_promo})` : d.nombre;
+                          if (!merged[key]) merged[key] = { ...d, count: 0, unidades: 0 };
+                          merged[key].count += d.cantidad_vendida;
+                          merged[key].unidades += d.unidades;
+                        });
+                        return Object.values(merged).map(d => (
+                          <div key={`${d.nombre}-${d.es_promo}-${d.cantidad_promo}`} className="flex justify-between text-xs gap-2">
+                            <span className="text-muted-foreground min-w-0 truncate">
+                              <span className="font-medium text-foreground/70">{d.nombre}</span>
+                              {d.es_promo
+                                ? ` · ${d.count} promo${d.count !== 1 ? 's' : ''} de ${d.cantidad_promo}`
+                                : ` · ${d.count} individual${d.count !== 1 ? 'es' : ''}`}
+                            </span>
+                            <span className="font-medium text-foreground/80 shrink-0">{d.unidades} uds</span>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-3 border-t border-primary/15 flex items-center justify-between">
+                <p className="text-sm font-semibold text-muted-foreground">Total general de unidades</p>
+                <p className="text-2xl font-bold text-primary">{totalUnidades}</p>
+              </div>
+            </div>
+          )}
 
           {/* Tabla agrupada por vendedor */}
           <table className="w-full text-sm border-collapse">
