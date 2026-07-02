@@ -45,9 +45,10 @@ export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
         });
       }
 
-      // 3. Actualizar pre-encargo a Entregado
+      // 3. Actualizar pre-encargo a Entregado y liberar la reserva (el stock ya fue consumido por la venta)
       await base44.entities.PreEncargoTienda.update(encargo.id, {
         estado: 'Entregado',
+        stock_reservado: false,
         fecha_confirmacion: encargo.fecha_confirmacion || new Date().toISOString().split('T')[0],
       });
     },
