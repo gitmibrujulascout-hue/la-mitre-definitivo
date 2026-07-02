@@ -10,7 +10,7 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, marzoEsBonificado } from '@/lib/ramaUtils';
 import { registrarPagos } from '@/lib/registros';
 import { toast } from 'sonner';
-import { Tent, CreditCard, Users } from 'lucide-react';
+import { Tent, CreditCard, Users, Wallet, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function PagoForm({ open, onClose, beneficiarios, preselectedBenId = null }) {
   const [tipoPago, setTipoPago] = useState('Cuota');
@@ -23,6 +23,8 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
   const [observaciones, setObservaciones] = useState('');
   const [hermanosSeleccionados, setHermanosSeleccionados] = useState([]);
+  const [creditoId, setCreditoId] = useState('');
+  const [montoCreditoAplicar, setMontoCreditoAplicar] = useState('');
 
   const queryClient = useQueryClient();
 
@@ -41,6 +43,19 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     queryFn: () => base44.entities.Afiliacion.list('-fecha_pago', 200),
   });
 
+  const { data: creditosBen = [] } = useQuery({
+    queryKey: ['creditos-beneficiario', beneficiarioId],
+    queryFn: () => base44.entities.CreditoBeneficiario.filter({ beneficiario_id: beneficiarioId }, '-fecha', 50),
+    enabled: !!beneficiarioId,
+  });
+
+  const creditosDisponibles = useMemo(() =>
+    creditosBen.filter(c => (c.monto_disponible || 0) > 0),
+    [creditosBen]
+  );
+  const totalCreditos = creditosDisponibles.reduce((s, c) => s + (c.monto_disponible || 0), 0);
+  const creditoSeleccionado = creditosDisponibles.find(c => c.id === creditoId) || creditosDisponibles[0];
+
   const createMutation = useMutation({
     mutationFn: async (pagos) => registrarPagos(pagos),
     onSuccess: (_, pagos) => {
@@ -48,6 +63,25 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
       queryClient.invalidateQueries({ queryKey: ['movimientos'] });
       onClose();
       toast.success(pagos.length > 1 ? `${pagos.length} pagos registrados` : 'Pago registrado');
+    },
+  });
+
+  const creditoMutation = useMutation({
+    mutationFn: async ({ pagos, cId, montoCredito }) => {
+      await registrarPagos(pagos);
+      const cred = creditosDisponibles.find(c => c.id === cId);
+      if (cred) {
+        await base44.entities.CreditoBeneficiario.update(cId, {
+          monto_disponible: Math.max(0, cred.monto_disponible - montoCredito),
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pagos'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos'] });
+      queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario'] });
+      onClose();
+      toast.success('Pago con crédito registrado');
     },
   });
 
@@ -125,7 +159,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   // Mantener la proporción transferencia/efectivo
   const ratio = CUOTA_TRANSFERENCIA / CUOTA_EFECTIVO;
   const cuotaBaseTransferencia = Math.round(cuotaBaseEfectivo * ratio);
-  const cuotaUnitaria = formaPago === 'Efectivo' ? cuotaBaseEfectivo : formaPago === 'Transferencia' ? cuotaBaseTransferencia : 0;
+  const cuotaUnitaria = !formaPago ? 0 : formaPago === 'Transferencia' ? cuotaBaseTransferencia : cuotaBaseEfectivo;
   const tieneDescuento = cuotaBaseEfectivo < CUOTA_EFECTIVO;
   const montoCuotas = tipoPago === 'Cuota' ? mesesSeleccionados.length * cuotaUnitaria : 0;
   const montoCampamento = tipoPago === 'Campamento' ? parseFloat(montoManual) || saldoCampamento : 0;
@@ -133,6 +167,10 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
 
   // Destino automático según forma de pago
   const destino = formaPago === 'Transferencia' ? 'Banco' : 'Caja';
+
+  // Crédito aplicado
+  const montoCreditoNum = creditoSeleccionado ? Math.min(parseFloat(montoCreditoAplicar) || 0, creditoSeleccionado.monto_disponible) : 0;
+  const diferenciaCredito = formaPago === 'Crédito actividad' ? Math.max(0, montoFinal - montoCreditoNum) : 0;
 
   // Meses que no generan cuota para este beneficiario en el año seleccionado
   const mesesNoCobrar = useMemo(() => {
@@ -154,6 +192,21 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     }
   }, [beneficiarioId, anio, tipoPago, mesesYaPagados.length, mesesNoCobrar.length]);
 
+  // Auto-seleccionar y calcular crédito cuando se elige "Crédito actividad"
+  useEffect(() => {
+    if (formaPago !== 'Crédito actividad') {
+      setMontoCreditoAplicar('');
+      return;
+    }
+    if (creditosDisponibles.length > 0 && !creditosDisponibles.find(c => c.id === creditoId)) {
+      setCreditoId(creditosDisponibles[0].id);
+    }
+    if (creditoSeleccionado && montoFinal > 0) {
+      setMontoCreditoAplicar(Math.min(creditoSeleccionado.monto_disponible, montoFinal).toString());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formaPago, montoFinal, creditosDisponibles, creditoId]);
+
   const toggleMes = (mes) => {
     if (mesesYaPagados.includes(mes) || mesesNoCobrar.includes(mes)) return;
     setMesesSeleccionados(prev =>
@@ -166,6 +219,40 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     if (tipoPago === 'Cuota' && mesesSeleccionados.length === 0) return;
     if (tipoPago === 'Campamento' && !campamentoId) return;
 
+    // --- Pago con crédito ---
+    if (formaPago === 'Crédito actividad' && creditoSeleccionado) {
+      const baseFields = {
+        beneficiario_id: beneficiarioId,
+        beneficiario_nombre: selectedBen?.nombre || '',
+        tipo_pago: tipoPago,
+        anio: parseInt(anio),
+        fecha_pago: fechaPago,
+        ...(tipoPago === 'Cuota'
+          ? { meses: mesesSeleccionados, mes: mesesSeleccionados[0] || '' }
+          : { campamento_id: campamentoId, campamento_nombre: selectedCamp?.nombre || '' }
+        ),
+      };
+      const pagos = [{
+        ...baseFields,
+        forma_pago: 'Crédito actividad',
+        destino: 'Caja',
+        monto: montoCreditoNum,
+        observaciones: observaciones || `Crédito aplicado de: ${creditoSeleccionado.actividad_nombre}`,
+      }];
+      if (diferenciaCredito > 0) {
+        pagos.push({
+          ...baseFields,
+          forma_pago: 'Efectivo',
+          destino: 'Caja',
+          monto: diferenciaCredito,
+          observaciones: observaciones || `Diferencia en efectivo (complementa crédito de: ${creditoSeleccionado.actividad_nombre})`,
+        });
+      }
+      creditoMutation.mutate({ pagos, cId: creditoSeleccionado.id, montoCredito: montoCreditoNum });
+      return;
+    }
+
+    // --- Pago regular ---
     const buildPago = (ben, meses) => {
       const cuotaBen = getCuotaBeneficiario(ben, beneficiarios);
       const ratio = CUOTA_TRANSFERENCIA / CUOTA_EFECTIVO;
@@ -232,7 +319,8 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   };
 
   const canSave = beneficiarioId && formaPago &&
-    (tipoPago === 'Cuota' ? mesesSeleccionados.length > 0 : (campamentoId && montoFinal > 0));
+    (tipoPago === 'Cuota' ? mesesSeleccionados.length > 0 : (campamentoId && montoFinal > 0)) &&
+    (formaPago !== 'Crédito actividad' || (creditoSeleccionado && montoCreditoNum > 0));
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -277,7 +365,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
             <Label>Beneficiario *</Label>
             <Select
               value={beneficiarioId}
-              onValueChange={v => { setBeneficiarioId(v); setHermanosSeleccionados([]); }}
+              onValueChange={v => { setBeneficiarioId(v); setHermanosSeleccionados([]); setCreditoId(''); setMontoCreditoAplicar(''); }}
               disabled={tipoPago === 'Campamento' && !campamentoId}
             >
               <SelectTrigger>
@@ -291,6 +379,18 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
             </Select>
             {tipoPago === 'Campamento' && campamentoId && beneficiariosLista.length === 0 && (
               <p className="text-xs text-muted-foreground mt-1">No hay asistentes registrados en este campamento.</p>
+            )}
+            {beneficiarioId && creditosDisponibles.length > 0 && (
+              <div className="mt-2 p-2.5 rounded-lg border border-green-200 bg-green-50/60 flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-green-600 flex-shrink-0" />
+                <div className="text-sm">
+                  <span className="text-green-800 font-medium">Créditos disponibles: </span>
+                  <span className="text-green-700 font-bold">{formatMoney(totalCreditos)}</span>
+                  <span className="text-green-600 text-xs ml-1">
+                    ({creditosDisponibles.length} {creditosDisponibles.length === 1 ? 'actividad' : 'actividades'})
+                  </span>
+                </div>
+              </div>
             )}
           </div>
 
@@ -306,7 +406,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
           </div>
 
           {/* Hermanos del grupo familiar */}
-          {tipoPago === 'Cuota' && hermanos.length > 0 && (
+          {tipoPago === 'Cuota' && hermanos.length > 0 && formaPago !== 'Crédito actividad' && (
             <div className="p-3 rounded-lg border border-blue-200 bg-blue-50/60 space-y-2">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-blue-600" />
@@ -372,7 +472,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
                   </p>
                   {tieneDescuento && (
                     <p className="text-xs text-green-600 font-medium">
-                      ✓ Descuento familiar aplicado (cuota base: {formatMoney(formaPago === 'Efectivo' ? CUOTA_EFECTIVO : CUOTA_TRANSFERENCIA)})
+                      ✓ Descuento familiar aplicado (cuota base: {formatMoney(formaPago === 'Transferencia' ? CUOTA_TRANSFERENCIA : CUOTA_EFECTIVO)})
                     </p>
                   )}
                 </div>
@@ -424,17 +524,74 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
               <SelectContent>
                 <SelectItem value="Efectivo">Efectivo → Caja{tipoPago === 'Cuota' ? ` — ${formatMoney(cuotaBaseEfectivo)}/mes` : ''}</SelectItem>
                 <SelectItem value="Transferencia">Transferencia → Banco{tipoPago === 'Cuota' ? ` — ${formatMoney(cuotaBaseTransferencia)}/mes` : ''}</SelectItem>
+                {creditosDisponibles.length > 0 && (
+                  <SelectItem value="Crédito actividad">Crédito actividad — {formatMoney(totalCreditos)} disp.</SelectItem>
+                )}
               </SelectContent>
             </Select>
-            {formaPago && (
+            {formaPago && formaPago !== 'Crédito actividad' && (
               <p className="text-xs text-muted-foreground mt-1">
                 El dinero irá a: <span className="font-medium">{destino}</span>
               </p>
             )}
           </div>
 
+          {/* Detalle de crédito aplicado */}
+          {formaPago === 'Crédito actividad' && creditoSeleccionado && montoFinal > 0 && (
+            <div className="space-y-3 p-3 rounded-lg border border-green-200 bg-green-50/40">
+              {creditosDisponibles.length > 1 && (
+                <div>
+                  <Label>Origen del crédito</Label>
+                  <Select value={creditoSeleccionado.id} onValueChange={setCreditoId}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {creditosDisponibles.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.actividad_nombre} — {formatMoney(c.monto_disponible)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total a pagar:</span>
+                  <span className="font-medium">{formatMoney(montoFinal)}</span>
+                </div>
+                <div>
+                  <Label>Monto de crédito a aplicar</Label>
+                  <Input
+                    type="number"
+                    value={montoCreditoAplicar}
+                    onChange={e => setMontoCreditoAplicar(e.target.value)}
+                    max={creditoSeleccionado.monto_disponible}
+                  />
+                  <p className="text-xs text-muted-foreground mt-0.5">Disponible: {formatMoney(creditoSeleccionado.monto_disponible)}</p>
+                </div>
+                {diferenciaCredito > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Diferencia en efectivo:</span>
+                    <span className="font-medium text-orange-600">{formatMoney(diferenciaCredito)}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 pt-1">
+                  {diferenciaCredito > 0 ? (
+                    <>
+                      <AlertCircle className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                      <span className="text-xs text-orange-700">El crédito no cubre el total. Se registrará un pago en efectivo por la diferencia.</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                      <span className="text-xs text-green-700">El crédito cubre el total del pago.</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Monto final */}
-          {montoFinal > 0 && (
+          {montoFinal > 0 && formaPago !== 'Crédito actividad' && (
             <div className="p-3 rounded-lg bg-green-50 text-green-700 text-center">
               {hermanosSeleccionados.length > 0 ? (
                 <>
@@ -483,8 +640,8 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={!canSave || createMutation.isPending}>
-            {createMutation.isPending ? 'Registrando...' : 'Registrar'}
+          <Button onClick={handleSave} disabled={!canSave || createMutation.isPending || creditoMutation.isPending}>
+            {(createMutation.isPending || creditoMutation.isPending) ? 'Registrando...' : 'Registrar'}
           </Button>
         </DialogFooter>
       </DialogContent>
