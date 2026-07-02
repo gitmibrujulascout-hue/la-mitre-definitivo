@@ -103,7 +103,7 @@ export default function EditarMasivoDialog({ open, onClose, selectedIds, benefic
                         <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                         <SelectContent>
                           {field.options.map(opt => (
-                            <SelectItem key={opt || '__blank__'} value={opt}>
+                            <SelectItem key={opt || '__blank__'} value={opt || '__blank__'}>
                               {opt === '' ? '— Sin valor —' : opt}
                             </SelectItem>
                           ))}
