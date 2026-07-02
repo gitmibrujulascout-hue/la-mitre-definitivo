@@ -14,9 +14,15 @@ export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiario
   const [selected, setSelected] = useState([]);
   const [panuelo, setPanuelo] = useState('__blank__');
   const [search, setSearch] = useState('');
+  const [filtroPanuelo, setFiltroPanuelo] = useState('todos');
   const [saving, setSaving] = useState(false);
 
   const filtered = beneficiarios
+    .filter(b => {
+      if (filtroPanuelo === 'sin_panuelo') return !b.estado_panuelo;
+      if (filtroPanuelo !== 'todos') return b.estado_panuelo === filtroPanuelo;
+      return true;
+    })
     .filter(b => !search || b.nombre?.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
 
@@ -89,9 +95,26 @@ export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiario
                 {allSelected ? 'Desmarcar todos' : 'Marcar todos'}
               </Button>
             </div>
-            <div className="relative mb-2">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+            <div className="flex gap-2 mb-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+              </div>
+              <Select value={filtroPanuelo} onValueChange={setFiltroPanuelo}>
+                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los pañuelos</SelectItem>
+                  <SelectItem value="sin_panuelo">Sin pañuelo</SelectItem>
+                  {PANUELO_OPTIONS.filter(o => o.value).map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <span className="flex items-center gap-1.5">
+                        <PanueloIcon estado={opt.value} className="w-4 h-4" />
+                        {opt.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="border rounded-lg max-h-64 overflow-y-auto">
               {filtered.map(b => {
