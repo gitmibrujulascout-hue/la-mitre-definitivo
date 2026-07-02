@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, XCircle, Gift, Star, Minus, CalendarDays } from 'lucide-react';
+import { CheckCircle2, XCircle, Gift, Star, Minus, CalendarDays, Filter, X } from 'lucide-react';
 import { MESES, MESES_SIN_CUOTA, TODOS_LOS_ROLES, formatMoney } from '@/lib/ramaUtils';
 import RamaBadge from '@/components/shared/RamaBadge';
 
@@ -45,15 +45,20 @@ export default function GrillaCuotasMensuales({ cuentas, anio, onSelectBen }) {
   const hoy = new Date();
   const mesActualIdx = hoy.getMonth();
   const mesesTranscurridos = anio < hoy.getFullYear() ? 12 : anio > hoy.getFullYear() ? 0 : mesActualIdx + 1;
+  const [mesFiltro, setMesFiltro] = useState(null); // índice del mes a filtrar por "debe"
 
   const ordenados = useMemo(() => {
-    return [...cuentas].sort((a, b) => {
+    let lista = [...cuentas];
+    if (mesFiltro !== null) {
+      lista = lista.filter(c => getMesStatus(c, MESES[mesFiltro], mesFiltro, anio) === 'debe');
+    }
+    return lista.sort((a, b) => {
       const ra = TODOS_LOS_ROLES.indexOf(a.rama);
       const rb = TODOS_LOS_ROLES.indexOf(b.rama);
       if (ra !== rb) return ra - rb;
       return getApellido(a.nombre).localeCompare(getApellido(b.nombre));
     });
-  }, [cuentas]);
+  }, [cuentas, mesFiltro, anio]);
 
   // Contar resumen por mes
   const resumenPorMes = useMemo(() => {
@@ -90,18 +95,35 @@ export default function GrillaCuotasMensuales({ cuentas, anio, onSelectBen }) {
             <TableRow className="bg-muted/50">
               <TableHead className="sticky left-0 bg-muted/50 z-10 min-w-[200px]">Beneficiario</TableHead>
               <TableHead className="text-center">Rama</TableHead>
-              {MESES.map((mes, idx) => (
-                <TableHead key={mes} className="text-center min-w-[60px] px-1">
-                  <div className="flex flex-col items-center">
-                    <span className="text-[11px] font-medium">{mes.slice(0, 3)}</span>
-                    {idx < mesesTranscurridos && anio >= 2026 && (
-                      <span className="text-[9px] text-muted-foreground">
-                        {resumenPorMes[idx].deben > 0 ? `${resumenPorMes[idx].deben}⚠` : '✓'}
+              {MESES.map((mes, idx) => {
+                const isFiltroActivo = mesFiltro === idx;
+                const puedeFiltrar = idx < mesesTranscurridos && anio >= 2026 && !MESES_SIN_CUOTA.includes(mes) && resumenPorMes[idx].deben > 0;
+                return (
+                  <TableHead key={mes} className="text-center min-w-[60px] px-1">
+                    <button
+                      type="button"
+                      disabled={!puedeFiltrar}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMesFiltro(isFiltroActivo ? null : idx);
+                      }}
+                      className={`flex flex-col items-center w-full py-0.5 rounded transition-colors ${
+                        puedeFiltrar ? 'cursor-pointer hover:bg-accent/50' : 'cursor-default'
+                      } ${isFiltroActivo ? 'bg-red-100 text-red-700' : ''}`}
+                    >
+                      <span className="text-[11px] font-medium flex items-center gap-0.5">
+                        {mes.slice(0, 3)}
+                        {isFiltroActivo && <X className="w-2.5 h-2.5" />}
                       </span>
-                    )}
-                  </div>
-                </TableHead>
-              ))}
+                      {idx < mesesTranscurridos && anio >= 2026 && (
+                        <span className={`text-[9px] ${isFiltroActivo ? 'text-red-600' : 'text-muted-foreground'}`}>
+                          {resumenPorMes[idx].deben > 0 ? `${resumenPorMes[idx].deben}⚠` : '✓'}
+                        </span>
+                      )}
+                    </button>
+                  </TableHead>
+                );
+              })}
               <TableHead className="text-center min-w-[70px]">Total</TableHead>
             </TableRow>
           </TableHeader>
