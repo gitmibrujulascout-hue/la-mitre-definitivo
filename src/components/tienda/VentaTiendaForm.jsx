@@ -160,11 +160,14 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
         await base44.entities.ProductoTienda.update(producto.id, { stock: nuevoStock });
       }
 
-      // 3. Decrement credit if using credit payment
+      // 3. Decrement credit if using credit payment (re-fetch para evitar estado stale)
       if (usaCredito && creditoSeleccionado) {
-        await base44.entities.CreditoBeneficiario.update(creditoSeleccionado.id, {
-          monto_disponible: Math.max(0, creditoSeleccionado.monto_disponible - montoCreditoNum),
-        });
+        const credFresh = await base44.entities.CreditoBeneficiario.get(creditoSeleccionado.id);
+        if (credFresh) {
+          await base44.entities.CreditoBeneficiario.update(creditoSeleccionado.id, {
+            monto_disponible: Math.max(0, credFresh.monto_disponible - montoCreditoNum),
+          });
+        }
       }
     },
     onSuccess: () => {

@@ -305,6 +305,7 @@ function CreditosPanel({ beneficiarioId, beneficiarioNombre, beneficiario, grupo
           onClose={() => { setShowAplicar(false); setCreditoSel(null); }}
           onSaved={() => {
             queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario', beneficiarioId] });
+            queryClient.invalidateQueries({ queryKey: ['creditos-todos'] });
             queryClient.invalidateQueries({ queryKey: ['pagos'] });
             setShowAplicar(false);
             setCreditoSel(null);
@@ -321,6 +322,7 @@ function CreditosPanel({ beneficiarioId, beneficiarioNombre, beneficiario, grupo
           onClose={() => { setShowTransferir(false); setCreditoSel(null); }}
           onSaved={() => {
             queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario', beneficiarioId] });
+            queryClient.invalidateQueries({ queryKey: ['creditos-todos'] });
             setShowTransferir(false);
             setCreditoSel(null);
             onSaved();
@@ -361,12 +363,14 @@ function TransferirCreditoDialog({ credito, origenId, grupoFamiliar, todosLosBen
         fecha: new Date().toISOString().split('T')[0],
         observaciones: `Transferido desde ${credito.beneficiario_nombre}`,
       });
-      // Descontar del crédito origen
+      // Descontar del crédito origen (re-fetch para evitar estado stale)
+      const credFresh = await base44.entities.CreditoBeneficiario.get(credito.id);
       await base44.entities.CreditoBeneficiario.update(credito.id, {
-        monto_disponible: Math.max(0, credito.monto_disponible - montoNum),
+        monto_disponible: Math.max(0, credFresh.monto_disponible - montoNum),
       });
       // Invalidar créditos del destinatario también
       queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario', destinoId] });
+      queryClient.invalidateQueries({ queryKey: ['creditos-todos'] });
     },
     onSuccess: () => { toast.success('Crédito transferido correctamente'); onSaved(); },
   });

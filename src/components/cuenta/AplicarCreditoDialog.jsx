@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function AplicarCreditoDialog({ credito, beneficiarioId, beneficiarioNombre, beneficiario, campamentos, todosLosBeneficiarios, pagos, anio, afiliacion, esPrimeraVezAfiliacion, onClose, onSaved }) {
+  const queryClient = useQueryClient();
   const [tipo, setTipo] = useState('Cuota');
   const [meses, setMeses] = useState([]);
   const [campamentoId, setCampamentoId] = useState('');
@@ -135,12 +136,17 @@ export default function AplicarCreditoDialog({ credito, beneficiarioId, benefici
           observaciones: `Crédito aplicado de: ${credito.actividad_nombre}`,
         });
       }
-      // Descontar crédito
+      // Descontar crédito (re-fetch para evitar estado stale)
+      const credFresh = await base44.entities.CreditoBeneficiario.get(credito.id);
       await base44.entities.CreditoBeneficiario.update(credito.id, {
-        monto_disponible: Math.max(0, credito.monto_disponible - creditoNum),
+        monto_disponible: Math.max(0, credFresh.monto_disponible - creditoNum),
       });
     },
-    onSuccess: () => { toast.success('Crédito aplicado correctamente'); onSaved(); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['creditos-todos'] });
+      toast.success('Crédito aplicado correctamente');
+      onSaved();
+    },
   });
 
   const canSave = tipo === 'Cuota'

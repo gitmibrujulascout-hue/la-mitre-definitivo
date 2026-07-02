@@ -69,10 +69,11 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   const creditoMutation = useMutation({
     mutationFn: async ({ pagos, cId, montoCredito }) => {
       await registrarPagos(pagos);
-      const cred = creditosDisponibles.find(c => c.id === cId);
-      if (cred) {
+      // Re-fetch del crédito para evitar estado stale
+      const credFresh = await base44.entities.CreditoBeneficiario.get(cId);
+      if (credFresh) {
         await base44.entities.CreditoBeneficiario.update(cId, {
-          monto_disponible: Math.max(0, cred.monto_disponible - montoCredito),
+          monto_disponible: Math.max(0, credFresh.monto_disponible - montoCredito),
         });
       }
     },
