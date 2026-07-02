@@ -242,7 +242,7 @@ export default function EstadoCuenta() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
         {/* Buscador por DNI */}
         <Card className="p-6">
@@ -283,8 +283,8 @@ export default function EstadoCuenta() {
               <Card className="p-5 border-2 border-primary/20 bg-primary/5">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   {b.estado_panuelo && (
-                    <div className="flex-shrink-0 flex items-center justify-center w-16 h-16 rounded-xl bg-white/60 border border-primary/15">
-                      <PanueloIcon estado={b.estado_panuelo} className="w-14 h-14" />
+                    <div className="flex-shrink-0 flex items-center justify-center w-24 h-24 rounded-xl bg-white/60 border border-primary/15 self-stretch">
+                      <PanueloIcon estado={b.estado_panuelo} className="w-20 h-20" />
                     </div>
                   )}
                   <div className="space-y-3 flex-1">
