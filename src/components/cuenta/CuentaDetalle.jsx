@@ -14,6 +14,7 @@ import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, marzoEsBonificado 
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import WhatsAppResumenBtn from '@/components/cuenta/WhatsAppResumenBtn';
+import AplicarCreditoDialog from '@/components/cuenta/AplicarCreditoDialog';
 
 export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, onBack, afiliacion, esPrimeraVezAfiliacion, todosLosBeneficiarios = [] }) {
   const [showAplicar, setShowAplicar] = useState(false);
@@ -129,9 +130,14 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
       <CreditosPanel
         beneficiarioId={beneficiario.id}
         beneficiarioNombre={beneficiario.nombre}
+        beneficiario={beneficiario}
         grupoFamiliar={beneficiario.grupo_familiar}
         campamentos={campamentos}
         todosLosBeneficiarios={todosLosBeneficiarios}
+        pagos={pagos}
+        anio={anio}
+        afiliacion={afiliacion}
+        esPrimeraVezAfiliacion={esPrimeraVezAfiliacion}
         onSaved={() => queryClient.invalidateQueries({ queryKey: ['pagos'] })}
       />
 
@@ -231,7 +237,7 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
 }
 
 // Subcomponente: panel de créditos disponibles del beneficiario
-function CreditosPanel({ beneficiarioId, beneficiarioNombre, grupoFamiliar, campamentos, todosLosBeneficiarios, onSaved }) {
+function CreditosPanel({ beneficiarioId, beneficiarioNombre, beneficiario, grupoFamiliar, campamentos, todosLosBeneficiarios, pagos, anio, afiliacion, esPrimeraVezAfiliacion, onSaved }) {
   const [showAplicar, setShowAplicar] = useState(false);
   const [showTransferir, setShowTransferir] = useState(false);
   const [creditoSel, setCreditoSel] = useState(null);
@@ -289,7 +295,13 @@ function CreditosPanel({ beneficiarioId, beneficiarioNombre, grupoFamiliar, camp
           credito={creditoSel}
           beneficiarioId={beneficiarioId}
           beneficiarioNombre={beneficiarioNombre}
+          beneficiario={beneficiario}
           campamentos={campamentos}
+          todosLosBeneficiarios={todosLosBeneficiarios}
+          pagos={pagos}
+          anio={anio}
+          afiliacion={afiliacion}
+          esPrimeraVezAfiliacion={esPrimeraVezAfiliacion}
           onClose={() => { setShowAplicar(false); setCreditoSel(null); }}
           onSaved={() => {
             queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario', beneficiarioId] });
@@ -409,131 +421,6 @@ function TransferirCreditoDialog({ credito, origenId, grupoFamiliar, todosLosBen
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => mutation.mutate()} disabled={!canSave || mutation.isPending}>
             Transferir {formatMoney(montoNum)}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// Dialog para aplicar un crédito a cuota o campamento
-function AplicarCreditoDialog({ credito, beneficiarioId, beneficiarioNombre, campamentos, onClose, onSaved }) {
-  const [tipo, setTipo] = useState('Cuota');
-  const [meses, setMeses] = useState([]);
-  const [campamentoId, setCampamentoId] = useState('');
-  const [monto, setMonto] = useState(credito.monto_disponible.toString());
-
-  const montoNum = parseFloat(monto) || 0;
-
-  const mutation = useMutation({
-    mutationFn: async () => {
-      const campamento = campamentos.find(c => c.id === campamentoId);
-      // Registrar el pago
-      await base44.entities.Pago.create({
-        beneficiario_id: beneficiarioId,
-        beneficiario_nombre: beneficiarioNombre,
-        tipo_pago: tipo === 'Cuota' ? 'Cuota' : 'Campamento',
-        meses: tipo === 'Cuota' ? meses : [],
-        mes: tipo === 'Cuota' ? meses[0] : undefined,
-        anio: new Date().getFullYear(),
-        campamento_id: tipo === 'Campamento' ? campamentoId : undefined,
-        campamento_nombre: tipo === 'Campamento' ? campamento?.nombre : undefined,
-        forma_pago: 'Crédito actividad',
-        destino: 'Caja',
-        monto: montoNum,
-        fecha_pago: new Date().toISOString().split('T')[0],
-        observaciones: `Crédito aplicado de: ${credito.actividad_nombre}`,
-      });
-      // Descontar del crédito disponible
-      const nuevoDisponible = Math.max(0, credito.monto_disponible - montoNum);
-      await base44.entities.CreditoBeneficiario.update(credito.id, {
-        monto_disponible: nuevoDisponible,
-      });
-    },
-    onSuccess: () => { toast.success('Crédito aplicado correctamente'); onSaved(); },
-  });
-
-  const canSave = montoNum > 0 && montoNum <= credito.monto_disponible &&
-    (tipo === 'Campamento' ? !!campamentoId : meses.length > 0);
-
-  const toggleMes = (mes) => setMeses(prev =>
-    prev.includes(mes) ? prev.filter(m => m !== mes) : [...prev, mes]
-  );
-
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Aplicar crédito</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="bg-primary/5 rounded-lg p-3 text-center">
-            <p className="text-xs text-muted-foreground">Crédito disponible de "{credito.actividad_nombre}"</p>
-            <p className="text-2xl font-bold text-primary">{formatMoney(credito.monto_disponible)}</p>
-          </div>
-
-          <div>
-            <Label>Aplicar a</Label>
-            <Select value={tipo} onValueChange={setTipo}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Cuota">Cuotas mensuales</SelectItem>
-                <SelectItem value="Campamento">Campamento</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {tipo === 'Cuota' && (
-            <div>
-              <Label className="mb-2 block">Meses a acreditar</Label>
-              <div className="grid grid-cols-3 gap-1.5">
-                {MESES.map(mes => (
-                  <button
-                    key={mes}
-                    type="button"
-                    onClick={() => toggleMes(mes)}
-                    className={cn(
-                      'text-xs py-1.5 px-2 rounded border transition-all',
-                      meses.includes(mes) ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border text-muted-foreground'
-                    )}
-                  >
-                    {mes.substring(0, 3)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {tipo === 'Campamento' && (
-            <div>
-              <Label>Campamento</Label>
-              <Select value={campamentoId} onValueChange={setCampamentoId}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar campamento" /></SelectTrigger>
-                <SelectContent>
-                  {campamentos.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.nombre} · {formatMoney(c.costo_por_persona)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div>
-            <Label>Monto a aplicar</Label>
-            <Input
-              type="number"
-              value={monto}
-              onChange={e => setMonto(e.target.value)}
-              max={credito.monto_disponible}
-            />
-            <p className="text-xs text-muted-foreground mt-1">Máximo: {formatMoney(credito.monto_disponible)}</p>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutation.mutate()} disabled={!canSave || mutation.isPending}>
-            Aplicar {formatMoney(montoNum)} de crédito
           </Button>
         </DialogFooter>
       </DialogContent>
