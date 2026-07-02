@@ -12,7 +12,7 @@ import PanueloIcon, { PANUELO_OPTIONS } from '@/components/shared/PanueloIcon';
 
 export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiarios, onDone }) {
   const [selected, setSelected] = useState([]);
-  const [panuelo, setPanuelo] = useState('');
+  const [panuelo, setPanuelo] = useState('__blank__');
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -33,7 +33,7 @@ export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiario
     }
     setSaving(true);
     try {
-      const updates = selected.map(id => ({ id, estado_panuelo: panuelo }));
+      const updates = selected.map(id => ({ id, estado_panuelo: panuelo === '__blank__' ? '' : panuelo }));
       await base44.entities.Beneficiario.bulkUpdate(updates);
       toast.success(`${selected.length} miembro(s) actualizado(s)`);
       onDone?.();
@@ -65,7 +65,7 @@ export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiario
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {PANUELO_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value || '__blank__'} value={opt.value}>
+                  <SelectItem key={opt.value || '__blank__'} value={opt.value || '__blank__'}>
                     <span className="flex items-center gap-2">
                       <PanueloIcon estado={opt.value} className="w-4 h-4" />
                       {opt.label}
@@ -74,9 +74,9 @@ export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiario
                 ))}
               </SelectContent>
             </Select>
-            {currentIcon && (
+            {currentIcon && currentIcon !== '__blank__' && (
               <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                <PanueloIcon estado={panuelo} className="w-3.5 h-3.5" />
+                <PanueloIcon estado={panuelo === '__blank__' ? '' : panuelo} className="w-3.5 h-3.5" />
                 Se mostrará este ícono junto al nombre en el listado
               </p>
             )}
