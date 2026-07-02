@@ -80,12 +80,14 @@ export default function TiendaFamilia({ grupoFamiliar }) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
-      queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
       toast.success('Pre-encargo enviado. El stock fue reservado.');
       setEncargos({});
     },
     onError: (err) => toast.error('Error: ' + err.message),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
+      queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
+    },
   });
 
   const cancelarEncargo = useMutation({
@@ -116,11 +118,13 @@ export default function TiendaFamilia({ grupoFamiliar }) {
       await base44.entities.PreEncargoTienda.delete(encargo.id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
-      queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
       toast.success('Pre-encargo cancelado. Stock restaurado.');
     },
     onError: (err) => toast.error('Error: ' + err.message),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
+      queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
+    },
   });
 
   const setEncargo = (productoId, field, value) => {
@@ -136,49 +140,6 @@ export default function TiendaFamilia({ grupoFamiliar }) {
       <h3 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
         <ShoppingBag className="w-4 h-4 text-primary" /> Tienda del Grupo
       </h3>
-
-      {/* Mis pre-encargos */}
-      {misEncargos.length > 0 && (
-        <Card className="p-4 mb-4 bg-primary/5 border-primary/20">
-          <p className="text-sm font-medium mb-2 flex items-center gap-1.5">
-            <Package className="w-4 h-4 text-primary" /> Mis pre-encargos
-          </p>
-          <div className="space-y-2">
-            {misEncargos.map(e => (
-              <div key={e.id} className="flex items-center justify-between gap-2 text-sm py-1.5 border-b last:border-0">
-                <div className="flex items-center gap-2">
-                  {e.producto_imagen_url && (
-                    <img src={e.producto_imagen_url} alt="" className="w-8 h-8 rounded object-cover" />
-                  )}
-                  <div>
-                    <span className="font-medium">{e.producto_nombre}</span>
-                    {e.talle && <span className="text-xs text-muted-foreground ml-1">· Talle {e.talle}</span>}
-                    <span className="text-xs text-muted-foreground ml-1">· {e.cantidad}u</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{formatMoney(e.monto_total)}</span>
-                  {e.estado === 'Pendiente' && <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs"><Clock className="w-3 h-3 mr-0.5" />Pendiente</Badge>}
-                  {e.estado === 'Confirmado' && <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs"><Check className="w-3 h-3 mr-0.5" />Confirmado</Badge>}
-                  {e.estado === 'Entregado' && <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs"><CheckCircle2 className="w-3 h-3 mr-0.5" />Entregado</Badge>}
-                  {e.estado === 'Cancelado' && <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs"><X className="w-3 h-3 mr-0.5" />Cancelado</Badge>}
-                  {e.estado === 'Pendiente' && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs text-red-500 hover:text-red-700"
-                      disabled={cancelarEncargo.isPending}
-                      onClick={() => { if (confirm('¿Cancelar este pre-encargo? Se restaurará el stock reservado.')) cancelarEncargo.mutate(e); }}
-                    >
-                      <X className="w-3.5 h-3.5 mr-0.5" />Cancelar
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
 
       {/* Catálogo de productos */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -284,6 +245,49 @@ export default function TiendaFamilia({ grupoFamiliar }) {
           );
         })}
       </div>
+
+      {/* Mis pre-encargos */}
+      {misEncargos.length > 0 && (
+        <Card className="p-4 mt-4 bg-primary/5 border-primary/20">
+          <p className="text-sm font-medium mb-2 flex items-center gap-1.5">
+            <Package className="w-4 h-4 text-primary" /> Mis pre-encargos
+          </p>
+          <div className="space-y-2">
+            {misEncargos.map(e => (
+              <div key={e.id} className="flex items-center justify-between gap-2 text-sm py-1.5 border-b last:border-0">
+                <div className="flex items-center gap-2">
+                  {e.producto_imagen_url && (
+                    <img src={e.producto_imagen_url} alt="" className="w-8 h-8 rounded object-cover" />
+                  )}
+                  <div>
+                    <span className="font-medium">{e.producto_nombre}</span>
+                    {e.talle && <span className="text-xs text-muted-foreground ml-1">· Talle {e.talle}</span>}
+                    <span className="text-xs text-muted-foreground ml-1">· {e.cantidad}u</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{formatMoney(e.monto_total)}</span>
+                  {e.estado === 'Pendiente' && <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs"><Clock className="w-3 h-3 mr-0.5" />Pendiente</Badge>}
+                  {e.estado === 'Confirmado' && <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs"><Check className="w-3 h-3 mr-0.5" />Confirmado</Badge>}
+                  {e.estado === 'Entregado' && <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs"><CheckCircle2 className="w-3 h-3 mr-0.5" />Entregado</Badge>}
+                  {e.estado === 'Cancelado' && <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs"><X className="w-3 h-3 mr-0.5" />Cancelado</Badge>}
+                  {e.estado === 'Pendiente' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-red-500 hover:text-red-700"
+                      disabled={cancelarEncargo.isPending}
+                      onClick={() => { if (confirm('¿Cancelar este pre-encargo? Se restaurará el stock reservado.')) cancelarEncargo.mutate(e); }}
+                    >
+                      <X className="w-3.5 h-3.5 mr-0.5" />Cancelar
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Lightbox tabla de talles */}
       {tablaTallesOpen && (
