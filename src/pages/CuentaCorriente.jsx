@@ -163,7 +163,7 @@ export default function CuentaCorriente() {
         tieneDescuentoHermanos: !esAdulto && cuotaIndividual < CUOTA_EFECTIVO_REF && esBeneficiarioConCuota(b),
         alDia: b.becado || saldo >= 0,
         creditoDisponible,
-        mesesDeuda: mesesQueGeneranDeuda.filter(m => !mesesPagados.includes(m)),
+        mesesDeuda: esBeneficiarioConCuota(b) ? mesesQueGeneranDeuda.filter(m => !mesesPagados.includes(m)) : [],
         deudaCampamento: Math.max(0, totalCampamentos - pagadoCamp),
       };
     });
