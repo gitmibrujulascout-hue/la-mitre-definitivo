@@ -15,6 +15,7 @@ import ProductosActividadPanel from '@/components/actividades/ProductosActividad
 import RendicionDialog from '@/components/actividades/RendicionDialog';
 import RendicionMasivaDialog from '@/components/actividades/RendicionMasivaDialog';
 import GananciasGrupoDialog from '@/components/actividades/GananciasGrupoDialog';
+import ResumenUnidades from '@/components/actividades/ResumenUnidades';
 
 const ESTADO_COLORS = {
   Planificada: 'bg-blue-100 text-blue-700 border-blue-200 border',
@@ -242,6 +243,9 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
       <div className="mb-6">
         <ProductosActividadPanel actividad={actividad} />
       </div>
+
+      {/* Resumen de unidades a preparar */}
+      <ResumenUnidades actividad={actividad} ventas={ventas} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Ventas por beneficiario */}
