@@ -20,6 +20,7 @@ import {
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 import { cn } from '@/lib/utils';
 import PanueloIcon from '@/components/shared/PanueloIcon';
+import TiendaFamilia from '@/components/tienda/TiendaFamilia';
 
 const AÑO_INICIO = 2026;
 
@@ -731,6 +732,11 @@ export default function EstadoCuenta() {
             </div>
           );
         })}
+
+        {/* Tienda del grupo — catálogo y pre-encargos */}
+        {beneficiarioEncontrado && (
+          <TiendaFamilia grupoFamiliar={grupoFamiliar} />
+        )}
       </div>
         </div>
 

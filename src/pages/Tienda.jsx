@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Wallet } from 'lucide-react';
+import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Wallet, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2 } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import ProductoTiendaForm from '@/components/tienda/ProductoTiendaForm';
 import VentaTiendaForm from '@/components/tienda/VentaTiendaForm';
@@ -39,6 +39,11 @@ export default function Tienda() {
     queryFn: () => base44.entities.Beneficiario.list('nombre', 500),
   });
 
+  const { data: preEncargos = [] } = useQuery({
+    queryKey: ['pre_encargos'],
+    queryFn: () => base44.entities.PreEncargoTienda.list('-fecha', 500),
+  });
+
   const deleteProducto = useMutation({
     mutationFn: id => base44.entities.ProductoTienda.delete(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['productos_tienda'] }); toast.success('Producto eliminado'); },
@@ -47,6 +52,23 @@ export default function Tienda() {
   const deleteVenta = useMutation({
     mutationFn: id => base44.entities.VentaTienda.delete(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['ventas_tienda'] }); toast.success('Venta eliminada'); },
+  });
+
+  const toggleVisible = useMutation({
+    mutationFn: ({ id, val }) => base44.entities.ProductoTienda.update(id, { visible_familias: val }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['productos_tienda'] }); },
+  });
+
+  const actualizarEncargo = useMutation({
+    mutationFn: async ({ id, estado }) => {
+      const update = { estado };
+      if (estado === 'Confirmado') update.fecha_confirmacion = new Date().toISOString().split('T')[0];
+      await base44.entities.PreEncargoTienda.update(id, update);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
+      toast.success('Pre-encargo actualizado');
+    },
   });
 
   // Calcular stock total de un producto
@@ -142,6 +164,16 @@ export default function Tienda() {
         <TabsList>
           <TabsTrigger value="productos" className="gap-2"><Package className="w-4 h-4" />Productos</TabsTrigger>
           <TabsTrigger value="ventas" className="gap-2"><ShoppingBag className="w-4 h-4" />Ventas</TabsTrigger>
+          {preEncargos.length > 0 && (
+            <TabsTrigger value="encargos" className="gap-2">
+              <ClipboardList className="w-4 h-4" />Pre-encargos
+              {preEncargos.filter(e => e.estado === 'Pendiente').length > 0 && (
+                <span className="ml-1 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">
+                  {preEncargos.filter(e => e.estado === 'Pendiente').length}
+                </span>
+              )}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Productos */}
@@ -170,13 +202,17 @@ export default function Tienda() {
               const bajo = stockTotal <= (p.stock_minimo || 0);
               return (
                 <Card key={p.id} className={cn('overflow-hidden', bajo && 'border-amber-300')}>
-                  <CardContent className="p-4">
+                   {p.imagen_url && (
+                     <img src={p.imagen_url} alt={p.nombre} className="w-full h-32 object-cover" />
+                   )}
+                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-3">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm truncate">{p.nombre}</h3>
                         {p.descripcion && <p className="text-xs text-muted-foreground line-clamp-1">{p.descripcion}</p>}
                       </div>
                       <div className="flex gap-1 shrink-0">
+                        {p.visible_familias && <Badge className="bg-cyan-100 text-cyan-700 border-cyan-300 border text-xs"><Eye className="w-3 h-3 mr-0.5" />Familias</Badge>}
                         {p.es_combo && <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs">Combo</Badge>}
                         {p.caja_exclusiva && <Badge className="bg-purple-100 text-purple-700 border-purple-300 border text-xs">Excl.</Badge>}
                         {p.descuento_familiar_pct > 0 && <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">Fam. {p.descuento_familiar_pct}%</Badge>}
@@ -217,6 +253,11 @@ export default function Tienda() {
                       <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditProducto(p); setShowProductoForm(true); }}>
                         <Pencil className="w-3.5 h-3.5 mr-1" />Editar
                       </Button>
+                      <Button variant="ghost" size="icon"
+                        title={p.visible_familias ? 'Ocultar de familias' : 'Mostrar a familias'}
+                        onClick={() => toggleVisible.mutate({ id: p.id, val: !p.visible_familias })}>
+                        {p.visible_familias ? <Eye className="w-4 h-4 text-cyan-600" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => { if (confirm(`¿Eliminar "${p.nombre}"?`)) deleteProducto.mutate(p.id); }}>
                         <Trash2 className="w-4 h-4 text-muted-foreground" />
                       </Button>
@@ -236,7 +277,7 @@ export default function Tienda() {
                 <TableRow className="bg-muted/50">
                   <TableHead>Fecha</TableHead>
                   <TableHead>Producto</TableHead>
-                  <TableHead>Comprador</TableHead>
+                  <TableHead>Beneficiario</TableHead>
                   <TableHead>Talle</TableHead>
                   <TableHead>Cant.</TableHead>
                   <TableHead>Precio unit.</TableHead>
@@ -252,7 +293,7 @@ export default function Tienda() {
                   <TableRow key={v.id}>
                     <TableCell className="text-muted-foreground text-sm whitespace-nowrap">{v.fecha || '—'}</TableCell>
                     <TableCell className="font-medium text-sm">{v.producto_nombre}</TableCell>
-                    <TableCell className="text-sm">{v.beneficiario_nombre || v.comprador_nombre || '—'}</TableCell>
+                    <TableCell className="text-sm">{v.beneficiario_nombre || '—'}</TableCell>
                     <TableCell>{v.talle ? <Badge variant="outline" className="text-xs">{v.talle}</Badge> : '—'}</TableCell>
                     <TableCell className="text-sm">{v.cantidad}</TableCell>
                     <TableCell className="text-sm">{formatMoney(v.precio_unitario)}</TableCell>
@@ -271,6 +312,73 @@ export default function Tienda() {
             </Table>
           </Card>
         </TabsContent>
+
+        {/* Pre-encargos */}
+        {tab === 'encargos' && (
+          <TabsContent value="encargos">
+            <Card className="overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Beneficiario</TableHead>
+                    <TableHead>Producto</TableHead>
+                    <TableHead>Talle</TableHead>
+                    <TableHead>Cant.</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="w-32">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {preEncargos.length === 0 ? (
+                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No hay pre-encargos</TableCell></TableRow>
+                  ) : preEncargos.map(e => (
+                    <TableRow key={e.id}>
+                      <TableCell className="text-muted-foreground text-sm whitespace-nowrap">{e.fecha}</TableCell>
+                      <TableCell className="font-medium text-sm">{e.beneficiario_nombre}</TableCell>
+                      <TableCell className="text-sm">{e.producto_nombre}</TableCell>
+                      <TableCell>{e.talle ? <Badge variant="outline" className="text-xs">{e.talle}</Badge> : '—'}</TableCell>
+                      <TableCell className="text-sm">{e.cantidad}</TableCell>
+                      <TableCell className="font-semibold text-sm">{formatMoney(e.monto_total)}</TableCell>
+                      <TableCell>
+                        {e.estado === 'Pendiente' && <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">Pendiente</Badge>}
+                        {e.estado === 'Confirmado' && <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs">Confirmado</Badge>}
+                        {e.estado === 'Entregado' && <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">Entregado</Badge>}
+                        {e.estado === 'Cancelado' && <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs">Cancelado</Badge>}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {e.estado === 'Pendiente' && (
+                            <>
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => actualizarEncargo.mutate({ id: e.id, estado: 'Confirmado' })}>
+                                <Check className="w-3 h-3 mr-1" />Confirmar
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7" onClick={() => actualizarEncargo.mutate({ id: e.id, estado: 'Cancelado' })}>
+                                <X className="w-3.5 h-3.5 text-red-500" />
+                              </Button>
+                            </>
+                          )}
+                          {e.estado === 'Confirmado' && (
+                            <>
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => actualizarEncargo.mutate({ id: e.id, estado: 'Entregado' })}>
+                                <CheckCircle2 className="w-3 h-3 mr-1" />Entregado
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7" onClick={() => actualizarEncargo.mutate({ id: e.id, estado: 'Cancelado' })}>
+                                <X className="w-3.5 h-3.5 text-red-500" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          </TabsContent>
+        )}
+
       </Tabs>
 
       {showProductoForm && (

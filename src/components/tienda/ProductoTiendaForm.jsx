@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Upload, Eye, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 const CATEGORIAS = ['Uniforme', 'Merchandising', 'Libro', 'Accesorio', 'Combo', 'Otro'];
@@ -17,6 +17,7 @@ const TALLES_SUGERIDOS = ['S', 'M', 'L', 'XL', 'XXL', '2', '4', '6', '8', '10', 
 const emptyForm = {
   nombre: '', descripcion: '', categoria: 'Uniforme',
   precio_venta: '', precio_costo: '',
+  imagen_url: '', visible_familias: false,
   tiene_talles: false, talles: [], stock_por_talle: {},
   stock: '', stock_minimo: '3', activo: true,
   es_combo: false, productos_combo: [],
@@ -33,6 +34,8 @@ export default function ProductoTiendaForm({ open, onClose, producto }) {
       setForm({
         ...emptyForm,
         ...producto,
+        imagen_url: producto.imagen_url ?? '',
+        visible_familias: producto.visible_familias ?? false,
         precio_venta: producto.precio_venta ?? '',
         precio_costo: producto.precio_costo ?? '',
         stock: producto.stock ?? '',
@@ -135,6 +138,48 @@ export default function ProductoTiendaForm({ open, onClose, producto }) {
             <div>
               <Label>Stock mínimo (alerta)</Label>
               <Input type="number" value={form.stock_minimo} onChange={e => setForm(p => ({ ...p, stock_minimo: e.target.value }))} />
+            </div>
+          </div>
+
+          {/* Imagen del producto */}
+          <div>
+            <Label>Imagen del producto</Label>
+            <div className="flex items-center gap-3">
+              {form.imagen_url ? (
+                <img src={form.imagen_url} alt="" className="w-20 h-20 rounded-lg object-cover border" />
+              ) : (
+                <div className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
+                  <ImageIcon className="w-8 h-8 text-muted-foreground/40" />
+                </div>
+              )}
+              <div className="flex-1">
+                <label className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md border border-input bg-transparent shadow-sm hover:bg-accent cursor-pointer">
+                  <Upload className="w-4 h-4" />
+                  {form.imagen_url ? 'Cambiar imagen' : 'Subir imagen'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                        setForm(p => ({ ...p, imagen_url: file_url }));
+                        toast.success('Imagen subida');
+                      } catch (err) {
+                        toast.error('Error al subir imagen');
+                      }
+                    }}
+                  />
+                </label>
+                {form.imagen_url && (
+                  <Button type="button" variant="ghost" size="sm" className="ml-2 text-xs text-red-500"
+                    onClick={() => setForm(p => ({ ...p, imagen_url: '' }))}>
+                    Quitar
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -271,6 +316,17 @@ export default function ProductoTiendaForm({ open, onClose, producto }) {
               </div>
               <Switch checked={form.caja_exclusiva} onCheckedChange={v => setForm(p => ({ ...p, caja_exclusiva: v }))} />
             </div>
+          </div>
+
+          {/* Visibilidad para familias */}
+          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+            <div>
+              <Label className="cursor-pointer flex items-center gap-1.5">
+                <Eye className="w-4 h-4" /> Visible para familias
+              </Label>
+              <p className="text-xs text-muted-foreground">Mostrar en la página de consulta familiar con pre-encargo</p>
+            </div>
+            <Switch checked={form.visible_familias} onCheckedChange={v => setForm(p => ({ ...p, visible_familias: v }))} />
           </div>
 
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">

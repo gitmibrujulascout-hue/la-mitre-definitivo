@@ -31,6 +31,15 @@
       "type": "number",
       "description": "Precio de costo (opcional)"
     },
+    "imagen_url": {
+      "type": "string",
+      "description": "URL de la imagen del producto"
+    },
+    "visible_familias": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si el producto es visible en la p\u00e1gina de consulta de las familias"
+    },
     "tiene_talles": {
       "type": "boolean",
       "default": false,

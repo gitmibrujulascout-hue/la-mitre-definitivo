@@ -1,0 +1,88 @@
+{
+  "name": "PreEncargoTienda",
+  "type": "object",
+  "properties": {
+    "beneficiario_id": {
+      "type": "string",
+      "description": "ID del beneficiario que solicita el pre-encargo"
+    },
+    "beneficiario_nombre": {
+      "type": "string",
+      "description": "Nombre del beneficiario"
+    },
+    "producto_id": {
+      "type": "string",
+      "description": "ID del producto"
+    },
+    "producto_nombre": {
+      "type": "string",
+      "description": "Nombre del producto (snapshot)"
+    },
+    "producto_imagen_url": {
+      "type": "string",
+      "description": "URL de la imagen del producto (snapshot)"
+    },
+    "talle": {
+      "type": "string",
+      "description": "Talle solicitado (si aplica)"
+    },
+    "cantidad": {
+      "type": "number",
+      "default": 1,
+      "description": "Cantidad solicitada"
+    },
+    "precio_unitario": {
+      "type": "number",
+      "description": "Precio unitario al momento del pre-encargo"
+    },
+    "monto_total": {
+      "type": "number",
+      "description": "Monto total del pre-encargo"
+    },
+    "estado": {
+      "type": "string",
+      "enum": [
+        "Pendiente",
+        "Confirmado",
+        "Entregado",
+        "Cancelado"
+      ],
+      "default": "Pendiente",
+      "description": "Estado del pre-encargo"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha del pre-encargo"
+    },
+    "fecha_confirmacion": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha en que el admin confirm\u00f3 el pre-encargo"
+    },
+    "observaciones": {
+      "type": "string",
+      "description": "Notas del admin"
+    }
+  },
+  "required": [
+    "beneficiario_id",
+    "producto_id",
+    "cantidad",
+    "fecha"
+  ],
+  "rls": {
+    "read": {},
+    "create": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
