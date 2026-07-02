@@ -50,6 +50,11 @@
       "default": "Pendiente",
       "description": "Estado del pre-encargo"
     },
+    "stock_reservado": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si el stock ya fue reservado (decrementado) al crear el pre-encargo. Evita restaurar stock duplicado al cancelar."
+    },
     "fecha": {
       "type": "string",
       "format": "date",

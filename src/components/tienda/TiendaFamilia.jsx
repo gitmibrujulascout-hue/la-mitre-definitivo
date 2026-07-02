@@ -63,6 +63,7 @@ export default function TiendaFamilia({ grupoFamiliar }) {
         precio_unitario: producto.precio_venta,
         monto_total: producto.precio_venta * cantidad,
         estado: 'Pendiente',
+        stock_reservado: true,
         fecha: new Date().toISOString().split('T')[0],
       });
 
@@ -83,6 +84,41 @@ export default function TiendaFamilia({ grupoFamiliar }) {
       queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
       toast.success('Pre-encargo enviado. El stock fue reservado.');
       setEncargos({});
+    },
+    onError: (err) => toast.error('Error: ' + err.message),
+  });
+
+  const cancelarEncargo = useMutation({
+    mutationFn: async (encargo) => {
+      // Solo se pueden cancelar pre-encargos pendientes
+      if (encargo.estado !== 'Pendiente') {
+        throw new Error('Solo se pueden cancelar pre-encargos pendientes');
+      }
+
+      // Restaurar stock solo si fue reservado
+      if (encargo.stock_reservado) {
+        const prod = await base44.entities.ProductoTienda.get(encargo.producto_id);
+        if (prod) {
+          if (prod.tiene_talles && encargo.talle) {
+            const stockActual = prod.stock_por_talle?.[encargo.talle] ?? 0;
+            await base44.entities.ProductoTienda.update(prod.id, {
+              stock_por_talle: { ...prod.stock_por_talle, [encargo.talle]: stockActual + (encargo.cantidad || 0) },
+            });
+          } else {
+            await base44.entities.ProductoTienda.update(prod.id, {
+              stock: (prod.stock || 0) + (encargo.cantidad || 0),
+            });
+          }
+        }
+      }
+
+      // Eliminar el pre-encargo
+      await base44.entities.PreEncargoTienda.delete(encargo.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
+      queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
+      toast.success('Pre-encargo cancelado. Stock restaurado.');
     },
     onError: (err) => toast.error('Error: ' + err.message),
   });
@@ -126,6 +162,17 @@ export default function TiendaFamilia({ grupoFamiliar }) {
                   {e.estado === 'Confirmado' && <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs"><Check className="w-3 h-3 mr-0.5" />Confirmado</Badge>}
                   {e.estado === 'Entregado' && <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs"><CheckCircle2 className="w-3 h-3 mr-0.5" />Entregado</Badge>}
                   {e.estado === 'Cancelado' && <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs"><X className="w-3 h-3 mr-0.5" />Cancelado</Badge>}
+                  {e.estado === 'Pendiente' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-red-500 hover:text-red-700"
+                      disabled={cancelarEncargo.isPending}
+                      onClick={() => { if (confirm('¿Cancelar este pre-encargo? Se restaurará el stock reservado.')) cancelarEncargo.mutate(e); }}
+                    >
+                      <X className="w-3.5 h-3.5 mr-0.5" />Cancelar
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}

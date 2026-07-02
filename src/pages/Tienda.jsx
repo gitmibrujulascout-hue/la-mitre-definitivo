@@ -89,8 +89,8 @@ export default function Tienda() {
       const update = { estado };
       if (estado === 'Confirmado') update.fecha_confirmacion = new Date().toISOString().split('T')[0];
 
-      // Si se cancela, restaurar stock reservado
-      if (estado === 'Cancelado') {
+      // Si se cancela, restaurar stock solo si fue reservado y no entregado
+      if (estado === 'Cancelado' && encargo.stock_reservado) {
         const prod = await base44.entities.ProductoTienda.get(encargo.producto_id);
         if (prod) {
           if (prod.tiene_talles && encargo.talle) {
@@ -104,6 +104,7 @@ export default function Tienda() {
             });
           }
         }
+        update.stock_reservado = false;
       }
 
       await base44.entities.PreEncargoTienda.update(id, update);
