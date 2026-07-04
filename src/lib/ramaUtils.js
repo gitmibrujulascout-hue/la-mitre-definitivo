@@ -62,6 +62,17 @@ export const JULIO_MONTO_CUOTA = 12500;
 export const JULIO_MONTO_CREDITO = 12500;
 export const JULIO_LABEL_CREDITO = 'Crédito Julio';
 
+/**
+ * Calcula el monto de crédito de Julio para un beneficiario.
+ * - No familiares (pagan cuota completa): valor fijo JULIO_MONTO_CREDITO.
+ * - Hermanos con descuento (pagan menos de la cuota): 50% de su cuota efectiva de Julio.
+ */
+export function getCreditoJulioBeneficiario(b, todosBeneficiarios = [], cuotaBaseJulio = CUOTA_EFECTIVO) {
+  const cuotaEfectiva = getCuotaBeneficiario(b, todosBeneficiarios, cuotaBaseJulio);
+  if (cuotaEfectiva >= cuotaBaseJulio) return JULIO_MONTO_CREDITO;
+  return Math.round(cuotaEfectiva * 0.5);
+}
+
 // Verifica si el beneficiario tiene todos los meses (excluyendo Julio) pagados
 export function estaAlDia(b, pagosCuotasAnio, mesesQueGeneranDeuda) {
   const mesesCubiertos = new Set(

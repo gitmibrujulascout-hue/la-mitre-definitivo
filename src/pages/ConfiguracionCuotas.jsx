@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import PageHeader from '@/components/shared/PageHeader';
-import { MESES, MESES_SIN_CUOTA, formatMoney, esBeneficiarioConCuota, estaAlDia, getCuotaBeneficiario, getCuotaBaseMes, JULIO_MONTO_CREDITO, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
+import { MESES, MESES_SIN_CUOTA, formatMoney, esBeneficiarioConCuota, estaAlDia, getCuotaBeneficiario, getCuotaBaseMes, getCreditoJulioBeneficiario, JULIO_MONTO_CREDITO, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
 import { DollarSign, Save, Plus, Trash2, Gift, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
 
 export default function ConfiguracionCuotas() {
@@ -130,12 +130,15 @@ export default function ConfiguracionCuotas() {
         throw new Error('No hay beneficiarios pendientes de generar crédito');
       }
 
+      const activos = beneficiarios.filter(b => b.activo !== false);
+      const baseJulio = getCuotaBaseMes('Julio', Number(anioFiltro), configCuotas);
+
       const records = pendientes.map(b => ({
         beneficiario_id: b.id,
         beneficiario_nombre: b.nombre,
         actividad_nombre: label,
-        monto_original: JULIO_MONTO_CREDITO,
-        monto_disponible: JULIO_MONTO_CREDITO,
+        monto_original: getCreditoJulioBeneficiario(b, activos, baseJulio),
+        monto_disponible: getCreditoJulioBeneficiario(b, activos, baseJulio),
         fecha: new Date().toISOString().split('T')[0],
         observaciones: label,
       }));

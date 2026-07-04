@@ -7,14 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, marzoEsBonificado, estaAlDia, calcularMesesQueGeneranDeuda, JULIO_MONTO_CREDITO, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
+import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, getCreditoJulioBeneficiario, marzoEsBonificado, estaAlDia, calcularMesesQueGeneranDeuda, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
 import { registrarPagos } from '@/lib/registros';
 import { toast } from 'sonner';
 import { Tent, CreditCard, Users, Wallet, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 // Procesa el crédito de Julio: si el pago incluye Julio y el beneficiario está al día,
 // crea un crédito de $12.500 en su cuenta corriente (si no existe ya).
-async function procesarCreditoJulio(pagos, beneficiario, pagosExistentes, afiliaciones, anio, todosCreditos) {
+async function procesarCreditoJulio(pagos, beneficiario, pagosExistentes, afiliaciones, anio, todosCreditos, todosBeneficiarios) {
   // Verificar si alguno de los pagos incluye Julio como cuota
   const incluyeJulio = pagos.some(p =>
     p.tipo_pago === 'Cuota' && (p.meses?.includes('Julio') || p.mes === 'Julio')
@@ -38,11 +38,12 @@ async function procesarCreditoJulio(pagos, beneficiario, pagosExistentes, afilia
   if (!estaAlDia(beneficiario, pagosCuotasAnio, mesesDeuda)) return;
 
   // Crear el crédito de Julio
+  const montoCredito = getCreditoJulioBeneficiario(beneficiario, todosBeneficiarios);
   await base44.entities.CreditoBeneficiario.create({
     beneficiario_id: beneficiario.id,
     beneficiario_nombre: beneficiario.nombre,
-    monto_original: JULIO_MONTO_CREDITO,
-    monto_disponible: JULIO_MONTO_CREDITO,
+    monto_original: montoCredito,
+    monto_disponible: montoCredito,
     fecha: new Date().toISOString().split('T')[0],
     observaciones: labelJulio,
   });
@@ -101,7 +102,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     mutationFn: async (pagos) => {
       const pagosCreados = await registrarPagos(pagos);
       // Procesar crédito de Julio para beneficiarios al día
-      await procesarCreditoJulio(pagos, selectedBen, pagosExistentes, afiliaciones, anio, todosCreditos);
+      await procesarCreditoJulio(pagos, selectedBen, pagosExistentes, afiliaciones, anio, todosCreditos, beneficiarios);
       return pagosCreados;
     },
     onSuccess: (_, pagos) => {

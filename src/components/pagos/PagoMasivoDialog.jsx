@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, estaAlDia, calcularMesesQueGeneranDeuda, JULIO_MONTO_CREDITO, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
+import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, estaAlDia, calcularMesesQueGeneranDeuda, getCreditoJulioBeneficiario, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { Users, X, CheckSquare, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -68,11 +68,12 @@ export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
           x => x.beneficiario_id === ben.id && Number(x.anio) === anioNum && x.tipo_pago !== 'Campamento'
         );
         if (!estaAlDia(ben, pagosBen, mesesDeuda)) continue;
+        const montoCredito = getCreditoJulioBeneficiario(ben, beneficiarios);
         await base44.entities.CreditoBeneficiario.create({
           beneficiario_id: ben.id,
           beneficiario_nombre: ben.nombre,
-          monto_original: JULIO_MONTO_CREDITO,
-          monto_disponible: JULIO_MONTO_CREDITO,
+          monto_original: montoCredito,
+          monto_disponible: montoCredito,
           fecha: new Date().toISOString().split('T')[0],
           observaciones: labelJulio,
         });
