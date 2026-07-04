@@ -164,8 +164,11 @@ export default function EstadoCuenta() {
     const saldoCamp = pagadoCamp - totalCampamentos;
 
     // Créditos disponibles
-    const creditosDisp = creditos.filter(c => c.beneficiario_id === b.id && (c.monto_disponible || 0) > 0);
+    const creditosBen = creditos.filter(c => c.beneficiario_id === b.id);
+    const creditosDisp = creditosBen.filter(c => (c.monto_disponible || 0) > 0);
     const totalCreditos = creditosDisp.reduce((s, c) => s + (c.monto_disponible || 0), 0);
+    // Pagos realizados con crédito (para mostrar dónde se aplicaron)
+    const pagosConCredito = pagosDelBen.filter(p => p.forma_pago === 'Crédito actividad');
 
     // Afiliación: si no es primera vez, sumar deuda pendiente al saldo
     let saldoAfiliacion = 0;
@@ -190,6 +193,8 @@ export default function EstadoCuenta() {
       saldo,
       totalCreditos,
       creditosDisp,
+      creditosBen,
+      pagosConCredito,
       marzoGratis,
       cuotaTransferencia,
       alDia,
@@ -554,9 +559,9 @@ export default function EstadoCuenta() {
 
 
               {/* Créditos agrupados por actividad */}
-              {cuenta.creditosDisp.length > 0 && (() => {
+              {(cuenta.creditosBen.length > 0 || cuenta.pagosConCredito.length > 0) && (() => {
                 const porActividad = {};
-                cuenta.creditosDisp.forEach(cr => {
+                cuenta.creditosBen.forEach(cr => {
                   const key = cr.actividad_id || cr.actividad_nombre || 'Sin actividad';
                   if (!porActividad[key]) porActividad[key] = { nombre: cr.actividad_nombre || 'Sin actividad', items: [] };
                   porActividad[key].items.push(cr);
@@ -566,21 +571,47 @@ export default function EstadoCuenta() {
                     <h3 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                       <Gift className="w-4 h-4 text-primary" /> Créditos por actividades económicas
                     </h3>
-                    <div className="space-y-2">
-                      {Object.values(porActividad).map(({ nombre, items }) => {
-                        const total = items.reduce((s, cr) => s + (cr.monto_disponible || 0), 0);
-                        const fechaMin = items.map(cr => cr.fecha).filter(Boolean).sort()[0];
-                        return (
-                          <Card key={nombre} className="p-4 bg-primary/5 border-primary/20 flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium">{nombre}</p>
-                              {fechaMin && <p className="text-xs text-muted-foreground">Acreditado el {fechaMin}</p>}
+                    {cuenta.creditosDisp.length > 0 ? (
+                      <div className="space-y-2 mb-2">
+                        {Object.values(porActividad).map(({ nombre, items }) => {
+                          const total = items.reduce((s, cr) => s + (cr.monto_disponible || 0), 0);
+                          const fechaMin = items.map(cr => cr.fecha).filter(Boolean).sort()[0];
+                          return (
+                            <Card key={nombre} className="p-4 bg-primary/5 border-primary/20 flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium">{nombre}</p>
+                                {fechaMin && <p className="text-xs text-muted-foreground">Acreditado el {fechaMin}</p>}
+                              </div>
+                              <p className="text-lg font-bold text-primary">{formatMoney(total)}</p>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mb-2 italic">No hay créditos disponibles (todos fueron aplicados).</p>
+                    )}
+
+                    {/* Historial de uso de créditos */}
+                    {cuenta.pagosConCredito.length > 0 && (
+                      <Card className="p-3 border-muted">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> Historial de créditos aplicados
+                        </p>
+                        <div className="space-y-1.5">
+                          {cuenta.pagosConCredito.sort((a, b) => (b.fecha_pago || '').localeCompare(a.fecha_pago || '')).map(p => (
+                            <div key={p.id} className="flex items-center justify-between text-xs gap-2 py-1.5 border-b border-muted/40 last:border-0">
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">
+                                  {p.tipo_pago === 'Campamento' ? `Campamento: ${p.campamento_nombre}` : `Cuota: ${p.meses?.join(', ') || p.mes}`}
+                                </p>
+                                <p className="text-muted-foreground">{p.fecha_pago} {p.observaciones ? `· ${p.observaciones}` : ''}</p>
+                              </div>
+                              <p className="font-semibold text-green-600 flex-shrink-0">{formatMoney(p.monto)}</p>
                             </div>
-                            <p className="text-lg font-bold text-primary">{formatMoney(total)}</p>
-                          </Card>
-                        );
-                      })}
-                    </div>
+                          ))}
+                        </div>
+                      </Card>
+                    )}
                   </div>
                 );
               })()}
