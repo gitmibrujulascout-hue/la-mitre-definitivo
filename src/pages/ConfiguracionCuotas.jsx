@@ -107,9 +107,14 @@ export default function ConfiguracionCuotas() {
     return beneficiarios.filter(b => {
       if (b.activo === false) return false;
       if (!esBeneficiarioConCuota(b)) return false;
-      const mesesDeuda = calcularMesesQueGeneranDeuda(b, anio, afiliaciones);
       const pagosBen = pagos.filter(p => p.beneficiario_id === b.id && Number(p.anio) === anio && p.tipo_pago !== 'Campamento');
-      return estaAlDia(b, pagosBen, mesesDeuda);
+      const mesesCubiertos = new Set(pagosBen.flatMap(p => p.meses || (p.mes ? [p.mes] : [])));
+      // Debe tener pagado Julio (el crédito surge de esa cuota)
+      if (!mesesCubiertos.has('Julio')) return false;
+      // Debe estar al día hasta Junio (sin contar meses sin cuota)
+      const mesesDeuda = calcularMesesQueGeneranDeuda(b, anio, afiliaciones).filter(m => m !== 'Julio');
+      const mesesHastaJunio = mesesDeuda.filter(m => MESES.indexOf(m) < MESES.indexOf('Julio'));
+      return mesesHastaJunio.every(m => mesesCubiertos.has(m));
     });
   }, [beneficiarios, pagos, afiliaciones, anioFiltro]);
 
