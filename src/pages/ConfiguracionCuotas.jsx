@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import PageHeader from '@/components/shared/PageHeader';
-import { MESES, MESES_SIN_CUOTA, formatMoney, esBeneficiarioConCuota, estaAlDia, getCuotaBeneficiario, getCuotaBaseMes, getCreditoJulioBeneficiario, JULIO_MONTO_CREDITO, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
+import { MESES, MESES_SIN_CUOTA, formatMoney, esBeneficiarioConCuota, estaAlDia, calcularMesesQueGeneranDeuda, getCuotaBeneficiario, getCuotaBaseMes, getCreditoJulioBeneficiario, JULIO_MONTO_CREDITO, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
 import { DollarSign, Save, Plus, Trash2, Gift, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
 
 export default function ConfiguracionCuotas() {
@@ -104,16 +104,14 @@ export default function ConfiguracionCuotas() {
 
   const beneficiariosAlDiaJulio = useMemo(() => {
     const anio = Number(anioFiltro);
-    const activos = beneficiarios.filter(b => b.activo !== false);
-    return activos.filter(b => {
+    return beneficiarios.filter(b => {
+      if (b.activo === false) return false;
       if (!esBeneficiarioConCuota(b)) return false;
+      const mesesDeuda = calcularMesesQueGeneranDeuda(b, anio, afiliaciones);
       const pagosBen = pagos.filter(p => p.beneficiario_id === b.id && Number(p.anio) === anio && p.tipo_pago !== 'Campamento');
-      const mesesCubiertos = new Set(pagosBen.flatMap(p => p.meses || (p.mes ? [p.mes] : [])));
-      // Verificar que tiene todos los meses hasta Junio pagados
-      const mesesHastaJunio = MESES.slice(0, 6).filter(m => !MESES_SIN_CUOTA.includes(m));
-      return mesesHastaJunio.every(m => mesesCubiertos.has(m));
+      return estaAlDia(b, pagosBen, mesesDeuda);
     });
-  }, [beneficiarios, pagos, anioFiltro]);
+  }, [beneficiarios, pagos, afiliaciones, anioFiltro]);
 
   const creditosJulioExistentes = useMemo(() => {
     const label = `${JULIO_LABEL_CREDITO} ${anioFiltro}`;
