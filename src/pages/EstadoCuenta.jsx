@@ -15,7 +15,7 @@ import RamaBadge from '@/components/shared/RamaBadge';
 import {
   MESES, MESES_SIN_CUOTA,
   CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, getCuotaBaseMes, getCuotaTransferenciaMes, marzoEsBonificado,
-  estaAlDia, getCuotaMes, JULIO_DESCUENTO_AL_DIA
+  estaAlDia, getCuotaMes
 } from '@/lib/ramaUtils';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 import { cn } from '@/lib/utils';
@@ -130,28 +130,16 @@ export default function EstadoCuenta() {
     // Calcular deuda mes por mes: cada mes puede tener su propio valor de cuota
     let deudaCuotas = 0;
     let pagadoCuotas = 0;
-    let creditoJulioPendiente = 0;
-    let creditoJulioGenerado = false;
     const alDia = esBeneficiarioConCuota(b) ? estaAlDia(b, pagosCuotasAnio, mesesQueGeneranDeuda) : false;
     if (esBeneficiarioConCuota(b)) {
-      // Meses efectivamente cubiertos por algún pago
       const mesesCubiertos = new Set(
         pagosCuotasAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []))
       );
       const mesesPendientes = mesesQueGeneranDeuda.filter(m => !mesesCubiertos.has(m));
-      // Verificar si el crédito de Julio ya fue generado
-      const labelCreditoJulio = `Crédito Julio ${anio}`;
-      creditoJulioGenerado = creditos.some(c => c.beneficiario_id === b.id && c.observaciones === labelCreditoJulio);
-      // Deuda = suma de cuota de cada mes pendiente (cada mes usa su valor propio)
       deudaCuotas = mesesPendientes.reduce((s, m) => {
         const baseMes = getCuotaBaseMes(m, anio, configCuotas);
         const cuotaBenMes = getCuotaBeneficiario(b, activos, baseMes);
-        const cuotaFinal = getCuotaMes(m, cuotaBenMes, alDia);
-        // Julio: el otro 50% es crédito (si aún no fue generado)
-        if (m === 'Julio' && alDia && !creditoJulioGenerado) {
-          creditoJulioPendiente = Math.round(cuotaBenMes * JULIO_DESCUENTO_AL_DIA);
-        }
-        return s + cuotaFinal;
+        return s + getCuotaMes(m, cuotaBenMes, alDia);
       }, 0);
       pagadoCuotas = pagosCuotasAnio.reduce((s, p) => s + (p.monto || 0), 0);
     } else {
@@ -205,9 +193,6 @@ export default function EstadoCuenta() {
       marzoGratis,
       cuotaTransferencia,
       alDia,
-      descuentoJulio: alDia && mesesQueGeneranDeuda.includes('Julio'),
-      creditoJulioPendiente,
-      creditoJulioGenerado,
       tieneDescuento: cuotaIndividual < CUOTA_EFECTIVO && esBeneficiarioConCuota(b),
     };
   };
@@ -314,12 +299,7 @@ export default function EstadoCuenta() {
                             Descuento hermanos
                           </Badge>
                         )}
-                        {cuenta.descuentoJulio && (
-                          <Badge className="bg-cyan-100 text-cyan-700 border-cyan-300 border">
-                            Julio {Math.round((1 - JULIO_DESCUENTO_AL_DIA) * 100)}% al día
-                          </Badge>
-                        )}
-                      </div>
+                        </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-sm">
                       {b.dni && (
@@ -532,20 +512,7 @@ export default function EstadoCuenta() {
                     </span>
                   </div>
                 )}
-                {cuenta.descuentoJulio && (
-                  <div className="text-xs text-cyan-600 mt-1 px-1 space-y-0.5">
-                    <p>Julio al día: pagás solo {formatMoney(Math.round(cuenta.cuotaIndividual * (1 - JULIO_DESCUENTO_AL_DIA)))} (50% de descuento)</p>
-                    {cuenta.creditoJulioGenerado ? (
-                      <p className="text-green-600 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />Crédito de Julio de {formatMoney(cuenta.creditoJulioPendiente || Math.round(cuenta.cuotaIndividual * JULIO_DESCUENTO_AL_DIA))} ya acreditado en tu cuenta
-                      </p>
-                    ) : cuenta.creditoJulioPendiente > 0 && (
-                      <p className="text-cyan-700 flex items-center gap-1">
-                        <Gift className="w-3 h-3" />Recibirás {formatMoney(cuenta.creditoJulioPendiente)} como crédito en tu cuenta al pagar Julio
-                      </p>
-                    )}
-                  </div>
-                )}
+
               </div>
 
               {/* Campamentos */}

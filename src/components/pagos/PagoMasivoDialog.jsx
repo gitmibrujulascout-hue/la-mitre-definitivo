@@ -7,10 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney } from '@/lib/ramaUtils';
+import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, estaAlDia, calcularMesesQueGeneranDeuda, JULIO_MONTO_CREDITO, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { Users, X, CheckSquare, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { registrarPagos } from '@/lib/registros';
 
 export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
   const [mesesSeleccionados, setMesesSeleccionados] = useState([]);
@@ -27,6 +28,16 @@ export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
     queryFn: () => base44.entities.Pago.list('-created_date', 500),
   });
 
+  const { data: afiliaciones = [] } = useQuery({
+    queryKey: ['afiliaciones'],
+    queryFn: () => base44.entities.Afiliacion.list('-fecha_pago', 500),
+  });
+
+  const { data: todosCreditos = [] } = useQuery({
+    queryKey: ['creditos'],
+    queryFn: () => base44.entities.CreditoBeneficiario.list(),
+  });
+
   // Solo beneficiarios activos que abonen cuota
   const bensFiltrados = useMemo(() => {
     const lista = beneficiarios
@@ -38,12 +49,40 @@ export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
 
   const bulkMutation = useMutation({
     mutationFn: async (pagos) => {
+      await registrarPagos(pagos);
+      // Procesar crédito de Julio para cada beneficiario al día
+      const anioNum = parseInt(anio);
+      const labelJulio = `${JULIO_LABEL_CREDITO} ${anioNum}`;
       for (const p of pagos) {
-        await base44.entities.Pago.create(p);
+        if (p.tipo_pago !== 'Cuota' || !(p.meses?.includes('Julio'))) continue;
+        const ben = beneficiarios.find(b => b.id === p.beneficiario_id);
+        if (!ben) continue;
+        // Verificar si ya tiene crédito de Julio
+        const yaTiene = todosCreditos.some(
+          c => c.beneficiario_id === ben.id && c.observaciones === labelJulio
+        );
+        if (yaTiene) continue;
+        // Verificar si está al día
+        const mesesDeuda = calcularMesesQueGeneranDeuda(ben, anioNum, afiliaciones);
+        const pagosBen = pagosExistentes.filter(
+          x => x.beneficiario_id === ben.id && Number(x.anio) === anioNum && x.tipo_pago !== 'Campamento'
+        );
+        if (!estaAlDia(ben, pagosBen, mesesDeuda)) continue;
+        await base44.entities.CreditoBeneficiario.create({
+          beneficiario_id: ben.id,
+          beneficiario_nombre: ben.nombre,
+          monto_original: JULIO_MONTO_CREDITO,
+          monto_disponible: JULIO_MONTO_CREDITO,
+          fecha: new Date().toISOString().split('T')[0],
+          observaciones: labelJulio,
+        });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pagos'] });
+      queryClient.invalidateQueries({ queryKey: ['creditos'] });
+      queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario'] });
+      queryClient.invalidateQueries({ queryKey: ['creditos-todos'] });
       toast.success(`Pagos registrados correctamente`);
       onClose();
     },

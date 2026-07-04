@@ -7,10 +7,46 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, marzoEsBonificado } from '@/lib/ramaUtils';
+import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, marzoEsBonificado, estaAlDia, calcularMesesQueGeneranDeuda, JULIO_MONTO_CREDITO, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
 import { registrarPagos } from '@/lib/registros';
 import { toast } from 'sonner';
 import { Tent, CreditCard, Users, Wallet, AlertCircle, CheckCircle2 } from 'lucide-react';
+
+// Procesa el crédito de Julio: si el pago incluye Julio y el beneficiario está al día,
+// crea un crédito de $12.500 en su cuenta corriente (si no existe ya).
+async function procesarCreditoJulio(pagos, beneficiario, pagosExistentes, afiliaciones, anio, todosCreditos) {
+  // Verificar si alguno de los pagos incluye Julio como cuota
+  const incluyeJulio = pagos.some(p =>
+    p.tipo_pago === 'Cuota' && (p.meses?.includes('Julio') || p.mes === 'Julio')
+  );
+  if (!incluyeJulio || !beneficiario) return;
+
+  const anioNum = parseInt(anio);
+  const labelJulio = `${JULIO_LABEL_CREDITO} ${anioNum}`;
+
+  // Verificar si ya existe un crédito de Julio para este beneficiario
+  const yaTieneCredito = todosCreditos.some(
+    c => c.beneficiario_id === beneficiario.id && c.observaciones === labelJulio
+  );
+  if (yaTieneCredito) return;
+
+  // Verificar si el beneficiario está al día (todos los meses excepto Julio)
+  const mesesDeuda = calcularMesesQueGeneranDeuda(beneficiario, anioNum, afiliaciones);
+  const pagosCuotasAnio = pagosExistentes.filter(
+    p => p.beneficiario_id === beneficiario.id && Number(p.anio) === anioNum && p.tipo_pago !== 'Campamento'
+  );
+  if (!estaAlDia(beneficiario, pagosCuotasAnio, mesesDeuda)) return;
+
+  // Crear el crédito de Julio
+  await base44.entities.CreditoBeneficiario.create({
+    beneficiario_id: beneficiario.id,
+    beneficiario_nombre: beneficiario.nombre,
+    monto_original: JULIO_MONTO_CREDITO,
+    monto_disponible: JULIO_MONTO_CREDITO,
+    fecha: new Date().toISOString().split('T')[0],
+    observaciones: labelJulio,
+  });
+}
 
 export default function PagoForm({ open, onClose, beneficiarios, preselectedBenId = null }) {
   const [tipoPago, setTipoPago] = useState('Cuota');
@@ -49,6 +85,11 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     enabled: !!beneficiarioId,
   });
 
+  const { data: todosCreditos = [] } = useQuery({
+    queryKey: ['creditos'],
+    queryFn: () => base44.entities.CreditoBeneficiario.list(),
+  });
+
   const creditosDisponibles = useMemo(() =>
     creditosBen.filter(c => (c.monto_disponible || 0) > 0),
     [creditosBen]
@@ -57,10 +98,18 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   const creditoSeleccionado = creditosDisponibles.find(c => c.id === creditoId) || creditosDisponibles[0];
 
   const createMutation = useMutation({
-    mutationFn: async (pagos) => registrarPagos(pagos),
+    mutationFn: async (pagos) => {
+      const pagosCreados = await registrarPagos(pagos);
+      // Procesar crédito de Julio para beneficiarios al día
+      await procesarCreditoJulio(pagos, selectedBen, pagosExistentes, afiliaciones, anio, todosCreditos);
+      return pagosCreados;
+    },
     onSuccess: (_, pagos) => {
       queryClient.invalidateQueries({ queryKey: ['pagos'] });
       queryClient.invalidateQueries({ queryKey: ['movimientos'] });
+      queryClient.invalidateQueries({ queryKey: ['creditos'] });
+      queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario'] });
+      queryClient.invalidateQueries({ queryKey: ['creditos-todos'] });
       onClose();
       toast.success(pagos.length > 1 ? `${pagos.length} pagos registrados` : 'Pago registrado');
     },

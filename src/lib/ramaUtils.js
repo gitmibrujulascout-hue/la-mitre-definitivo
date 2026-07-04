@@ -56,8 +56,11 @@ export const CUOTAS_MENSUALES = {
   'Diciembre': null,
 };
 
-// Julio: beneficiarios al día pagan solo el 50% de la cuota
-export const JULIO_DESCUENTO_AL_DIA = 0.5;
+// Julio: la cuota se divide en 2 — $12.500 como pago y $12.500 como crédito
+// para beneficiarios al día. Valores fijos independientes del modo de pago.
+export const JULIO_MONTO_CUOTA = 12500;
+export const JULIO_MONTO_CREDITO = 12500;
+export const JULIO_LABEL_CREDITO = 'Crédito Julio';
 
 // Verifica si el beneficiario tiene todos los meses (excluyendo Julio) pagados
 export function estaAlDia(b, pagosCuotasAnio, mesesQueGeneranDeuda) {
@@ -94,17 +97,47 @@ export function getCuotaTransferenciaMes(mes, anio, configCuotas = []) {
   return CUOTA_TRANSFERENCIA;
 }
 
-// Devuelve el crédito de Julio (el 50% que se acredita al beneficiario al día)
-export function getCreditoJulio(cuotaBase, alDia) {
-  if (!alDia) return 0;
-  return Math.round(cuotaBase * JULIO_DESCUENTO_AL_DIA);
+/**
+ * Calcula los meses que generan deuda de cuota para un beneficiario en un año.
+ * Reutilizable desde múltiples componentes (EstadoCuenta, PagoForm, etc.)
+ */
+export function calcularMesesQueGeneranDeuda(b, anio, afiliaciones = []) {
+  const AÑO_INICIO = 2026;
+  if (anio < AÑO_INICIO) return [];
+
+  const mesActual = new Date().getMonth();
+  const mesesTranscurridos = anio < new Date().getFullYear() ? 12 : anio > new Date().getFullYear() ? 0 : mesActual + 1;
+
+  const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
+  const esPrimeraVez = !b.fecha_primer_afiliacion;
+  const marzoGratis = marzoEsBonificado(afiliacionAnio, esPrimeraVez);
+
+  let mesUltimoCuota = 11;
+  if (b.activo === false && b.fecha_baja) {
+    const [anioBaja, mesBaja] = b.fecha_baja.split('T')[0].split('-').map(Number);
+    if (anioBaja === anio) mesUltimoCuota = mesBaja - 1;
+    else if (anioBaja < anio) mesUltimoCuota = -1;
+  }
+
+  let mesPrimerCuotaReingreso = 0;
+  if (b.fecha_reingreso && b.activo !== false) {
+    const [anioReingreso, mesReingreso] = b.fecha_reingreso.split('T')[0].split('-').map(Number);
+    if (anioReingreso === anio) mesPrimerCuotaReingreso = mesReingreso - 1;
+  }
+
+  return MESES.slice(0, mesesTranscurridos).filter((m, idx) => {
+    if (MESES_SIN_CUOTA.includes(m)) return false;
+    if (m === 'Marzo' && marzoGratis) return false;
+    if (idx > mesUltimoCuota) return false;
+    if (mesPrimerCuotaReingreso > 0 && idx < mesPrimerCuotaReingreso) return false;
+    return true;
+  });
 }
 
-// Devuelve la cuota efectiva para un mes específico, aplicando descuento de Julio
+// Devuelve la cuota efectiva para un mes específico.
+// Julio se cobra como mes normal (cuota completa); el split en crédito
+// se maneja al registrar el pago, no en el cálculo de deuda.
 export function getCuotaMes(mes, cuotaBase, alDia = false) {
-  if (mes === 'Julio' && alDia) {
-    return Math.round(cuotaBase * (1 - JULIO_DESCUENTO_AL_DIA));
-  }
   return cuotaBase;
 }
 

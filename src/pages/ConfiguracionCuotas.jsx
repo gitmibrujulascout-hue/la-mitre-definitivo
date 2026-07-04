@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import PageHeader from '@/components/shared/PageHeader';
-import { MESES, MESES_SIN_CUOTA, formatMoney, esBeneficiarioConCuota, estaAlDia, getCuotaBeneficiario, getCuotaBaseMes, JULIO_DESCUENTO_AL_DIA } from '@/lib/ramaUtils';
+import { MESES, MESES_SIN_CUOTA, formatMoney, esBeneficiarioConCuota, estaAlDia, getCuotaBeneficiario, getCuotaBaseMes, JULIO_MONTO_CREDITO, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
 import { DollarSign, Save, Plus, Trash2, Gift, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
 
 export default function ConfiguracionCuotas() {
@@ -116,13 +116,13 @@ export default function ConfiguracionCuotas() {
   }, [beneficiarios, pagos, anioFiltro]);
 
   const creditosJulioExistentes = useMemo(() => {
-    const label = `Crédito Julio ${anioFiltro}`;
+    const label = `${JULIO_LABEL_CREDITO} ${anioFiltro}`;
     return creditos.filter(c => c.observaciones === label);
   }, [creditos, anioFiltro]);
 
   const generarCreditosMut = useMutation({
     mutationFn: async () => {
-      const label = `Crédito Julio ${anioFiltro}`;
+      const label = `${JULIO_LABEL_CREDITO} ${anioFiltro}`;
       const yaTienen = new Set(creditosJulioExistentes.map(c => c.beneficiario_id));
       const pendientes = beneficiariosAlDiaJulio.filter(b => !yaTienen.has(b.id));
 
@@ -130,15 +130,12 @@ export default function ConfiguracionCuotas() {
         throw new Error('No hay beneficiarios pendientes de generar crédito');
       }
 
-      const activos = beneficiarios.filter(b => b.activo !== false);
-      const baseJulio = getCuotaBaseMes('Julio', Number(anioFiltro), configCuotas);
-
       const records = pendientes.map(b => ({
         beneficiario_id: b.id,
         beneficiario_nombre: b.nombre,
-        actividad_nombre: `Crédito Julio ${anioFiltro}`,
-        monto_original: Math.round(getCuotaBeneficiario(b, activos, baseJulio) * JULIO_DESCUENTO_AL_DIA),
-        monto_disponible: Math.round(getCuotaBeneficiario(b, activos, baseJulio) * JULIO_DESCUENTO_AL_DIA),
+        actividad_nombre: label,
+        monto_original: JULIO_MONTO_CREDITO,
+        monto_disponible: JULIO_MONTO_CREDITO,
         fecha: new Date().toISOString().split('T')[0],
         observaciones: label,
       }));
@@ -186,7 +183,7 @@ export default function ConfiguracionCuotas() {
                 {' · '}Créditos ya generados: <strong>{creditosJulioExistentes.length}</strong>
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Cada beneficiario al día paga 50% de la cuota de Julio y recibe el otro 50% como crédito en su cuenta.
+                Cada beneficiario al día paga la cuota completa de Julio y recibe {formatMoney(JULIO_MONTO_CREDITO)} como crédito en su cuenta.
               </p>
             </div>
           </div>
@@ -223,7 +220,7 @@ export default function ConfiguracionCuotas() {
                 <div className="w-28">
                   <p className="font-medium text-sm">{mes}</p>
                   {sinCuota && <Badge variant="secondary" className="text-xs mt-0.5">Sin cuota</Badge>}
-                  {esJulio && <Badge className="bg-cyan-100 text-cyan-700 border-cyan-300 border text-xs mt-0.5">50% al día</Badge>}
+                  {esJulio && <Badge className="bg-cyan-100 text-cyan-700 border-cyan-300 border text-xs mt-0.5">Crédito {formatMoney(JULIO_MONTO_CREDITO)}</Badge>}
                 </div>
 
                 {sinCuota ? (
@@ -277,7 +274,7 @@ export default function ConfiguracionCuotas() {
           <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
           <div className="text-xs text-amber-800 space-y-1">
             <p><strong>Valores históricos:</strong> Cada mes mantiene su valor definido. Si en Agosto hay un aumento, solo cambiás el valor de Agosto en adelante. Los pagos de meses anteriores que se hagan tarde se cobran al valor original del mes.</p>
-            <p><strong>Descuento de Julio:</strong> Los beneficiarios al día con cuotas hasta Junio pagan solo el 50% de Julio. El otro 50% se acredita como crédito en su cuenta (usá el botón de arriba para generar los créditos).</p>
+            <p><strong>Crédito de Julio:</strong> Los beneficiarios al día con cuotas hasta Junio pagan la cuota completa de Julio y reciben {formatMoney(JULIO_MONTO_CREDITO)} como crédito en su cuenta (usá el botón de arriba para generar los créditos).</p>
           </div>
         </div>
       </Card>
