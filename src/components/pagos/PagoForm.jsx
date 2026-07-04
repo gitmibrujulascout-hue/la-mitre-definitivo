@@ -230,6 +230,13 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === beneficiarioId && Number(a.anio) === Number(anio));
     const esPrimeraVez = selectedBen ? !selectedBen.fecha_primer_afiliacion : false;
     if (marzoEsBonificado(afiliacionAnio, esPrimeraVez)) no.push('Marzo');
+    // Excluir meses anteriores a la fecha de primera afiliación (si se incorporó este año)
+    if (selectedBen?.fecha_primer_afiliacion) {
+      const [anioAfil, mesAfil] = selectedBen.fecha_primer_afiliacion.split('T')[0].split('-').map(Number);
+      if (anioAfil === Number(anio)) {
+        MESES.slice(0, mesAfil - 1).forEach(m => { if (!no.includes(m)) no.push(m); });
+      }
+    }
     return no;
   }, [beneficiarioId, anio, afiliaciones, selectedBen]);
 
