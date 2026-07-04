@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, CheckCircle2, XCircle, Award, Tent, Gift, Zap, ShieldCheck, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Award, Tent, Gift, Zap, ShieldCheck, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import RamaBadge from '@/components/shared/RamaBadge';
 import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, marzoEsBonificado } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
@@ -249,6 +250,8 @@ function CreditosPanel({ beneficiarioId, beneficiarioNombre, beneficiario, grupo
   });
 
   const disponibles = creditos.filter(c => (c.monto_disponible || 0) > 0);
+  const [desgloseOpen, setDesgloseOpen] = useState(false);
+  const totalDisponible = disponibles.reduce((s, c) => s + (c.monto_disponible || 0), 0);
 
   if (disponibles.length === 0) return null;
 
@@ -258,41 +261,63 @@ function CreditosPanel({ beneficiarioId, beneficiarioNombre, beneficiario, grupo
         <h3 className="font-semibold mb-3 flex items-center gap-2">
           <Gift className="w-4 h-4 text-primary" />Créditos de actividades económicas
         </h3>
-        <div className="space-y-2">
-          {disponibles.map(cr => (
-            <Card key={cr.id} className="p-4 bg-primary/5 border-primary/20">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <p className="font-medium text-sm">{cr.actividad_nombre}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Disponible: <span className="font-semibold text-primary">{formatMoney(cr.monto_disponible)}</span>
-                    {cr.monto_original !== cr.monto_disponible && ` (original: ${formatMoney(cr.monto_original)})`}
-                  </p>
+        <Card className="p-4 bg-primary/5 border-primary/20">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <p className="font-medium text-sm">Crédito total disponible</p>
+              <p className="text-2xl font-bold text-primary">{formatMoney(totalDisponible)}</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => { setCreditoSel(disponibles); setShowAplicar(true); }}
+              >
+                <Zap className="w-3 h-3 mr-1" />Aplicar
+              </Button>
+            </div>
+          </div>
+
+          {/* Desglose colapsable por origen */}
+          {disponibles.length > 0 && (
+            <Collapsible open={desgloseOpen} onOpenChange={setDesgloseOpen}>
+              <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mt-3">
+                {desgloseOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                Ver desglose por origen ({disponibles.length} crédito{disponibles.length !== 1 ? 's' : ''})
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="mt-2 space-y-1.5 rounded-lg border bg-muted/30 p-2.5">
+                  {disponibles.map(cr => (
+                    <div key={cr.id} className="flex items-center justify-between text-xs gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Gift className="w-3 h-3 text-primary flex-shrink-0" />
+                        <span className="truncate">{cr.actividad_nombre}</span>
+                        {cr.monto_original !== cr.monto_disponible && (
+                          <span className="text-muted-foreground/60">(usado: {formatMoney(cr.monto_original - cr.monto_disponible)})</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="font-medium text-primary">{formatMoney(cr.monto_disponible)}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => { setCreditoSel([cr]); setShowTransferir(true); }}
+                        >
+                          Transferir
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => { setCreditoSel(cr); setShowTransferir(true); }}
-                  >
-                    Transferir
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => { setCreditoSel(cr); setShowAplicar(true); }}
-                  >
-                    <Zap className="w-3 h-3 mr-1" />Aplicar
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+        </Card>
       </div>
 
       {showAplicar && creditoSel && (
         <AplicarCreditoDialog
-          credito={creditoSel}
+          creditos={creditoSel}
           beneficiarioId={beneficiarioId}
           beneficiarioNombre={beneficiarioNombre}
           beneficiario={beneficiario}
@@ -315,7 +340,7 @@ function CreditosPanel({ beneficiarioId, beneficiarioNombre, beneficiario, grupo
       )}
       {showTransferir && creditoSel && (
         <TransferirCreditoDialog
-          credito={creditoSel}
+          credito={creditoSel[0]}
           origenId={beneficiarioId}
           grupoFamiliar={grupoFamiliar}
           todosLosBeneficiarios={todosLosBeneficiarios}

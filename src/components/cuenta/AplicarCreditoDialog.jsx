@@ -5,19 +5,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { base44 } from '@/api/base44Client';
 import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, getCuotaBeneficiario, marzoEsBonificado } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Gift } from 'lucide-react';
 
-export default function AplicarCreditoDialog({ credito, beneficiarioId, beneficiarioNombre, beneficiario, campamentos, todosLosBeneficiarios, pagos, anio, afiliacion, esPrimeraVezAfiliacion, onClose, onSaved }) {
+export default function AplicarCreditoDialog({ creditos, beneficiarioId, beneficiarioNombre, beneficiario, campamentos, todosLosBeneficiarios, pagos, anio, afiliacion, esPrimeraVezAfiliacion, onClose, onSaved }) {
   const queryClient = useQueryClient();
   const [tipo, setTipo] = useState('Cuota');
   const [meses, setMeses] = useState([]);
   const [campamentoId, setCampamentoId] = useState('');
-  const [montoCredito, setMontoCredito] = useState(credito.monto_disponible.toString());
+  const [montoCredito, setMontoCredito] = useState('');
   const [diferenciaEfectivo, setDiferenciaEfectivo] = useState('');
+  const [desgloseOpen, setDesgloseOpen] = useState(false);
+
+  // Total consolidado de todos los créditos disponibles
+  const totalDisponible = useMemo(() =>
+    creditos.reduce((s, c) => s + (c.monto_disponible || 0), 0),
+    [creditos]
+  );
 
   // Meses ya pagados este año
   const mesesYaPagados = useMemo(() => {
@@ -53,13 +61,13 @@ export default function AplicarCreditoDialog({ credito, beneficiarioId, benefici
   // Auto-ajustar montos cuando cambian los meses seleccionados
   useEffect(() => {
     if (tipo !== 'Cuota' || cuotaTotal === 0) return;
-    const credAuto = Math.min(credito.monto_disponible, cuotaTotal);
+    const credAuto = Math.min(totalDisponible, cuotaTotal);
     setMontoCredito(credAuto.toString());
     const dif = cuotaTotal - credAuto;
     setDiferenciaEfectivo(dif > 0 ? dif.toString() : '');
-  }, [meses.length, cuotaUnitaria, tipo, cuotaTotal, credito.monto_disponible]);
+  }, [meses.length, cuotaUnitaria, tipo, cuotaTotal, totalDisponible]);
 
-  const creditoNum = Math.min(parseFloat(montoCredito) || 0, credito.monto_disponible);
+  const creditoNum = Math.min(parseFloat(montoCredito) || 0, totalDisponible);
   const diferenciaNum = parseFloat(diferenciaEfectivo) || 0;
   const totalAPagar = creditoNum + diferenciaNum;
   const falta = cuotaTotal - totalAPagar;
@@ -76,7 +84,7 @@ export default function AplicarCreditoDialog({ credito, beneficiarioId, benefici
     setTipo(v);
     setMeses([]);
     setCampamentoId('');
-    setMontoCredito(credito.monto_disponible.toString());
+    setMontoCredito('');
     setDiferenciaEfectivo('');
   };
 
@@ -85,13 +93,35 @@ export default function AplicarCreditoDialog({ credito, beneficiarioId, benefici
     setMeses(prev => prev.includes(mes) ? prev.filter(m => m !== mes) : [...prev, mes]);
   };
 
+  // Deduce monto de cada crédito en orden FIFO (más antiguo primero)
+  const distribuirDebito = (montoTotal) => {
+    const ordenados = [...creditos].sort((a, b) =>
+      (a.fecha || '').localeCompare(b.fecha || '')
+    );
+    let restante = montoTotal;
+    const debitMap = [];
+    for (const cr of ordenados) {
+      if (restante <= 0) break;
+      const montoAUsar = Math.min(restante, cr.monto_disponible || 0);
+      if (montoAUsar > 0) {
+        debitMap.push({ credito: cr, monto: montoAUsar });
+        restante -= montoAUsar;
+      }
+    }
+    return debitMap;
+  };
+
   const mutation = useMutation({
     mutationFn: async () => {
       const campamento = campamentos.find(c => c.id === campamentoId);
       const fechaPago = new Date().toISOString().split('T')[0];
 
+      // Construir label con desglose de fuentes
+      const debitos = distribuirDebito(creditoNum);
+      const fuentesLabel = debitos.map(d => d.credito.actividad_nombre).join(' + ');
+
       if (tipo === 'Cuota') {
-        // Pago con crédito
+        // Pago con crédito unificado
         await base44.entities.Pago.create({
           beneficiario_id: beneficiarioId,
           beneficiario_nombre: beneficiarioNombre,
@@ -103,7 +133,7 @@ export default function AplicarCreditoDialog({ credito, beneficiarioId, benefici
           destino: 'Caja',
           monto: creditoNum,
           fecha_pago: fechaPago,
-          observaciones: `Crédito aplicado de: ${credito.actividad_nombre}`,
+          observaciones: `Crédito aplicado de: ${fuentesLabel}`,
         });
         // Diferencia en efectivo
         if (diferenciaNum > 0) {
@@ -118,7 +148,7 @@ export default function AplicarCreditoDialog({ credito, beneficiarioId, benefici
             destino: 'Caja',
             monto: diferenciaNum,
             fecha_pago: fechaPago,
-            observaciones: `Diferencia en efectivo (complementa crédito de: ${credito.actividad_nombre})`,
+            observaciones: `Diferencia en efectivo (complementa crédito de: ${fuentesLabel})`,
           });
         }
       } else {
@@ -133,17 +163,21 @@ export default function AplicarCreditoDialog({ credito, beneficiarioId, benefici
           destino: 'Caja',
           monto: creditoNum,
           fecha_pago: fechaPago,
-          observaciones: `Crédito aplicado de: ${credito.actividad_nombre}`,
+          observaciones: `Crédito aplicado de: ${fuentesLabel}`,
         });
       }
-      // Descontar crédito (re-fetch para evitar estado stale)
-      const credFresh = await base44.entities.CreditoBeneficiario.get(credito.id);
-      await base44.entities.CreditoBeneficiario.update(credito.id, {
-        monto_disponible: Math.max(0, credFresh.monto_disponible - creditoNum),
-      });
+
+      // Descontar de cada crédito individual (re-fetch para evitar estado stale)
+      for (const d of debitos) {
+        const credFresh = await base44.entities.CreditoBeneficiario.get(d.credito.id);
+        await base44.entities.CreditoBeneficiario.update(d.credito.id, {
+          monto_disponible: Math.max(0, credFresh.monto_disponible - d.monto),
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creditos-todos'] });
+      queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario', beneficiarioId] });
       toast.success('Crédito aplicado correctamente');
       onSaved();
     },
@@ -151,7 +185,7 @@ export default function AplicarCreditoDialog({ credito, beneficiarioId, benefici
 
   const canSave = tipo === 'Cuota'
     ? meses.length > 0 && cubreCompleto && creditoNum > 0
-    : !!campamentoId && creditoNum > 0 && creditoNum <= credito.monto_disponible;
+    : !!campamentoId && creditoNum > 0 && creditoNum <= totalDisponible;
 
   const hayMesesAdeudados = MESES.some(m => !mesesYaPagados.includes(m) && !mesesNoCobrar.includes(m));
 
@@ -163,9 +197,30 @@ export default function AplicarCreditoDialog({ credito, beneficiarioId, benefici
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="bg-primary/5 rounded-lg p-3 text-center">
-            <p className="text-xs text-muted-foreground">Crédito disponible de "{credito.actividad_nombre}"</p>
-            <p className="text-2xl font-bold text-primary">{formatMoney(credito.monto_disponible)}</p>
+            <p className="text-xs text-muted-foreground">Crédito total disponible</p>
+            <p className="text-2xl font-bold text-primary">{formatMoney(totalDisponible)}</p>
           </div>
+
+          {/* Desglose colapsable */}
+          <Collapsible open={desgloseOpen} onOpenChange={setDesgloseOpen}>
+            <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              {desgloseOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              Ver desglose por origen ({creditos.length} crédito{creditos.length !== 1 ? 's' : ''})
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="mt-2 space-y-1.5 rounded-lg border bg-muted/30 p-2.5">
+                {creditos.map(cr => (
+                  <div key={cr.id} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Gift className="w-3 h-3 text-primary flex-shrink-0" />
+                      <span className="truncate">{cr.actividad_nombre}</span>
+                    </div>
+                    <span className="font-medium text-primary ml-2">{formatMoney(cr.monto_disponible)}</span>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
           <div>
             <Label>Aplicar a</Label>
@@ -242,9 +297,9 @@ export default function AplicarCreditoDialog({ credito, beneficiarioId, benefici
                       type="number"
                       value={montoCredito}
                       onChange={e => handleMontoCreditoChange(e.target.value)}
-                      max={credito.monto_disponible}
+                      max={totalDisponible}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Máximo disponible: {formatMoney(credito.monto_disponible)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Máximo disponible: {formatMoney(totalDisponible)}</p>
                   </div>
 
                   {cuotaTotal > creditoNum && (
@@ -296,9 +351,9 @@ export default function AplicarCreditoDialog({ credito, beneficiarioId, benefici
                   type="number"
                   value={montoCredito}
                   onChange={e => setMontoCredito(e.target.value)}
-                  max={credito.monto_disponible}
+                  max={totalDisponible}
                 />
-                <p className="text-xs text-muted-foreground mt-1">Máximo: {formatMoney(credito.monto_disponible)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Máximo: {formatMoney(totalDisponible)}</p>
               </div>
             </>
           )}
