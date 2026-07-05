@@ -45,13 +45,16 @@ export default function ActividadesEconomicas() {
     setEditing(null);
   };
 
+  // Derivar siempre de la query fresca para que los cambios (fechas, etc.) se reflejen
+  const actividadActual = detalle ? (actividades.find(a => a.id === detalle.id) || detalle) : null;
+
   if (detalle) {
     return (
       <ActividadDetalle
-        actividad={detalle}
+        actividad={actividadActual}
         beneficiarios={beneficiarios}
         onBack={() => setDetalle(null)}
-        onEdit={() => { setEditing(detalle); setDetalle(null); }}
+        onEdit={() => { setEditing(actividadActual); setDetalle(null); }}
         onSaved={() => { queryClient.invalidateQueries({ queryKey: ['actividades'] }); }}
       />
     );
