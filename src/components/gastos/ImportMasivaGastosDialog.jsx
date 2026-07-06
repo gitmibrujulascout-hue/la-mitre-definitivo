@@ -79,7 +79,8 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
 
   const importarTodos = async () => {
     setProcesando(true);
-    const gastos = procesados.map(p => ({
+    const gastosAImportar = procesados.filter(p => !p.duplicado);
+    const gastos = gastosAImportar.map(p => ({
       descripcion: p.descripcion,
       monto: parseFloat(p.monto) || 0,
       fecha: p.fecha,
