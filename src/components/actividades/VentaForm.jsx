@@ -12,13 +12,14 @@ import { formatMoney } from '@/lib/ramaUtils';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Tag, Zap } from 'lucide-react';
 
-const emptyLinea = { producto_id: '', cantidad_vendida: '' };
+const emptyLinea = { producto_id: '', cantidad_vendida: '', comprador_nombre: '' };
 
-export default function VentaForm({ open, onClose, onSaved, actividad, beneficiarios }) {
-  const [beneficiario_id, setBeneficiarioId] = useState('');
-  const [comprador_nombre, setCompradorNombre] = useState('');
-  const [observaciones, setObservaciones] = useState('');
-  const [lineas, setLineas] = useState([{ ...emptyLinea }]);
+export default function VentaForm({ open, onClose, onSaved, actividad, beneficiarios, editingVenta }) {
+  const [beneficiario_id, setBeneficiarioId] = useState(editingVenta?.beneficiario_id || '');
+  const [observaciones, setObservaciones] = useState(editingVenta?.observaciones || '');
+  const [lineas, setLineas] = useState(editingVenta
+    ? [{ producto_id: editingVenta.producto_id || '', cantidad_vendida: editingVenta.cantidad_vendida?.toString() || '', comprador_nombre: editingVenta.comprador_nombre || '' }]
+    : [{ ...emptyLinea }]);
   const [cantidadesPorGrupo, setCantidadPorGrupo] = useState({});
 
   const { data: productos = [] } = useQuery({
@@ -112,7 +113,7 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
 
     if (nuevasLineas.length > 0) {
       const grupoIds = new Set(productosGrupo.map(p => p.id));
-      const otrasLineas = lineas.filter(l => !grupoIds.has(l.producto_id));
+      const otrasLineas = lineas.filter(l => l.producto_id && !grupoIds.has(l.producto_id));
       setLineas([...otrasLineas, ...nuevasLineas]);
       setCantidadPorGrupo(prev => ({ ...prev, [grupoNombre]: '' }));
     }
@@ -122,10 +123,36 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
     mutationFn: data => base44.entities.VentaActividad.create(data),
   });
 
+  const updateMut = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.VentaActividad.update(id, data),
+  });
+
   const handleSave = async () => {
     if (!beneficiario_id) return;
     const lineasValidas = lineas.filter(l => parseFloat(l.cantidad_vendida) > 0);
     if (lineasValidas.length === 0) return;
+
+    if (editingVenta) {
+      const linea = lineasValidas[0];
+      const { prod, precio, cant, monto } = calcLinea(linea);
+      await updateMut.mutateAsync({
+        id: editingVenta.id,
+        data: {
+          producto_id: prod?.id || '',
+          producto_nombre: prod?.nombre || '',
+          precio_unitario_aplicado: precio,
+          es_promo: prod?.es_promo || false,
+          cantidad_promo: prod?.es_promo ? prod.cantidad_promo : null,
+          cantidad_vendida: cant,
+          monto_recaudado: monto,
+          comprador_nombre: linea.comprador_nombre || ben?.nombre || '',
+          observaciones: observaciones || '',
+        },
+      });
+      toast.success('Pedido actualizado');
+      onSaved();
+      return;
+    }
 
     for (const linea of lineasValidas) {
       const { prod, precio, cant, monto } = calcLinea(linea);
@@ -141,7 +168,7 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
         cantidad_promo: prod?.es_promo ? prod.cantidad_promo : null,
         cantidad_vendida: cant,
         monto_recaudado: monto,
-        comprador_nombre: comprador_nombre || ben?.nombre || '',
+        comprador_nombre: linea.comprador_nombre || ben?.nombre || '',
         entregado: false,
         observaciones: observaciones || '',
       });
@@ -151,13 +178,14 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
     onSaved();
   };
 
-  const canSave = beneficiario_id && lineas.some(l => parseFloat(l.cantidad_vendida) > 0) && !createMut.isPending;
+  const isPending = createMut.isPending || updateMut.isPending;
+  const canSave = beneficiario_id && lineas.some(l => parseFloat(l.cantidad_vendida) > 0) && !isPending;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Registrar pedido — {actividad?.nombre}</DialogTitle>
+          <DialogTitle>{editingVenta ? 'Editar pedido' : 'Registrar pedido'} — {actividad?.nombre}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -175,16 +203,7 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
             </Select>
           </div>
 
-          <div>
-            <Label>Nombre del comprador externo</Label>
-            <Input
-              value={comprador_nombre}
-              onChange={e => setCompradorNombre(e.target.value)}
-              placeholder="Nombre de quien retira el pedido (opcional, se autocompleta con el vendedor)"
-            />
-          </div>
-
-          {tieneProductos && grupos.length > 0 && (
+          {tieneProductos && grupos.length > 0 && !editingVenta && (
             <div className="space-y-2">
               <p className="text-xs font-medium text-blue-800 flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5" />
@@ -220,7 +239,7 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
           <div>
             <div className="flex items-center justify-between mb-2">
               <Label>Productos del pedido *</Label>
-              {tieneProductos && (
+              {tieneProductos && !editingVenta && (
                 <Button type="button" size="sm" variant="outline" onClick={addLinea}>
                   <Plus className="w-3 h-3 mr-1" />Agregar producto
                 </Button>
@@ -241,12 +260,19 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
                   <div key={i} className="border rounded-lg p-3 space-y-2 bg-muted/20">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">Línea {i + 1}</span>
-                      {lineas.length > 1 && (
+                      {lineas.length > 1 && !editingVenta && (
                         <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeLinea(i)}>
                           <Trash2 className="w-3 h-3 text-muted-foreground" />
                         </Button>
                       )}
                     </div>
+
+                    <Input
+                      value={linea.comprador_nombre || ''}
+                      onChange={e => setLinea(i, 'comprador_nombre', e.target.value)}
+                      placeholder="Comprador (quién retira el pedido)"
+                      className="h-8 text-sm"
+                    />
 
                     {tieneProductos && (
                       <Select value={linea.producto_id} onValueChange={v => setLinea(i, 'producto_id', v)}>
@@ -325,7 +351,7 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button onClick={handleSave} disabled={!canSave}>
-            {createMut.isPending ? 'Guardando...' : `Registrar pedido${lineas.length > 1 ? ` (${lineas.filter(l => parseFloat(l.cantidad_vendida) > 0).length} productos)` : ''}`}
+            {isPending ? 'Guardando...' : editingVenta ? 'Guardar cambios' : `Registrar pedido${lineas.length > 1 ? ` (${lineas.filter(l => parseFloat(l.cantidad_vendida) > 0).length} productos)` : ''}`}
           </Button>
         </DialogFooter>
       </DialogContent>

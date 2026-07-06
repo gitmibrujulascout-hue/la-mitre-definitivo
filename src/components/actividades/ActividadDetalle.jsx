@@ -31,6 +31,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
   const [ventaRendicion, setVentaRendicion] = useState(null);
   const [showRendicionMasiva, setShowRendicionMasiva] = useState(false);
   const [showGananciasGrupo, setShowGananciasGrupo] = useState(false);
+  const [editingVenta, setEditingVenta] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: ventas = [] } = useQuery({
@@ -86,19 +87,42 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
     const todoRendido = pedidosBen.every(x => x.estado_rendicion === 'Rendido');
     const hayParcial = pedidosBen.some(x => x.estado_rendicion === 'Parcial');
 
+    // Total de unidades físicas (porciones)
+    const totalUnidades = pedidosBen.reduce((s, x) => {
+      if (x.es_promo && x.cantidad_promo) return s + (x.cantidad_vendida * x.cantidad_promo);
+      return s + (x.cantidad_vendida || 0);
+    }, 0);
+
+    // Agrupar por comprador
+    const porComprador = {};
+    pedidosBen.forEach(p => {
+      const key = p.comprador_nombre?.trim() || p.beneficiario_nombre || 'Sin comprador';
+      if (!porComprador[key]) porComprador[key] = [];
+      porComprador[key].push(p);
+    });
+
     let lineas = [];
     lineas.push(`🔔 *Resumen de pedidos - ${actividad.nombre}*`);
     lineas.push(`👤 Vendedor/a: *${v.beneficiario_nombre}*`);
     lineas.push('');
-    lineas.push(`📦 *Detalle de los pedidos (${pedidosBen.length}):*`);
-    pedidosBen.forEach((p, i) => {
-      const cantDesc = p.es_promo && p.cantidad_promo
-        ? `${p.cantidad_vendida} promo(s) de ${p.cantidad_promo} uds`
-        : `${p.cantidad_vendida} unidad(es)`;
-      lineas.push(`${i + 1}. *${p.producto_nombre || actividad.tipo_producto || 'Producto'}* — ${cantDesc} — $${(p.monto_recaudado || 0).toLocaleString('es-AR')}`);
-      if (p.comprador_nombre) {
-        lineas.push(`   🛍️ Retira: ${p.comprador_nombre} · ${p.entregado ? `✅ Entregado${p.fecha_entrega ? ` el ${p.fecha_entrega}` : ''}` : '⏳ Pendiente'}`);
-      }
+    lineas.push(`📦 *Detalle del pedido (${totalUnidades} porciones):*`);
+
+    let idx = 1;
+    Object.entries(porComprador).forEach(([comprador, items]) => {
+      const montoComprador = items.reduce((s, x) => s + (x.monto_recaudado || 0), 0);
+      const unidadesComprador = items.reduce((s, x) => {
+        if (x.es_promo && x.cantidad_promo) return s + (x.cantidad_vendida * x.cantidad_promo);
+        return s + (x.cantidad_vendida || 0);
+      }, 0);
+      const todoEntregadoComp = items.every(x => x.entregado);
+      lineas.push(`${idx}. 🛍️ *${comprador}* — ${unidadesComprador} porciones — $${montoComprador.toLocaleString('es-AR')} ${todoEntregadoComp ? '✅' : '⏳'}`);
+      items.forEach(p => {
+        const cantDesc = p.es_promo && p.cantidad_promo
+          ? `${p.cantidad_vendida} promo(s) de ${p.cantidad_promo} uds`
+          : `${p.cantidad_vendida} unidad(es)`;
+        lineas.push(`   • ${p.producto_nombre || actividad.tipo_producto || 'Producto'} — ${cantDesc} — $${(p.monto_recaudado || 0).toLocaleString('es-AR')}`);
+      });
+      idx++;
     });
     lineas.push('');
     lineas.push(`💰 *Estado del pago:*`);
@@ -377,9 +401,14 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                                 {' · '}{v.cantidad_vendida}{v.es_promo ? ' promo(s)' : ' uds'}
                                 {' · '}<span className="text-green-700">{formatMoney(v.monto_recaudado)}</span>
                               </p>
-                              <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => deleteVentaMut.mutate(v.id)}>
-                                <Trash2 className="w-3 h-3 text-muted-foreground" />
-                              </Button>
+                              <div className="flex items-center shrink-0">
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditingVenta(v)}>
+                                  <Pencil className="w-3 h-3 text-muted-foreground" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => deleteVentaMut.mutate(v.id)}>
+                                  <Trash2 className="w-3 h-3 text-muted-foreground" />
+                                </Button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -469,6 +498,16 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
           beneficiarios={beneficiarios}
           onClose={() => setShowVentaForm(false)}
           onSaved={() => { invalidateAll(); setShowVentaForm(false); }}
+        />
+      )}
+      {editingVenta && (
+        <VentaForm
+          open
+          actividad={actividad}
+          beneficiarios={beneficiarios}
+          editingVenta={editingVenta}
+          onClose={() => setEditingVenta(null)}
+          onSaved={() => { invalidateAll(); setEditingVenta(null); }}
         />
       )}
       {showGastoForm && (
