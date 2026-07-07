@@ -179,7 +179,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
     return tels;
   };
 
-  const openWhatsApp = (phone, encodedMsg) => {
+  const sendWhatsApp = (phone, encodedMsg) => {
     const digits = phone.replace(/\D/g, '');
     let formattedPhone = '';
     if (digits.length >= 8) {
@@ -389,7 +389,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                           );
                           if (tels.length === 1) return (
                             <button
-                              onClick={() => openWhatsApp(tels[0].num, waMsg)}
+                              onClick={() => sendWhatsApp(tels[0].num, waMsg)}
                               title={`Enviar por WhatsApp: ${tels[0].num}`}
                               className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-green-50 text-green-600 hover:text-green-700 transition-colors"
                             >
@@ -408,7 +408,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 {tels.map((t, i) => (
-                                  <DropdownMenuItem key={i} onClick={() => openWhatsApp(t.num, waMsg)}>
+                                  <DropdownMenuItem key={i} onClick={() => sendWhatsApp(t.num, waMsg)}>
                                     📱 {t.label}: {t.num}
                                   </DropdownMenuItem>
                                 ))}
