@@ -14,11 +14,14 @@ import { Plus, Trash2, Tag, Zap } from 'lucide-react';
 
 const emptyLinea = { producto_id: '', cantidad_vendida: '', comprador_nombre: '' };
 
-export default function VentaForm({ open, onClose, onSaved, actividad, beneficiarios, editingVenta }) {
-  const [beneficiario_id, setBeneficiarioId] = useState(editingVenta?.beneficiario_id || '');
-  const [observaciones, setObservaciones] = useState(editingVenta?.observaciones || '');
-  const [lineas, setLineas] = useState(editingVenta
-    ? [{ producto_id: editingVenta.producto_id || '', cantidad_vendida: editingVenta.cantidad_vendida?.toString() || '', comprador_nombre: editingVenta.comprador_nombre || '' }]
+export default function VentaForm({ open, onClose, onSaved, actividad, beneficiarios, editingVenta, editingVentas }) {
+  const isEditingVendedor = !!editingVentas && editingVentas.length > 0;
+  const allEditingVentas = editingVentas || (editingVenta ? [editingVenta] : []);
+
+  const [beneficiario_id, setBeneficiarioId] = useState(editingVenta?.beneficiario_id || editingVentas?.[0]?.beneficiario_id || '');
+  const [observaciones, setObservaciones] = useState(editingVenta?.observaciones || editingVentas?.[0]?.observaciones || '');
+  const [lineas, setLineas] = useState(allEditingVentas.length > 0
+    ? allEditingVentas.map(v => ({ id: v.id, producto_id: v.producto_id || '', cantidad_vendida: v.cantidad_vendida?.toString() || '', comprador_nombre: v.comprador_nombre || '' }))
     : [{ ...emptyLinea }]);
   const [cantidadesPorGrupo, setCantidadPorGrupo] = useState({});
 
@@ -127,50 +130,69 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
     mutationFn: ({ id, data }) => base44.entities.VentaActividad.update(id, data),
   });
 
+  const buildVentaData = (linea) => {
+    const { prod, precio, cant, monto } = calcLinea(linea);
+    return {
+      producto_id: prod?.id || '',
+      producto_nombre: prod?.nombre || '',
+      precio_unitario_aplicado: precio,
+      es_promo: prod?.es_promo || false,
+      cantidad_promo: prod?.es_promo ? prod.cantidad_promo : null,
+      cantidad_vendida: cant,
+      monto_recaudado: monto,
+      comprador_nombre: linea.comprador_nombre || ben?.nombre || '',
+      observaciones: observaciones || '',
+    };
+  };
+
   const handleSave = async () => {
     if (!beneficiario_id) return;
     const lineasValidas = lineas.filter(l => parseFloat(l.cantidad_vendida) > 0);
-    if (lineasValidas.length === 0) return;
+    if (lineasValidas.length === 0 && !isEditingVendedor) return;
 
-    if (editingVenta) {
-      const linea = lineasValidas[0];
-      const { prod, precio, cant, monto } = calcLinea(linea);
-      await updateMut.mutateAsync({
-        id: editingVenta.id,
-        data: {
-          producto_id: prod?.id || '',
-          producto_nombre: prod?.nombre || '',
-          precio_unitario_aplicado: precio,
-          es_promo: prod?.es_promo || false,
-          cantidad_promo: prod?.es_promo ? prod.cantidad_promo : null,
-          cantidad_vendida: cant,
-          monto_recaudado: monto,
-          comprador_nombre: linea.comprador_nombre || ben?.nombre || '',
-          observaciones: observaciones || '',
-        },
-      });
-      toast.success('Pedido actualizado');
+    if (editingVenta || isEditingVendedor) {
+      // IDs originales que ya no están en las líneas válidas → eliminar
+      const idsActuales = new Set(lineasValidas.map(l => l.id).filter(Boolean));
+      const idsAEliminar = allEditingVentas.map(v => v.id).filter(id => !idsActuales.has(id));
+      for (const id of idsAEliminar) {
+        await base44.entities.VentaActividad.delete(id);
+      }
+      // Actualizar existentes + crear nuevas
+      let creadas = 0, actualizadas = 0;
+      for (const linea of lineasValidas) {
+        const data = buildVentaData(linea);
+        if (linea.id) {
+          await updateMut.mutateAsync({ id: linea.id, data });
+          actualizadas++;
+        } else {
+          await createMut.mutateAsync({
+            actividad_id: actividad.id,
+            actividad_nombre: actividad.nombre,
+            beneficiario_id,
+            beneficiario_nombre: ben?.nombre || '',
+            entregado: false,
+            ...data,
+          });
+          creadas++;
+        }
+      }
+      const partes = [];
+      if (actualizadas) partes.push(`${actualizadas} actualizada(s)`);
+      if (creadas) partes.push(`${creadas} nueva(s)`);
+      if (idsAEliminar.length) partes.push(`${idsAEliminar.length} eliminada(s)`);
+      toast.success(partes.length ? `Pedido actualizado (${partes.join(', ')})` : 'Sin cambios');
       onSaved();
       return;
     }
 
     for (const linea of lineasValidas) {
-      const { prod, precio, cant, monto } = calcLinea(linea);
       await createMut.mutateAsync({
         actividad_id: actividad.id,
         actividad_nombre: actividad.nombre,
         beneficiario_id,
         beneficiario_nombre: ben?.nombre || '',
-        producto_id: prod?.id || '',
-        producto_nombre: prod?.nombre || '',
-        precio_unitario_aplicado: precio,
-        es_promo: prod?.es_promo || false,
-        cantidad_promo: prod?.es_promo ? prod.cantidad_promo : null,
-        cantidad_vendida: cant,
-        monto_recaudado: monto,
-        comprador_nombre: linea.comprador_nombre || ben?.nombre || '',
         entregado: false,
-        observaciones: observaciones || '',
+        ...buildVentaData(linea),
       });
     }
 
@@ -179,19 +201,20 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
   };
 
   const isPending = createMut.isPending || updateMut.isPending;
-  const canSave = beneficiario_id && lineas.some(l => parseFloat(l.cantidad_vendida) > 0) && !isPending;
+  const isEditing = !!editingVenta || isEditingVendedor;
+  const canSave = beneficiario_id && (isEditingVendedor || lineas.some(l => parseFloat(l.cantidad_vendida) > 0)) && !isPending;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{editingVenta ? 'Editar pedido' : 'Registrar pedido'} — {actividad?.nombre}</DialogTitle>
+          <DialogTitle>{isEditing ? `Editar pedidos — ${ben?.nombre || actividad?.nombre}` : `Registrar pedido — ${actividad?.nombre}`} </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div>
             <Label>Vendedor *</Label>
-            <Select value={beneficiario_id} onValueChange={setBeneficiarioId}>
+            <Select value={beneficiario_id} onValueChange={setBeneficiarioId} disabled={isEditing}>
               <SelectTrigger><SelectValue placeholder="Seleccionar vendedor" /></SelectTrigger>
               <SelectContent>
                 {benOptions.map(b => (
@@ -351,7 +374,7 @@ export default function VentaForm({ open, onClose, onSaved, actividad, beneficia
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button onClick={handleSave} disabled={!canSave}>
-            {isPending ? 'Guardando...' : editingVenta ? 'Guardar cambios' : `Registrar pedido${lineas.length > 1 ? ` (${lineas.filter(l => parseFloat(l.cantidad_vendida) > 0).length} productos)` : ''}`}
+            {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : `Registrar pedido${lineas.length > 1 ? ` (${lineas.filter(l => parseFloat(l.cantidad_vendida) > 0).length} productos)` : ''}`}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -32,6 +32,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
   const [showRendicionMasiva, setShowRendicionMasiva] = useState(false);
   const [showGananciasGrupo, setShowGananciasGrupo] = useState(false);
   const [editingVenta, setEditingVenta] = useState(null);
+  const [editingVentasByBen, setEditingVentasByBen] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: ventas = [] } = useQuery({
@@ -332,6 +333,14 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                         {gananciaReal > 0 && <p className="text-xs text-primary">Crédito est.: {formatMoney(creditoEstGrupo)}</p>}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost" size="icon"
+                          className="h-7 w-7"
+                          title="Editar todos los pedidos del vendedor"
+                          onClick={() => setEditingVentasByBen(pedidos)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
                         <a
                           href={buildWhatsAppMsg(pedidos[0])}
                           target="_blank"
@@ -508,6 +517,16 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
           editingVenta={editingVenta}
           onClose={() => setEditingVenta(null)}
           onSaved={() => { invalidateAll(); setEditingVenta(null); }}
+        />
+      )}
+      {editingVentasByBen && (
+        <VentaForm
+          open
+          actividad={actividad}
+          beneficiarios={beneficiarios}
+          editingVentas={editingVentasByBen}
+          onClose={() => setEditingVentasByBen(null)}
+          onSaved={() => { invalidateAll(); setEditingVentasByBen(null); }}
         />
       )}
       {showGastoForm && (
