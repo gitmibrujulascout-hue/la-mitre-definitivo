@@ -41,18 +41,20 @@ export default function CreditosConsulta({ beneficiarios }) {
     return m;
   }, [beneficiarios]);
 
+  const getActividadNombre = (c) => c.actividad_nombre || c.observaciones || 'Sin actividad';
+
   const actividadesMap = useMemo(() => {
     const mapa = {};
     creditos.forEach(c => {
-      const key = c.actividad_id || 'sin-id';
-      if (!mapa[key]) mapa[key] = { id: key, nombre: c.actividad_nombre || 'Sin actividad' };
+      const key = c.actividad_id || c.observaciones || 'sin-actividad';
+      if (!mapa[key]) mapa[key] = { id: key, nombre: getActividadNombre(c) };
     });
     return Object.values(mapa).sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [creditos]);
 
   const creditosFiltrados = useMemo(() => {
     let filtered = creditos;
-    if (actividadSel !== 'todas') filtered = filtered.filter(c => c.actividad_id === actividadSel);
+    if (actividadSel !== 'todas') filtered = filtered.filter(c => (c.actividad_id || c.observaciones || 'sin-actividad') === actividadSel);
     if (ramaSel !== 'todas') filtered = filtered.filter(c => benRamaMap[c.beneficiario_id] === ramaSel);
     return [...filtered].sort((a, b) => {
       const ra = RAMAS.indexOf(benRamaMap[a.beneficiario_id]);
@@ -68,7 +70,7 @@ export default function CreditosConsulta({ beneficiarios }) {
 
   const getUsos = (credito) => {
     const usos = [];
-    const actNombre = credito.actividad_nombre || '';
+    const actNombre = credito.actividad_nombre || credito.observaciones || '';
 
     pagosCredito
       .filter(p => p.beneficiario_id === credito.beneficiario_id && p.observaciones?.includes(actNombre))
@@ -98,7 +100,7 @@ export default function CreditosConsulta({ beneficiarios }) {
     creditos
       .filter(c =>
         c.observaciones?.includes(`Transferido desde ${credito.beneficiario_nombre}`)
-        && c.actividad_id === credito.actividad_id
+        && (c.actividad_id === credito.actividad_id || (!c.actividad_id && !credito.actividad_id))
       )
       .forEach(c => {
         usos.push({
@@ -296,7 +298,7 @@ export default function CreditosConsulta({ beneficiarios }) {
                             )}
                           </div>
                         </TableCell>
-                        {actividadSel === 'todas' && <TableCell className="text-sm text-muted-foreground">{c.actividad_nombre}</TableCell>}
+                        {actividadSel === 'todas' && <TableCell className="text-sm text-muted-foreground">{getActividadNombre(c)}</TableCell>}
                         <TableCell className="text-right">{formatMoney(c.monto_original || 0)}</TableCell>
                         <TableCell className="text-right text-orange-600">{formatMoney(usado)}</TableCell>
                         <TableCell className="text-right font-semibold text-green-600">{formatMoney(c.monto_disponible || 0)}</TableCell>
