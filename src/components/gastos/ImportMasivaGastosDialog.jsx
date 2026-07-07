@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Loader2, CheckCircle2, Sparkles, X, Plus } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { FileText, Loader2, CheckCircle2, Sparkles, X, Plus, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,11 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
   const [procesando, setProcesando] = useState(false);
   const [progreso, setProgreso] = useState(0);
   const queryClient = useQueryClient();
+
+  const { data: gastosExistentes = [] } = useQuery({
+    queryKey: ['gastos'],
+    queryFn: () => base44.entities.Gasto.list('-fecha', 500),
+  });
 
   const handleFiles = (e) => {
     const nuevos = Array.from(e.target.files);
@@ -50,17 +55,29 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
         });
         if (result.status === 'success' && result.output) {
           const d = result.output;
+          const numFactura = (d.numero_factura || '').trim();
+          let duplicadoEn = null;
+          if (numFactura) {
+            const existente = gastosExistentes.find(g => (g.numero_factura || '').trim() === numFactura);
+            if (existente) {
+              duplicadoEn = existente;
+            } else {
+              const enLote = resultados.find(r => (r.numero_factura || '').trim() === numFactura);
+              if (enLote) duplicadoEn = 'lote';
+            }
+          }
           resultados.push({
             archivo: file.name,
             descripcion: d.descripcion || file.name,
             monto: d.monto_total || 0,
             fecha: d.fecha || new Date().toISOString().split('T')[0],
             proveedor: d.proveedor || '',
-            numero_factura: d.numero_factura || '',
+            numero_factura: numFactura,
             categoria: d.categoria || 'Otro',
             archivo_url: file_url,
             ok: true,
             forma_pago: 'Efectivo',
+            duplicado: duplicadoEn,
           });
         } else {
           resultados.push({ archivo: file.name, ok: false, descripcion: file.name, monto: 0, fecha: new Date().toISOString().split('T')[0], categoria: 'Otro' });
@@ -154,8 +171,16 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
           <div className="space-y-3 py-4">
             <p className="text-sm text-muted-foreground">Revisá y corregí los datos extraídos antes de importar:</p>
             {procesados.map((p, i) => (
-              <div key={i} className={`p-3 rounded-lg border ${p.ok ? 'border-green-200 bg-green-50/50' : 'border-amber-200 bg-amber-50/50'}`}>
+              <div key={i} className={`p-3 rounded-lg border ${p.duplicado ? 'border-red-300 bg-red-50/50' : p.ok ? 'border-green-200 bg-green-50/50' : 'border-amber-200 bg-amber-50/50'}`}>
                 <p className="text-xs font-semibold text-muted-foreground mb-2 truncate">{p.archivo}</p>
+                {p.duplicado && (
+                  <div className="flex items-center gap-1.5 text-xs text-red-700 bg-red-100 border border-red-200 rounded px-2 py-1 mb-2">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    {p.duplicado === 'lote'
+                      ? 'Posible duplicado: hay otro archivo en este lote con el mismo número de factura.'
+                      : `Posible duplicado: ya existe un gasto con la factura N° ${p.numero_factura} (${p.duplicado.descripcion || p.duplicado.proveedor || 'sin descripción'}).`}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="col-span-2">
                     <Label className="text-xs">Descripción</Label>
@@ -221,9 +246,9 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
               Analizar con IA
             </Button>
           ) : (
-            <Button onClick={importarTodos} disabled={procesando}>
+            <Button onClick={importarTodos} disabled={procesando || procesados.every(p => p.duplicado)}>
               {procesando ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-              Importar {procesados.length} gastos
+              Importar {procesados.filter(p => !p.duplicado).length} gastos
             </Button>
           )}
         </DialogFooter>
