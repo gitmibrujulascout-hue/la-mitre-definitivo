@@ -123,8 +123,8 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
         numero_factura: p.numero_factura,
         categoria: p.categoria,
         archivo_url: p.archivo_url || '',
-        forma_pago: p.forma_pago || '',
-        destino: p.destino || '',
+        forma_pago: p.forma_pago || 'Efectivo',
+        destino: (p.forma_pago === 'Transferencia') ? 'Banco' : 'Caja',
         campamento_id: p.campamento_id || '',
         campamento_nombre: campamento?.nombre || '',
         actividad_id: p.actividad_id || '',
@@ -237,21 +237,8 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
                       value={p.forma_pago || 'Efectivo'}
                       onChange={e => actualizarCampo(i, 'forma_pago', e.target.value)}
                     >
-                      <option value="">Sin especificar</option>
                       <option value="Efectivo">Efectivo</option>
                       <option value="Transferencia">Transferencia</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Débito desde</Label>
-                    <select
-                      className="w-full h-7 text-xs border border-input rounded-md px-2 bg-background"
-                      value={p.destino || ''}
-                      onChange={e => actualizarCampo(i, 'destino', e.target.value)}
-                    >
-                      <option value="">Sin especificar</option>
-                      <option value="Caja">Caja</option>
-                      <option value="Banco">Banco</option>
                     </select>
                   </div>
                   <div>
