@@ -30,7 +30,7 @@ export default function WhatsAppResumenBtn({
   const abrir = (telefono) => {
     const limpio = limpiarTelefono(telefono);
     const mensaje = armarMensaje({ beneficiario, pagos, campamentos, anio, afiliacion, esPrimeraVezAfiliacion, creditos });
-    window.open(`https://web.whatsapp.com/send?phone=${limpio}&text=${encodeURIComponent(mensaje)}`, '_blank');
+    window.open(`https://web.whatsapp.com/send?phone=${limpio}&text=${encodeURIComponent(mensaje)}`, 'whatsapp');
   };
 
   if (!hayAlguno) {

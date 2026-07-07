@@ -71,7 +71,7 @@ const Field = ({ label, value, className }) => {
 const ContactBtn = ({ href, icon: Icon, label, colorClass }) => (
   <a
     href={href}
-    target={href?.startsWith('http') ? '_blank' : undefined}
+    target={href?.startsWith('http') ? 'whatsapp' : undefined}
     rel="noopener noreferrer"
     className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors', colorClass)}
   >

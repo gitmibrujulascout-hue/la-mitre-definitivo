@@ -16,6 +16,12 @@ import RendicionDialog from '@/components/actividades/RendicionDialog';
 import RendicionMasivaDialog from '@/components/actividades/RendicionMasivaDialog';
 import GananciasGrupoDialog from '@/components/actividades/GananciasGrupoDialog';
 import ResumenUnidades from '@/components/actividades/ResumenUnidades';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const ESTADO_COLORS = {
   Planificada: 'bg-blue-100 text-blue-700 border-blue-200 border',
@@ -160,16 +166,26 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
     lineas.push('');
     lineas.push(`¡Gracias por participar! 🙏`);
 
-    const msg = lineas.join('\n');
-    const ben = getBen(v.beneficiario_id);
-    const rawPhone = ben?.telefono_contacto || '';
-    const digits = rawPhone.replace(/\D/g, '');
-    let phone = '';
+    return encodeURIComponent(lineas.join('\n'));
+  };
+
+  const getTelefonosBeneficiario = (ben) => {
+    if (!ben) return [];
+    const tels = [];
+    if (ben.telefono_contacto) tels.push({ label: 'Tel. principal', num: ben.telefono_contacto });
+    if (ben.telefono_contacto_2) tels.push({ label: 'Tel. secundario', num: ben.telefono_contacto_2 });
+    if (ben.contacto_emergencia_telefono) tels.push({ label: 'Contacto emergencia', num: ben.contacto_emergencia_telefono });
+    return tels;
+  };
+
+  const openWhatsApp = (phone, encodedMsg) => {
+    const digits = phone.replace(/\D/g, '');
+    let formattedPhone = '';
     if (digits.length >= 8) {
-      phone = digits.startsWith('54') ? digits : digits.startsWith('0') ? '54' + digits.slice(1) : '54' + digits;
+      formattedPhone = digits.startsWith('54') ? digits : digits.startsWith('0') ? '54' + digits.slice(1) : '54' + digits;
     }
-    const base = phone ? `https://web.whatsapp.com/send?phone=${phone}&text=` : `https://web.whatsapp.com/send?text=`;
-    return base + encodeURIComponent(msg);
+    const base = formattedPhone ? `https://web.whatsapp.com/send?phone=${formattedPhone}&text=` : `https://web.whatsapp.com/send?text=`;
+    window.open(base + encodedMsg, 'whatsapp');
   };
 
   const invalidateAll = () => {
@@ -358,15 +374,47 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>
-                        <a
-                          href={buildWhatsAppMsg(pedidos[0])}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Enviar resumen completo por WhatsApp"
-                          className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-green-50 text-green-600 hover:text-green-700 transition-colors"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </a>
+                        {(() => {
+                          const waMsg = buildWhatsAppMsg(pedidos[0]);
+                          const tels = getTelefonosBeneficiario(ben);
+                          if (tels.length === 0) return (
+                            <button
+                              disabled
+                              title="Sin teléfono cargado"
+                              className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground/40"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </button>
+                          );
+                          if (tels.length === 1) return (
+                            <button
+                              onClick={() => openWhatsApp(tels[0].num, waMsg)}
+                              title={`Enviar por WhatsApp: ${tels[0].num}`}
+                              className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-green-50 text-green-600 hover:text-green-700 transition-colors"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </button>
+                          );
+                          return (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  title="Enviar por WhatsApp"
+                                  className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-green-50 text-green-600 hover:text-green-700 transition-colors"
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {tels.map((t, i) => (
+                                  <DropdownMenuItem key={i} onClick={() => openWhatsApp(t.num, waMsg)}>
+                                    📱 {t.label}: {t.num}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          );
+                        })()}
                       </div>
                     </div>
 
