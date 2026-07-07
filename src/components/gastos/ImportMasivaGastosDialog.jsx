@@ -60,6 +60,7 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
             categoria: d.categoria || 'Otro',
             archivo_url: file_url,
             ok: true,
+            forma_pago: 'Efectivo',
           });
         } else {
           resultados.push({ archivo: file.name, ok: false, descripcion: file.name, monto: 0, fecha: new Date().toISOString().split('T')[0], categoria: 'Otro' });
@@ -186,7 +187,7 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
                     <Label className="text-xs">Forma de pago</Label>
                     <select
                       className="w-full h-7 text-xs border border-input rounded-md px-2 bg-background"
-                      value={p.forma_pago || ''}
+                      value={p.forma_pago || 'Efectivo'}
                       onChange={e => actualizarCampo(i, 'forma_pago', e.target.value)}
                     >
                       <option value="">Sin especificar</option>

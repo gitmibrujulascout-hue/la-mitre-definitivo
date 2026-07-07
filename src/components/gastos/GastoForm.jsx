@@ -38,7 +38,7 @@ export default function GastoForm({ open, onClose, initialData }) {
     numero_factura: initialData.numero_factura || '',
     archivo_url: initialData.archivo_url || '',
     observaciones: initialData.observaciones || '',
-    forma_pago: initialData.forma_pago || '',
+    forma_pago: initialData.forma_pago || 'Efectivo',
     destino: initialData.destino || '',
     campamento_id: initialData.campamento_id || '',
     campamento_nombre: initialData.campamento_nombre || '',
@@ -47,7 +47,7 @@ export default function GastoForm({ open, onClose, initialData }) {
   } : {
     descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0],
     categoria: '', proveedor: '', numero_factura: '', archivo_url: '', observaciones: '',
-    forma_pago: '', destino: '', campamento_id: '', campamento_nombre: '',
+    forma_pago: 'Efectivo', destino: '', campamento_id: '', campamento_nombre: '',
     actividad_id: '', actividad_nombre: '',
   });
   const [file, setFile] = useState(null);
