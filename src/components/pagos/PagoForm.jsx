@@ -56,7 +56,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   const [anio, setAnio] = useState(new Date().getFullYear().toString());
   const [campamentoId, setCampamentoId] = useState('');
   const [montoManual, setMontoManual] = useState('');
-  const [formaPago, setFormaPago] = useState('');
+  const [formaPago, setFormaPago] = useState('Efectivo');
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
   const [observaciones, setObservaciones] = useState('');
   const [hermanosSeleccionados, setHermanosSeleccionados] = useState([]);

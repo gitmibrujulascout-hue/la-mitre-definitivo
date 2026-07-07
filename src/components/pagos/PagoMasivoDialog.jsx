@@ -16,7 +16,7 @@ import { registrarPagos } from '@/lib/registros';
 export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
   const [mesesSeleccionados, setMesesSeleccionados] = useState([]);
   const [anio, setAnio] = useState(new Date().getFullYear().toString());
-  const [formaPago, setFormaPago] = useState('');
+  const [formaPago, setFormaPago] = useState('Efectivo');
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
   const [bensSeleccionados, setBensSeleccionados] = useState([]);
   const [searchBen, setSearchBen] = useState('');

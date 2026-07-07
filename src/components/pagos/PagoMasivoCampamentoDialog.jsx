@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 
 export default function PagoMasivoCampamentoDialog({ open, onClose, beneficiarios }) {
   const [campamentoId, setCampamentoId] = useState('');
-  const [formaPago, setFormaPago] = useState('');
+  const [formaPago, setFormaPago] = useState('Efectivo');
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
   const [bensSeleccionados, setBensSeleccionados] = useState([]);
   const [searchBen, setSearchBen] = useState('');
@@ -68,7 +68,7 @@ export default function PagoMasivoCampamentoDialog({ open, onClose, beneficiario
 
   const handleClose = () => {
     setCampamentoId('');
-    setFormaPago('');
+    setFormaPago('Efectivo');
     setFechaPago(new Date().toISOString().split('T')[0]);
     setBensSeleccionados([]);
     setSearchBen('');
