@@ -145,6 +145,11 @@ export default function RendicionMasivaDialog({ open, onClose, ventas, actividad
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 ml-2">
+                      {v.pagado && estado !== 'Rendido' && (
+                        <span className="text-xs border rounded px-1.5 py-0.5 bg-blue-50 text-blue-600 border-blue-200">
+                          💵 Pagado
+                        </span>
+                      )}
                       <span className={cn('text-xs border rounded px-1.5 py-0.5', ESTADO_BADGE[estado])}>
                         {estado}
                         {estado === 'Parcial' && v.monto_rendido > 0 && ` (${formatMoney(v.monto_rendido)})`}

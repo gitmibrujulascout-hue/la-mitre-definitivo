@@ -64,6 +64,11 @@
       "default": false,
       "description": "Si el pedido ya fue entregado al comprador"
     },
+    "pagado": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si el comprador ya le pag\u00f3 al beneficiario vendedor (dinero en poder del vendedor, pendiente de rendir al grupo)"
+    },
     "fecha_entrega": {
       "type": "string",
       "format": "date",

@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Pencil, Plus, Trash2, TrendingUp, DollarSign, Gift, CheckCircle2, PackageCheck, Package, FileText, Banknote, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Trash2, TrendingUp, DollarSign, Gift, CheckCircle2, PackageCheck, Package, FileText, Banknote, MessageCircle, HandCoins } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import VentaForm from '@/components/actividades/VentaForm';
@@ -69,6 +69,15 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ventas-actividad', actividad.id] }),
   });
 
+  const togglePagadoMut = useMutation({
+    mutationFn: async ({ ids, pagado }) => {
+      for (const id of ids) {
+        await base44.entities.VentaActividad.update(id, { pagado });
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ventas-actividad', actividad.id] }),
+  });
+
   // Gastos generales asociados a esta actividad (mismo query que gastosAct, para referencias)
   const gastosGenerales = gastosAct;
 
@@ -128,11 +137,19 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
     lineas.push('');
     lineas.push(`💰 *Estado del pago:*`);
     lineas.push(`• Total a abonar: *$${montoTotal.toLocaleString('es-AR')}*`);
+    const montoPagadoTotal = pedidosBen.reduce((s, x) => s + (x.pagado && x.estado_rendicion !== 'Rendido' ? (x.monto_recaudado || 0) : 0), 0);
     if (todoRendido) {
       lineas.push(`✅ Pago recibido completo. ¡Muchas gracias!`);
     } else if (hayParcial || montoRendidoTotal > 0) {
       lineas.push(`⚠️ Recibido hasta ahora: $${montoRendidoTotal.toLocaleString('es-AR')}`);
       lineas.push(`📌 *Saldo pendiente: $${saldoTotal.toLocaleString('es-AR')}*`);
+    } else if (montoPagadoTotal > 0) {
+      lineas.push(`💵 Cobrado al comprador: $${montoPagadoTotal.toLocaleString('es-AR')}`);
+      if (montoPagadoTotal < montoTotal) {
+        lineas.push(`📌 *Saldo a cobrar en retiro: $${(montoTotal - montoPagadoTotal).toLocaleString('es-AR')}*`);
+      } else {
+        lineas.push(`📌 Pendiente de rendir al grupo`);
+      }
     } else {
       lineas.push(`📌 *Monto a abonar: $${montoTotal.toLocaleString('es-AR')}*`);
     }
@@ -357,6 +374,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                     {compradorGroups.map(({ comprador, items }) => {
                       const montoPedido = items.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
                       const todoEntregado = items.every(v => v.entregado);
+                      const todoPagado = items.every(v => v.pagado);
                       const rendicionPedido = items.every(v => v.estado_rendicion === 'Rendido') ? 'Rendido'
                         : items.some(v => v.estado_rendicion === 'Parcial' || v.estado_rendicion === 'Rendido') ? 'Parcial' : 'Sin rendir';
                       const cKey = comprador || '__sin_comprador__';
@@ -372,6 +390,9 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                               {todoEntregado
                                 ? <span className="text-xs text-green-600">✓ Entregado</span>
                                 : comprador && <span className="text-xs text-amber-600">⏳ Pendiente</span>}
+                              {todoPagado && rendicionPedido === 'Sin rendir' && (
+                                <span className="text-xs font-medium text-blue-600">· 💵 Pagado al vendedor</span>
+                              )}
                               {rendicionPedido !== 'Sin rendir' && (
                                 <span className={`text-xs font-medium ${rendicionPedido === 'Rendido' ? 'text-green-600' : 'text-amber-600'}`}>
                                   · 💰 {rendicionPedido}
@@ -379,6 +400,16 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                               )}
                             </div>
                             <div className="flex items-center gap-0.5 shrink-0">
+                              {/* Marcar como pagado (cobrado por el vendedor, sin rendir) */}
+                              <Button
+                                variant="ghost" size="icon"
+                                className={`h-6 w-6 ${todoPagado ? 'text-blue-600' : 'text-muted-foreground'}`}
+                                title={todoPagado ? 'Marcar como NO pagado' : 'Marcar como pagado (cobrado por el vendedor, pendiente de rendir)'}
+                                disabled={rendicionPedido === 'Rendido'}
+                                onClick={() => togglePagadoMut.mutate({ ids: items.map(v => v.id), pagado: !todoPagado })}
+                              >
+                                <HandCoins className="w-3.5 h-3.5" />
+                              </Button>
                               {/* Rendición sobre la primera línea del pedido */}
                               <Button
                                 variant="ghost" size="icon"
