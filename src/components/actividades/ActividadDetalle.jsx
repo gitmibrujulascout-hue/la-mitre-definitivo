@@ -16,6 +16,7 @@ import RendicionDialog from '@/components/actividades/RendicionDialog';
 import RendicionMasivaDialog from '@/components/actividades/RendicionMasivaDialog';
 import GananciasGrupoDialog from '@/components/actividades/GananciasGrupoDialog';
 import ResumenUnidades from '@/components/actividades/ResumenUnidades';
+import { openWhatsApp } from '@/lib/whatsappWindow';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -185,7 +186,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
       formattedPhone = digits.startsWith('54') ? digits : digits.startsWith('0') ? '54' + digits.slice(1) : '54' + digits;
     }
     const base = formattedPhone ? `https://web.whatsapp.com/send?phone=${formattedPhone}&text=` : `https://web.whatsapp.com/send?text=`;
-    window.open(base + encodedMsg, 'whatsapp');
+    openWhatsApp(base + encodedMsg);
   };
 
   const invalidateAll = () => {

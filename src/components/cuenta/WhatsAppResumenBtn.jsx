@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MESES, MESES_SIN_CUOTA, formatMoney, marzoEsBonificado } from '@/lib/ramaUtils';
+import { openWhatsApp } from '@/lib/whatsappWindow';
 
 /**
  * Botón que abre web.whatsapp.com con el resumen de estado de cuenta.
@@ -30,7 +31,7 @@ export default function WhatsAppResumenBtn({
   const abrir = (telefono) => {
     const limpio = limpiarTelefono(telefono);
     const mensaje = armarMensaje({ beneficiario, pagos, campamentos, anio, afiliacion, esPrimeraVezAfiliacion, creditos });
-    window.open(`https://web.whatsapp.com/send?phone=${limpio}&text=${encodeURIComponent(mensaje)}`, 'whatsapp');
+    openWhatsApp(`https://web.whatsapp.com/send?phone=${limpio}&text=${encodeURIComponent(mensaje)}`);
   };
 
   if (!hayAlguno) {

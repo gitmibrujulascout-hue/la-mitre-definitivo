@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import { differenceInYears } from 'date-fns';
 import { SALUD_FIELDS } from '@/lib/saludFields';
+import { openWhatsApp } from '@/lib/whatsappWindow';
 
 const RAMA_COLORS = {
   Lobatos: 'bg-yellow-100 text-yellow-800 border-yellow-300',
@@ -34,7 +35,7 @@ function whatsappUrl(raw) {
   const num = formatPhone(raw);
   if (!num) return null;
   const full = num.startsWith('54') ? num : `54${num}`;
-  return `https://api.whatsapp.com/send?phone=${full}`;
+  return `https://web.whatsapp.com/send?phone=${full}`;
 }
 
 function callUrl(raw) {
@@ -71,9 +72,13 @@ const Field = ({ label, value, className }) => {
 const ContactBtn = ({ href, icon: Icon, label, colorClass }) => (
   <a
     href={href}
-    target={href?.startsWith('http') ? 'whatsapp' : undefined}
-    rel="noopener noreferrer"
-    className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors', colorClass)}
+    onClick={(e) => {
+      if (href?.startsWith('http') && href.includes('whatsapp')) {
+        e.preventDefault();
+        openWhatsApp(href);
+      }
+    }}
+    className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer', colorClass)}
   >
     <Icon className="w-3.5 h-3.5" /> {label}
   </a>
