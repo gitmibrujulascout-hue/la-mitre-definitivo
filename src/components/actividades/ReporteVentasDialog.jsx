@@ -1,9 +1,9 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Printer, FileSpreadsheet, PackageCheck, Package, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Printer, FileSpreadsheet, PackageCheck, Package, CheckCircle2, AlertCircle, Clock, HandCoins, Eye, EyeOff } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 
 // Helper: extraer apellido para ordenar (última palabra del nombre)
@@ -79,6 +79,7 @@ function formatDesglose(desglose) {
 
 export default function ReporteVentasDialog({ open, onClose, actividad, ventas, beneficiarios = [] }) {
   const printRef = useRef();
+  const [showUnidades, setShowUnidades] = useState(false);
 
   const { data: productos = [] } = useQuery({
     queryKey: ['productos-actividad', actividad?.id],
@@ -95,6 +96,9 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
   const totalSaldo = totalRecaudado - totalRendido;
   const entregadas = ventas.filter(v => v.entregado).length;
   const pendientes = ventas.filter(v => !v.entregado).length;
+  const pagadosCount = ventas.filter(v => v.pagado).length;
+  const totalPagadoNoRendido = ventas.filter(v => v.pagado && v.estado_rendicion !== 'Rendido')
+    .reduce((s, v) => s + (v.monto_recaudado || 0), 0);
 
   // Desglose de unidades por grupo/producto
   const grupoMap = {};
@@ -165,7 +169,7 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
     const filas = ramaSections.map(({ rama, vendedores }) => {
       const ramaLabel = rama ? RAMA_LABEL[rama] || rama : 'Sin rama';
       const ramaHeader = `<tr style="background:#d1d5e8">
-        <td colspan="10" style="padding:8px 10px;border:1px solid #9ca3c0;font-weight:bold;font-size:12px;color:#312e81;text-transform:uppercase">${ramaLabel}</td>
+        <td colspan="11" style="padding:8px 10px;border:1px solid #9ca3c0;font-weight:bold;font-size:12px;color:#312e81;text-transform:uppercase">${ramaLabel}</td>
       </tr>`;
       const vendedorFilas = vendedores.map(({ nombre, ventas: vv }) => {
       const subtotal = vv.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
@@ -183,10 +187,11 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
         const desgloseStr = formatDesglose(desglose);
         const montoPedido = items.reduce((s, v) => s + (v.monto_recaudado || 0), 0);
         const todoEntregado = items.every(v => v.entregado);
+        const todoPagado = items.every(v => v.pagado);
         const compradorHeader = `<tr style="background:#fef3c7">
           <td colspan="4" style="padding:5px 8px 5px 20px;border:1px solid #fde68a;font-weight:bold;color:#92400e">${comprador || 'Sin comprador'}</td>
           <td colspan="2" style="padding:5px 8px;border:1px solid #fde68a;font-size:10px;font-weight:bold;color:#1e40af">Entregar: ${desgloseStr}</td>
-          <td colspan="4" style="padding:5px 8px;border:1px solid #fde68a;text-align:right;font-weight:bold;color:#15803d">${fmt(montoPedido)} · ${todoEntregado ? 'Entregado' : 'Pendiente'}</td>
+          <td colspan="5" style="padding:5px 8px;border:1px solid #fde68a;text-align:right;font-weight:bold;color:#15803d">${fmt(montoPedido)} · ${todoEntregado ? 'Entregado' : 'Pendiente'}${todoPagado ? ' · Pagado' : ''}</td>
         </tr>`;
         const itemFilas = items.map(v => {
         rn++;
@@ -200,6 +205,7 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
         <td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${v.cantidad_vendida || '—'}${v.es_promo && v.cantidad_promo ? ` (${v.cantidad_vendida * v.cantidad_promo} uds)` : ''}</td>
         <td style="padding:5px 8px;border:1px solid #ddd;text-align:right">${fmt(v.monto_recaudado)}</td>
         <td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${v.entregado ? 'Entregado' : 'Pendiente'}</td>
+        <td style="padding:5px 8px;border:1px solid #ddd;text-align:center;color:${v.pagado ? '#1d4ed8' : '#999'}">${v.pagado ? 'Sí' : '—'}</td>
         <td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${v.estado_rendicion || 'Sin rendir'}</td>
         <td style="padding:5px 8px;border:1px solid #ddd;text-align:right">${rendidoEfectivo > 0 ? fmt(rendidoEfectivo) : '—'}</td>
         <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;color:${saldo > 0 ? '#dc2626' : '#16a34a'}">${saldo > 0 ? fmt(saldo) : '—'}</td>
@@ -208,11 +214,13 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
         return compradorHeader + itemFilas;
       }).join('');
 
+      const subPagado = vv.filter(v => v.pagado && v.estado_rendicion !== 'Rendido').reduce((s, v) => s + (v.monto_recaudado || 0), 0);
       const vendedorFila = `<tr style="background:#e8eeff">
         <td colspan="4" style="padding:6px 8px;border:1px solid #b0b8e0;font-weight:bold;color:#2a3d9e">${nombre}</td>
         <td style="padding:6px 8px;border:1px solid #b0b8e0"></td>
         <td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:right;font-weight:bold;color:#15803d">${fmt(subtotal)}</td>
         <td style="padding:6px 8px;border:1px solid #b0b8e0"></td>
+        <td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:center;color:#1d4ed8">${subPagado > 0 ? fmt(subPagado) : '—'}</td>
         <td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:center;font-weight:bold;color:${subSaldo <= 0 ? '#15803d' : '#b45309'}">${subSaldo <= 0 ? 'Todo rendido' : 'Saldo pend.'}</td>
         <td style="padding:6px 8px;border:1px solid #b0b8e0"></td>
         <td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:right;font-weight:bold;color:#dc2626">${subSaldo > 0 ? fmt(subSaldo) : '—'}</td>
@@ -278,7 +286,7 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
             <tr>
               <th>#</th><th>Vendedor</th><th>Producto</th><th>Quien retira</th>
               <th>Cant.</th><th>Monto</th><th>Entrega</th>
-              <th>Rendición</th><th>Monto rendido</th><th>Saldo pendiente</th>
+              <th>Pagado</th><th>Rendición</th><th>Monto rendido</th><th>Saldo pendiente</th>
             </tr>
           </thead>
           <tbody>
@@ -288,6 +296,7 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
               <td style="padding:7px 8px;border:1px solid #86efac;text-align:center">${totalUnidades || '—'}</td>
               <td style="padding:7px 8px;border:1px solid #86efac;text-align:right;color:#15803d">${fmt(totalRecaudado)}</td>
               <td style="padding:7px 8px;border:1px solid #86efac"></td>
+              <td style="padding:7px 8px;border:1px solid #86efac;text-align:center;color:#1d4ed8">${pagadosCount > 0 ? `${pagadosCount}` : '—'}</td>
               <td style="padding:7px 8px;border:1px solid #86efac;text-align:center;color:#1d4ed8">${fmt(totalRendido)}</td>
               <td style="padding:7px 8px;border:1px solid #86efac"></td>
               <td style="padding:7px 8px;border:1px solid #86efac;text-align:right;color:#dc2626">${totalSaldo > 0 ? fmt(totalSaldo) : '—'}</td>
@@ -357,6 +366,10 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
         </DialogHeader>
 
         <div className="flex justify-end gap-2 mb-2">
+          <Button onClick={() => setShowUnidades(v => !v)} variant="outline" className="gap-2">
+            {showUnidades ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {showUnidades ? 'Ocultar unidades' : 'Ver unidades a preparar'}
+          </Button>
           <Button onClick={handleExportXLS} variant="outline" className="gap-2">
             <FileSpreadsheet className="w-4 h-4" />Exportar XLS
           </Button>
@@ -383,6 +396,7 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
               { label: 'Rendido', valor: formatMoney(totalRendido), color: 'text-blue-700' },
               { label: 'Saldo pend.', valor: formatMoney(totalSaldo), color: totalSaldo > 0 ? 'text-red-600' : 'text-green-600' },
               { label: 'Entregados', valor: entregadas, color: 'text-green-600' },
+              { label: 'Pagados', valor: pagadosCount, color: 'text-blue-600' },
               { label: 'Pendientes', valor: pendientes, color: 'text-amber-600' },
             ].map(item => (
               <div key={item.label} className="resumen-item border rounded-lg px-3 py-2 text-center">
@@ -393,48 +407,23 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
           </div>
 
           {/* Resumen de unidades a preparar */}
-          {gruposDesglose.length > 0 && (
-            <div className="mb-6 border border-primary/20 bg-primary/5 rounded-lg p-4">
-              <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <Package className="w-4 h-4 text-primary" />
-                Unidades a preparar por producto
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {showUnidades && gruposDesglose.length > 0 && (
+            <div className="mb-4 border border-primary/20 bg-primary/5 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold flex items-center gap-2">
+                  <Package className="w-4 h-4 text-primary" />
+                  Unidades a preparar por producto
+                </p>
+                <p className="text-sm font-bold text-primary">Total: {totalUnidades}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
                 {gruposDesglose.map(([grupo, data]) => (
-                  <div key={grupo} className="rounded-lg bg-white/70 border border-primary/15 p-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="font-semibold text-sm">{grupo}</p>
-                      <p className="text-2xl font-bold text-primary">{data.unidades}</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-1.5">unidad{data.unidades !== 1 ? 'es' : ''} en total</p>
-                    <div className="space-y-0.5">
-                      {(() => {
-                        const merged = {};
-                        data.detalles.forEach(d => {
-                          const key = d.es_promo ? `${d.nombre} (promo x${d.cantidad_promo})` : d.nombre;
-                          if (!merged[key]) merged[key] = { ...d, count: 0, unidades: 0 };
-                          merged[key].count += d.cantidad_vendida;
-                          merged[key].unidades += d.unidades;
-                        });
-                        return Object.values(merged).map(d => (
-                          <div key={`${d.nombre}-${d.es_promo}-${d.cantidad_promo}`} className="flex justify-between text-xs gap-2">
-                            <span className="text-muted-foreground min-w-0 truncate">
-                              <span className="font-medium text-foreground/70">{d.nombre}</span>
-                              {d.es_promo
-                                ? ` · ${d.count} promo${d.count !== 1 ? 's' : ''} de ${d.cantidad_promo}`
-                                : ` · ${d.count} individual${d.count !== 1 ? 'es' : ''}`}
-                            </span>
-                            <span className="font-medium text-foreground/80 shrink-0">{d.unidades} uds</span>
-                          </div>
-                        ));
-                      })()}
-                    </div>
+                  <div key={grupo} className="rounded border border-primary/15 bg-white/70 px-3 py-1.5 text-xs">
+                    <span className="font-semibold">{grupo}: </span>
+                    <span className="font-bold text-primary">{data.unidades}</span>
+                    <span className="text-muted-foreground"> uds</span>
                   </div>
                 ))}
-              </div>
-              <div className="mt-3 pt-3 border-t border-primary/15 flex items-center justify-between">
-                <p className="text-sm font-semibold text-muted-foreground">Total general de unidades</p>
-                <p className="text-2xl font-bold text-primary">{totalUnidades}</p>
               </div>
             </div>
           )}
@@ -449,6 +438,7 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
                 <th className="text-center px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border">Cant.</th>
                 <th className="text-right px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border">Monto</th>
                 <th className="text-center px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border">Entrega</th>
+                <th className="text-center px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border">Pagado</th>
                 <th className="text-center px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border">Rendición</th>
                 <th className="text-right px-2 py-1 text-xs uppercase text-muted-foreground border-b-2 border-border">Saldo</th>
               </tr>
@@ -457,7 +447,7 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
               {ramaSections.map(({ rama, vendedores }) => (
                 <React.Fragment key={rama || '__sin_rama__'}>
                   <tr className="rama-row">
-                    <td colSpan={8} className="px-2 py-1.5 bg-slate-200 font-bold text-xs uppercase text-slate-700 tracking-wide border-y-2 border-slate-300">
+                    <td colSpan={9} className="px-2 py-1.5 bg-slate-200 font-bold text-xs uppercase text-slate-700 tracking-wide border-y-2 border-slate-300">
                       {rama ? RAMA_LABEL[rama] || rama : 'Sin rama'}
                     </td>
                   </tr>
@@ -474,6 +464,13 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
                      </td>
                      <td className="px-2 py-1 text-right font-bold text-green-700">{formatMoney(subtotal)}</td>
                      <td />
+                     <td className="px-2 py-1 text-center text-xs font-semibold">
+                       {(() => {
+                         const subPagado = vv.filter(v => v.pagado && v.estado_rendicion !== 'Rendido').reduce((s, v) => s + (v.monto_recaudado || 0), 0);
+                         if (subPagado > 0) return <span className="text-blue-700">💵 {formatMoney(subPagado)}</span>;
+                         return <span className="text-muted-foreground">—</span>;
+                       })()}
+                     </td>
                      <td className="px-2 py-1 text-center text-xs font-semibold">
                        {subSaldo <= 0
                          ? <span className="text-green-700">✓ Todo rendido</span>
@@ -516,7 +513,7 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
                               <td className="px-2 py-1 text-center text-xs font-semibold">
                                 {todoEntregado ? <span className="text-green-700">✓</span> : <span className="text-amber-700">⏳</span>}
                               </td>
-                              <td colSpan={2} />
+                              <td colSpan={3} />
                             </tr>
                             {/* Detalle de cada línea del pedido */}
                             {items.map(v => {
@@ -555,6 +552,13 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
                                         </span>}
                                   </td>
                                   <td className="px-2 py-0.5 text-center">
+                                    {v.pagado
+                                      ? <span className="inline-flex items-center gap-1 text-blue-700 text-xs font-semibold">
+                                          <HandCoins className="w-3 h-3" />Sí
+                                        </span>
+                                      : <span className="text-muted-foreground text-xs">—</span>}
+                                  </td>
+                                  <td className="px-2 py-0.5 text-center">
                                     <span className={`inline-block text-xs font-semibold px-1.5 py-0 rounded border ${rend.color} ${rend.bg} ${rend.border}`}>
                                       {rend.label}
                                       {v.estado_rendicion === 'Parcial' && rendidoEfectivo > 0 && (
@@ -586,6 +590,9 @@ export default function ReporteVentasDialog({ open, onClose, actividad, ventas, 
                 <td className="px-2 py-1 text-right font-bold text-green-700 text-base">{formatMoney(totalRecaudado)}</td>
                 <td className="px-2 py-1 text-center text-xs text-muted-foreground">
                   {entregadas}✓ / {pendientes}⏳
+                </td>
+                <td className="px-2 py-1 text-center text-xs font-bold text-blue-700">
+                  {pagadosCount > 0 ? `${pagadosCount} ✓` : '—'}
                 </td>
                 <td className="px-2 py-1 text-center text-xs font-bold text-blue-700">{formatMoney(totalRendido)}</td>
                 <td className="px-2 py-1 text-right font-bold text-red-600 text-sm">
