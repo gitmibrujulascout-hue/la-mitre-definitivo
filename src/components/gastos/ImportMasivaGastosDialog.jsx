@@ -22,6 +22,16 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
     queryFn: () => base44.entities.Gasto.list('-fecha', 500),
   });
 
+  const { data: campamentos = [] } = useQuery({
+    queryKey: ['campamentos'],
+    queryFn: () => base44.entities.Campamento.list('-fecha_inicio', 200),
+  });
+
+  const { data: actividades = [] } = useQuery({
+    queryKey: ['actividades'],
+    queryFn: () => base44.entities.ActividadEconomica.list('-fecha', 200),
+  });
+
   const handleFiles = (e) => {
     const nuevos = Array.from(e.target.files);
     setArchivos(prev => [...prev, ...nuevos]);
@@ -95,20 +105,32 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
     setProcesados(prev => prev.map((p, i) => i === idx ? { ...p, [campo]: valor } : p));
   };
 
+  const quitarProcesado = (idx) => {
+    setProcesados(prev => prev.filter((_, i) => i !== idx));
+  };
+
   const importarTodos = async () => {
     setProcesando(true);
     const gastosAImportar = procesados.filter(p => !p.duplicado);
-    const gastos = gastosAImportar.map(p => ({
-      descripcion: p.descripcion,
-      monto: parseFloat(p.monto) || 0,
-      fecha: p.fecha,
-      proveedor: p.proveedor,
-      numero_factura: p.numero_factura,
-      categoria: p.categoria,
-      archivo_url: p.archivo_url || '',
-      forma_pago: p.forma_pago || '',
-      destino: p.destino || '',
-    }));
+    const gastos = gastosAImportar.map(p => {
+      const campamento = campamentos.find(c => c.id === p.campamento_id);
+      const actividad = actividades.find(a => a.id === p.actividad_id);
+      return {
+        descripcion: p.descripcion,
+        monto: parseFloat(p.monto) || 0,
+        fecha: p.fecha,
+        proveedor: p.proveedor,
+        numero_factura: p.numero_factura,
+        categoria: p.categoria,
+        archivo_url: p.archivo_url || '',
+        forma_pago: p.forma_pago || '',
+        destino: p.destino || '',
+        campamento_id: p.campamento_id || '',
+        campamento_nombre: campamento?.nombre || '',
+        actividad_id: p.actividad_id || '',
+        actividad_nombre: actividad?.nombre || '',
+      };
+    });
     await base44.entities.Gasto.bulkCreate(gastos);
     queryClient.invalidateQueries({ queryKey: ['gastos'] });
     toast.success(`${gastos.length} gastos importados correctamente`);
@@ -232,6 +254,33 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
                       <option value="Banco">Banco</option>
                     </select>
                   </div>
+                  <div>
+                    <Label className="text-xs">Campamento</Label>
+                    <select
+                      className="w-full h-7 text-xs border border-input rounded-md px-2 bg-background"
+                      value={p.campamento_id || ''}
+                      onChange={e => actualizarCampo(i, 'campamento_id', e.target.value)}
+                    >
+                      <option value="">Sin asociar</option>
+                      {campamentos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Actividad económica</Label>
+                    <select
+                      className="w-full h-7 text-xs border border-input rounded-md px-2 bg-background"
+                      value={p.actividad_id || ''}
+                      onChange={e => actualizarCampo(i, 'actividad_id', e.target.value)}
+                    >
+                      <option value="">Sin asociar</option>
+                      {actividades.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-end mt-2">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => quitarProcesado(i)}>
+                    <X className="w-3.5 h-3.5 mr-1" /> Quitar
+                  </Button>
                 </div>
               </div>
             ))}
@@ -246,9 +295,9 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
               Analizar con IA
             </Button>
           ) : (
-            <Button onClick={importarTodos} disabled={procesando || procesados.every(p => p.duplicado)}>
+            <Button onClick={importarTodos} disabled={procesando || procesados.length === 0}>
               {procesando ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-              Importar {procesados.filter(p => !p.duplicado).length} gastos
+              Importar {procesados.filter(p => !p.duplicado).length} gasto(s)
             </Button>
           )}
         </DialogFooter>
