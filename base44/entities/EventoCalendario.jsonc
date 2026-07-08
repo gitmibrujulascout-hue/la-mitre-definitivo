@@ -1,0 +1,86 @@
+{
+  "name": "EventoCalendario",
+  "type": "object",
+  "properties": {
+    "nombre": {
+      "type": "string",
+      "description": "Nombre del evento o actividad"
+    },
+    "descripcion": {
+      "type": "string",
+      "description": "Descripci\u00f3n del evento"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha del evento"
+    },
+    "fecha_fin": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de fin (para eventos de varios d\u00edas)"
+    },
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "Reuni\u00f3n",
+        "Salida",
+        "Campamento",
+        "Actividad especial",
+        "Ceremonia",
+        "Otro"
+      ],
+      "default": "Otro",
+      "description": "Tipo de evento"
+    },
+    "todo_el_grupo": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si el evento es para todo el grupo"
+    },
+    "ramas_participantes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Lobatos",
+          "Tropa",
+          "KM",
+          "Rovers",
+          "Adultos"
+        ]
+      },
+      "description": "Ramas que participan (si no es todo el grupo). 'Adultos' incluye Voluntarios y Educadores."
+    },
+    "ubicacion": {
+      "type": "string",
+      "description": "Lugar del evento"
+    },
+    "observaciones": {
+      "type": "string",
+      "description": "Notas adicionales"
+    }
+  },
+  "required": [
+    "nombre",
+    "fecha"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

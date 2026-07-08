@@ -21,6 +21,7 @@ import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 import { cn } from '@/lib/utils';
 import PanueloIcon from '@/components/shared/PanueloIcon';
 import TiendaFamilia from '@/components/tienda/TiendaFamilia';
+import CalendarioFamilia from '@/components/dashboard/CalendarioFamilia';
 
 const AÑO_INICIO = 2026;
 
@@ -730,6 +731,11 @@ export default function EstadoCuenta() {
             </div>
           );
         })}
+
+        {/* Calendario de actividades del grupo y de la rama */}
+        {beneficiarioEncontrado && (
+          <CalendarioFamilia grupoFamiliar={grupoFamiliar} />
+        )}
 
         {/* Tienda del grupo — catálogo y pre-encargos */}
         {beneficiarioEncontrado && (
