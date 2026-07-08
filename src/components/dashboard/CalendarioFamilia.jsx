@@ -31,9 +31,18 @@ export default function CalendarioFamilia({ grupoFamiliar }) {
     queryFn: () => base44.entities.Campamento.list('-fecha_inicio', 200),
   });
 
+  // Si hay algún Voluntario o Educador en el grupo familiar, mostrar absolutamente todo.
+  const hayAdulto = useMemo(
+    () => grupoFamiliar.some((b) => b.tipo === 'Voluntario' || b.rama === 'Voluntario' || b.rama === 'Educador'),
+    [grupoFamiliar]
+  );
+
   const ramasFamilia = useMemo(() => {
     const ramas = new Set();
-    grupoFamiliar.forEach((b) => { if (b.rama) ramas.add(b.rama); });
+    grupoFamiliar.forEach((b) => {
+      if (b.rama) ramas.add(b.rama);
+      if (b.rama_educador) ramas.add(b.rama_educador);
+    });
     return [...ramas];
   }, [grupoFamiliar]);
 
@@ -43,28 +52,29 @@ export default function CalendarioFamilia({ grupoFamiliar }) {
   );
 
   const actividadesRelevantes = useMemo(
-    () => actividades.filter((a) => {
+    () => hayAdulto ? actividades : actividades.filter((a) => {
       const ramas = a.ramas_participantes || [];
       if (ramas.length === 0) return true;
       return ramas.some((r) => ramasFamilia.includes(r));
     }),
-    [actividades, ramasFamilia]
+    [actividades, hayAdulto, ramasFamilia]
   );
 
   const campamentosRelevantes = useMemo(
-    () => campamentos.filter((c) => {
+    () => hayAdulto ? campamentos : campamentos.filter((c) => {
       const ramas = c.ramas_participantes || [];
       if (ramas.length === 0) return true;
       if (ramas.some((r) => ramasFamilia.includes(r))) return true;
       if (c.beneficiarios_ids?.some((id) => idsFamilia.has(id))) return true;
+      if (c.adultos_ids?.some((id) => idsFamilia.has(id))) return true;
       return false;
     }),
-    [campamentos, ramasFamilia, idsFamilia]
+    [campamentos, hayAdulto, ramasFamilia, idsFamilia]
   );
 
   const eventosRelevantes = useMemo(
-    () => eventosCalendario.filter((ev) => eventoRelevanteParaRamas(ev, ramasFamilia)),
-    [eventosCalendario, ramasFamilia]
+    () => hayAdulto ? eventosCalendario : eventosCalendario.filter((ev) => eventoRelevanteParaRamas(ev, ramasFamilia)),
+    [eventosCalendario, hayAdulto, ramasFamilia]
   );
 
   const cumples = useMemo(
