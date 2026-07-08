@@ -134,11 +134,11 @@ export default function CalendarioGrid({
             >
               <div className={cn('font-medium text-right', esHoy ? 'text-primary' : 'text-muted-foreground')}>{celda.dia}</div>
               {celda.eventos.map((e, idx) => (
-                <div key={idx} className={cn('text-[9px] text-white rounded px-1 py-0.5 mb-0.5 leading-tight flex items-center gap-0.5', e.color)}>
+                <div key={idx} className={cn('text-[9px] text-white rounded px-1 py-0.5 mb-0.5 leading-tight flex items-start gap-0.5', e.color)}>
                   {e.dots?.map((d, di) => (
-                    <span key={di} className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0 ring-1 ring-white/50', d)} />
+                    <span key={di} className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0 ring-1 ring-white/50 mt-0.5', d)} />
                   ))}
-                  <span className="truncate">{e.titulo}</span>
+                  <span className="break-words">{e.titulo}</span>
                 </div>
               ))}
               {celda.cumples.map((c) => (
