@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Pencil, Plus, Trash2, TrendingUp, DollarSign, Gift, CheckCircle2, PackageCheck, Package, FileText, Banknote, MessageCircle, HandCoins } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import VentaForm from '@/components/actividades/VentaForm';
 import GastoActividadForm from '@/components/actividades/GastoActividadForm';
@@ -14,6 +15,7 @@ import ReporteVentasDialog from '@/components/actividades/ReporteVentasDialog.js
 import ProductosActividadPanel from '@/components/actividades/ProductosActividadPanel';
 import RendicionDialog from '@/components/actividades/RendicionDialog';
 import RendicionMasivaDialog from '@/components/actividades/RendicionMasivaDialog';
+import EntregaMasivaDialog from '@/components/actividades/EntregaMasivaDialog';
 import GananciasGrupoDialog from '@/components/actividades/GananciasGrupoDialog';
 import ResumenUnidades from '@/components/actividades/ResumenUnidades';
 import { openWhatsApp } from '@/lib/whatsappWindow';
@@ -37,6 +39,8 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
   const [showReporte, setShowReporte] = useState(false);
   const [ventaRendicion, setVentaRendicion] = useState(null);
   const [showRendicionMasiva, setShowRendicionMasiva] = useState(false);
+  const [showEntregaMasiva, setShowEntregaMasiva] = useState(false);
+  const [filtroVista, setFiltroVista] = useState('todos');
   const [showGananciasGrupo, setShowGananciasGrupo] = useState(false);
   const [editingVenta, setEditingVenta] = useState(null);
   const [editingVentasByBen, setEditingVentasByBen] = useState(null);
@@ -212,6 +216,9 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
         <div className="flex gap-2">
           {ventas.length > 0 && (
             <>
+              <Button onClick={() => setShowEntregaMasiva(true)} variant="outline">
+                <PackageCheck className="w-4 h-4 mr-2" />Entrega masiva
+              </Button>
               <Button onClick={() => setShowRendicionMasiva(true)} variant="outline">
                 <Banknote className="w-4 h-4 mr-2" />Rendición masiva
               </Button>
@@ -316,6 +323,28 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
               </CardTitle>
               <Button size="sm" onClick={() => setShowVentaForm(true)}><Plus className="w-3 h-3 mr-1" />Agregar</Button>
             </div>
+            {/* Filtro de vista */}
+            <div className="flex items-center gap-1 mt-2 flex-wrap">
+              {[
+                { key: 'todos', label: 'Todos' },
+                { key: 'pendiente_entrega', label: 'Sin entregar' },
+                { key: 'adeuda_rendir', label: 'Adeudan rendir' },
+                { key: 'no_pagado', label: 'No pagados' },
+              ].map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => setFiltroVista(f.key)}
+                  className={cn(
+                    'text-xs px-2 py-1 rounded-md border transition-colors',
+                    filtroVista === f.key
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-card text-muted-foreground border-border hover:bg-muted/50'
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </CardHeader>
           <CardContent className="pt-0 max-h-[32rem] overflow-y-auto space-y-0">
             {ventas.length === 0 ? (
@@ -323,9 +352,17 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                 Registrá cuánto vendió cada participante al finalizar la actividad
               </p>
             ) : (() => {
+              // Filtrar ventas según la vista seleccionada
+              const ventasFiltradas = ventas.filter(v => {
+                if (filtroVista === 'todos') return true;
+                if (filtroVista === 'pendiente_entrega') return !v.entregado;
+                if (filtroVista === 'adeuda_rendir') return v.estado_rendicion !== 'Rendido';
+                if (filtroVista === 'no_pagado') return !v.pagado;
+                return true;
+              });
               // Nivel 1: agrupar por beneficiario
               const grupos = {};
-              ventas.forEach(v => {
+              ventasFiltradas.forEach(v => {
                 const key = v.beneficiario_id || v.beneficiario_nombre;
                 if (!grupos[key]) grupos[key] = { ben: getBen(v.beneficiario_id), nombre: v.beneficiario_nombre, pedidos: [] };
                 grupos[key].pedidos.push(v);
@@ -485,12 +522,35 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
                           {/* Líneas de productos dentro del pedido */}
                           {items.map(v => (
                             <div key={v.id} className="flex items-center justify-between gap-1 py-0.5 pl-3">
-                              <p className="text-xs text-muted-foreground flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground flex-1 min-w-0 flex items-center gap-1.5">
                                 <span className="font-medium text-foreground/80">{v.producto_nombre || actividad.tipo_producto || '—'}</span>
                                 {' · '}{v.cantidad_vendida}{v.es_promo ? ' promo(s)' : ' uds'}
                                 {' · '}<span className="text-green-700">{formatMoney(v.monto_recaudado)}</span>
+                                {v.entregado && <span className="text-green-600 text-[10px]">✓</span>}
+                                {v.pagado && v.estado_rendicion !== 'Rendido' && <span className="text-blue-600 text-[10px]">💵</span>}
                               </p>
                               <div className="flex items-center shrink-0">
+                                <Button
+                                  variant="ghost" size="icon"
+                                  className={`h-5 w-5 ${v.pagado ? 'text-blue-600' : 'text-muted-foreground'}`}
+                                  title={v.pagado ? 'Marcar como NO pagado' : 'Marcar como pagado'}
+                                  disabled={v.estado_rendicion === 'Rendido'}
+                                  onClick={() => togglePagadoMut.mutate({ ids: [v.id], pagado: !v.pagado })}
+                                >
+                                  <HandCoins className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost" size="icon"
+                                  className={`h-5 w-5 ${v.entregado ? 'text-green-600' : 'text-muted-foreground'}`}
+                                  title={v.entregado ? 'Marcar como NO entregado' : 'Marcar como entregado'}
+                                  onClick={() => marcarEntregadoMut.mutate({
+                                    id: v.id,
+                                    entregado: !v.entregado,
+                                    ...(!v.entregado && !v.comprador_nombre ? { comprador_nombre: v.beneficiario_nombre || '' } : {}),
+                                  })}
+                                >
+                                  {v.entregado ? <PackageCheck className="w-3 h-3" /> : <Package className="w-3 h-3" />}
+                                </Button>
                                 <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditingVenta(v)}>
                                   <Pencil className="w-3 h-3 text-muted-foreground" />
                                 </Button>
@@ -640,6 +700,14 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
           ventas={ventas}
           actividadId={actividad.id}
           onClose={() => setShowRendicionMasiva(false)}
+        />
+      )}
+      {showEntregaMasiva && (
+        <EntregaMasivaDialog
+          open
+          ventas={ventas}
+          actividadId={actividad.id}
+          onClose={() => setShowEntregaMasiva(false)}
         />
       )}
       {showDistribuir && (
