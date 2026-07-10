@@ -264,52 +264,59 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
       {ventas.length > 0 && gananciaReal > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
           {/* Créditos vendedores */}
-          {!creditosAcreditados && (
-            <Card className="p-4 bg-primary/5 border-primary/20">
-              <div className="flex flex-col gap-2">
-                <div>
-                  <p className="font-semibold text-sm">Créditos para vendedores</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {actividad.porcentaje_beneficiario || 50}% de la ganancia → {formatMoney(Math.max(0, gananciaReal) * (actividad.porcentaje_beneficiario || 50) / 100)}
+          <Card className="p-4 bg-primary/5 border-primary/20">
+            <div className="flex flex-col gap-2">
+              <div>
+                <p className="font-semibold text-sm">
+                  {creditosAcreditados ? 'Créditos adicionales para vendedores' : 'Créditos para vendedores'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {actividad.porcentaje_beneficiario || 50}% de la ganancia → {formatMoney(Math.max(0, gananciaReal) * (actividad.porcentaje_beneficiario || 50) / 100)}
+                </p>
+                {creditosAcreditados && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    ⚠️ Ya hay {creditos.length} crédito(s) distribuido(s). Esto generará créditos nuevos que se sumarán a los existentes.
                   </p>
-                </div>
-                <Button onClick={() => setShowDistribuir(true)} className="w-full">
-                  <Gift className="w-4 h-4 mr-2" />Distribuir a vendedores
-                </Button>
+                )}
               </div>
-            </Card>
-          )}
+              <Button onClick={() => setShowDistribuir(true)} className="w-full">
+                <Gift className="w-4 h-4 mr-2" />{creditosAcreditados ? 'Distribuir créditos adicionales' : 'Distribuir a vendedores'}
+              </Button>
+            </div>
+          </Card>
           {/* Ganancias del grupo */}
-          {actividad.ganancia_grupo_acreditada ? (
-            <Card className="p-4 bg-green-50 border-green-200">
-              <div className="flex items-center gap-2 text-green-700">
-                <CheckCircle2 className="w-4 h-4" />
-                <span className="text-sm font-medium">Ganancias del grupo ya acreditadas</span>
-              </div>
-            </Card>
-          ) : (
-            <Card className="p-4 bg-amber-50 border-amber-200">
-              <div className="flex flex-col gap-2">
-                <div>
-                  <p className="font-semibold text-sm text-amber-800">Ganancias del grupo</p>
-                  <p className="text-xs text-amber-600 mt-0.5">
-                    {actividad.porcentaje_grupo || 50}% de la ganancia → {formatMoney(Math.max(0, gananciaReal) * (actividad.porcentaje_grupo || 50) / 100)}
+          <Card className={`p-4 ${actividad.ganancia_grupo_acreditada ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+            <div className="flex flex-col gap-2">
+              <div>
+                <p className={`font-semibold text-sm ${actividad.ganancia_grupo_acreditada ? 'text-green-800' : 'text-amber-800'}`}>
+                  {actividad.ganancia_grupo_acreditada ? 'Ganancias adicionales del grupo' : 'Ganancias del grupo'}
+                </p>
+                <p className={`text-xs mt-0.5 ${actividad.ganancia_grupo_acreditada ? 'text-green-600' : 'text-amber-600'}`}>
+                  {actividad.porcentaje_grupo || 50}% de la ganancia → {formatMoney(Math.max(0, gananciaReal) * (actividad.porcentaje_grupo || 50) / 100)}
+                </p>
+                {actividad.ganancia_grupo_acreditada && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    ⚠️ Las ganancias del grupo ya fueron acreditadas una vez. Solo acreditar si hay ventas nuevas posteriores.
                   </p>
-                </div>
-                <Button onClick={() => setShowGananciasGrupo(true)} variant="outline" className="w-full border-amber-300 text-amber-800 hover:bg-amber-100">
-                  <Banknote className="w-4 h-4 mr-2" />Acreditar / Distribuir
-                </Button>
+                )}
               </div>
-            </Card>
-          )}
+              <Button
+                onClick={() => setShowGananciasGrupo(true)}
+                variant="outline"
+                className={`w-full ${actividad.ganancia_grupo_acreditada ? 'border-green-300 text-green-800 hover:bg-green-100' : 'border-amber-300 text-amber-800 hover:bg-amber-100'}`}
+              >
+                <Banknote className="w-4 h-4 mr-2" />{actividad.ganancia_grupo_acreditada ? 'Acreditar ganancias adicionales' : 'Acreditar / Distribuir'}
+              </Button>
+            </div>
+          </Card>
         </div>
       )}
 
       {creditosAcreditados && (
-        <Card className="p-3 mb-6 bg-green-50 border-green-200">
-          <div className="flex items-center gap-2 text-green-700">
+        <Card className="p-3 mb-6 bg-blue-50 border-blue-200">
+          <div className="flex items-center gap-2 text-blue-700">
             <CheckCircle2 className="w-4 h-4" />
-            <span className="text-sm font-medium">Créditos ya distribuidos a {creditos.length} beneficiario(s)</span>
+            <span className="text-sm font-medium">Ya se distribuyeron {creditos.length} crédito(s) a vendedores. Podés distribuir créditos adicionales si hubo ventas nuevas.</span>
           </div>
         </Card>
       )}
