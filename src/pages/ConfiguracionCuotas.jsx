@@ -123,20 +123,21 @@ export default function ConfiguracionCuotas() {
     return creditos.filter(c => c.observaciones === label);
   }, [creditos, anioFiltro]);
 
+  const pendientesCreditosJulio = useMemo(() => {
+    const yaTienen = new Set(creditosJulioExistentes.map(c => c.beneficiario_id));
+    return beneficiariosAlDiaJulio.filter(b => !yaTienen.has(b.id));
+  }, [beneficiariosAlDiaJulio, creditosJulioExistentes]);
+
   const generarCreditosMut = useMutation({
     mutationFn: async () => {
-      const label = `${JULIO_LABEL_CREDITO} ${anioFiltro}`;
-      const yaTienen = new Set(creditosJulioExistentes.map(c => c.beneficiario_id));
-      const pendientes = beneficiariosAlDiaJulio.filter(b => !yaTienen.has(b.id));
-
-      if (pendientes.length === 0) {
+      if (pendientesCreditosJulio.length === 0) {
         throw new Error('No hay beneficiarios pendientes de generar crédito');
       }
-
+      const label = `${JULIO_LABEL_CREDITO} ${anioFiltro}`;
       const activos = beneficiarios.filter(b => b.activo !== false);
       const baseJulio = getCuotaBaseMes('Julio', Number(anioFiltro), configCuotas);
 
-      const records = pendientes.map(b => ({
+      const records = pendientesCreditosJulio.map(b => ({
         beneficiario_id: b.id,
         beneficiario_nombre: b.nombre,
         actividad_nombre: label,
@@ -187,6 +188,9 @@ export default function ConfiguracionCuotas() {
               <p className="text-xs text-cyan-700 mt-0.5">
                 Beneficiarios al día hasta Junio: <strong>{beneficiariosAlDiaJulio.length}</strong>
                 {' · '}Créditos ya generados: <strong>{creditosJulioExistentes.length}</strong>
+                {pendientesCreditosJulio.length > 0 && (
+                  <>{' · '}Pendientes: <strong className="text-cyan-900">{pendientesCreditosJulio.length}</strong></>
+                )}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Cada beneficiario al día paga la cuota completa de Julio y recibe {formatMoney(JULIO_MONTO_CREDITO)} como crédito en su cuenta.
@@ -195,12 +199,12 @@ export default function ConfiguracionCuotas() {
           </div>
           <Button
             onClick={() => { setGenerandoCreditos(true); generarCreditosMut.mutate(); }}
-            disabled={generandoCreditos || generarCreditosMut.isPending || beneficiariosAlDiaJulio.length === 0 || creditosJulioExistentes.length >= beneficiariosAlDiaJulio.length}
+            disabled={generandoCreditos || generarCreditosMut.isPending || beneficiariosAlDiaJulio.length === 0 || pendientesCreditosJulio.length === 0}
             className="bg-cyan-600 hover:bg-cyan-700 text-white"
           >
-            {creditosJulioExistentes.length >= beneficiariosAlDiaJulio.length && beneficiariosAlDiaJulio.length > 0
+            {pendientesCreditosJulio.length === 0 && beneficiariosAlDiaJulio.length > 0
               ? <><CheckCircle2 className="w-4 h-4 mr-2" />Créditos generados</>
-              : <><Gift className="w-4 h-4 mr-2" />Generar créditos</>}
+              : <><Gift className="w-4 h-4 mr-2" />Generar créditos{pendientesCreditosJulio.length > 0 ? ` (${pendientesCreditosJulio.length})` : ''}</>}
           </Button>
         </div>
       </Card>
