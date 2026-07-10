@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownLeft, Trash2, Upload, FileText } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownLeft, Trash2, Upload, FileText, Gift } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
@@ -122,6 +122,16 @@ export default function Caja() {
     queryFn: () => base44.entities.MovimientoBanco.list('-fecha', 200),
   });
 
+  const { data: creditosTodos = [] } = useQuery({
+    queryKey: ['creditos-todos'],
+    queryFn: () => base44.entities.CreditoBeneficiario.list(),
+  });
+
+  const totalCreditosReservados = useMemo(
+    () => creditosTodos.reduce((s, c) => s + (c.monto_disponible || 0), 0),
+    [creditosTodos]
+  );
+
   const { data: campamentos = [] } = useQuery({
     queryKey: ['campamentos'],
     queryFn: () => base44.entities.Campamento.list(),
@@ -176,8 +186,8 @@ export default function Caja() {
       }));
 
     const extras = movimientosExtra
-      .filter(m => (m.cuenta || 'Caja') === cuentaFiltro && filtrarPorAnio(m.fecha) && m.origen === 'Manual')
-      .map(m => ({ ...m, id: `extra-${m.id}`, refId: m.id, esManual: true }));
+      .filter(m => (m.cuenta || 'Caja') === cuentaFiltro && filtrarPorAnio(m.fecha) && (m.origen === 'Manual' || m.origen === 'Crédito'))
+      .map(m => ({ ...m, id: `extra-${m.id}`, refId: m.id, esManual: m.origen === 'Manual' }));
 
     return [...ingresoPagos, ...egresoGastos, ...extras]
       .sort((a, b) => {
@@ -240,7 +250,7 @@ export default function Caja() {
       </Tabs>
 
       {/* Resumen */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 md:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
@@ -276,6 +286,19 @@ export default function Caja() {
               <div>
                 <p className="text-xs text-muted-foreground">Saldo {tab === 'caja' ? 'Caja' : 'Banco'}</p>
                 <p className={cn('text-lg font-bold', saldo >= 0 ? 'text-green-600' : 'text-red-500')}>{formatMoney(saldo)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className={cn('border-2', totalCreditosReservados > 0 ? 'border-cyan-300' : 'border-border')}>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className={cn('w-10 h-10 rounded-full flex items-center justify-center', totalCreditosReservados > 0 ? 'bg-cyan-100' : 'bg-muted')}>
+                <Gift className={cn('w-5 h-5', totalCreditosReservados > 0 ? 'text-cyan-600' : 'text-muted-foreground')} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Créditos reservados</p>
+                <p className={cn('text-lg font-bold', totalCreditosReservados > 0 ? 'text-cyan-600' : 'text-muted-foreground')}>{formatMoney(totalCreditosReservados)}</p>
               </div>
             </div>
           </CardContent>

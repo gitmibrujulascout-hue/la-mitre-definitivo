@@ -38,7 +38,8 @@
         "Manual",
         "Pago cuota",
         "Pago campamento",
-        "Gasto"
+        "Gasto",
+        "Cr\u00e9dito"
       ],
       "description": "Origen del movimiento"
     },

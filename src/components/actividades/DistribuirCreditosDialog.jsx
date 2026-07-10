@@ -171,7 +171,8 @@ export default function DistribuirCreditosDialog({ open, onClose, onSaved, activ
   const mutation = useMutation({
     mutationFn: async () => {
       const fecha = new Date().toISOString().split('T')[0];
-      await Promise.all(datosFinales.filter(d => d.monto > 0).map(d => {
+      const creditos = datosFinales.filter(d => d.monto > 0);
+      await Promise.all(creditos.map(d => {
         const ben = 'ben' in d ? d.ben : beneficiarios.find(b => b.id === d.beneficiario_id);
         const nombre = ben?.nombre || d.beneficiario_nombre || d.v?.beneficiario_nombre;
         return base44.entities.CreditoBeneficiario.create({
@@ -184,10 +185,23 @@ export default function DistribuirCreditosDialog({ open, onClose, onSaved, activ
           fecha,
         });
       }));
+
+      // Egreso en Caja: la plata pasa a la "caja de créditos" (reservada)
+      const totalMonto = creditos.reduce((s, d) => s + d.monto, 0);
+      await base44.entities.MovimientoBanco.create({
+        fecha,
+        tipo: 'Egreso',
+        concepto: `Reserva — Créditos ${actividad.nombre}`,
+        monto: totalMonto,
+        cuenta: 'Caja',
+        origen: 'Crédito',
+        observaciones: `Distribución de ganancia a beneficiarios (${pctBen}%)`,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creditos'] });
       queryClient.invalidateQueries({ queryKey: ['creditos-actividad', actividad.id] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
       toast.success('Créditos distribuidos correctamente');
       onSaved();
     },

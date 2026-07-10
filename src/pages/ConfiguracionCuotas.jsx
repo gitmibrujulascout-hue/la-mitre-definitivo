@@ -148,10 +148,24 @@ export default function ConfiguracionCuotas() {
       }));
 
       const result = await base44.entities.CreditoBeneficiario.bulkCreate(records);
+      const totalMonto = records.reduce((s, r) => s + r.monto_original, 0);
+
+      // Egreso en Caja: la plata pasa a la "caja de créditos" (reservada)
+      await base44.entities.MovimientoBanco.create({
+        fecha: new Date().toISOString().split('T')[0],
+        tipo: 'Egreso',
+        concepto: `Reserva — Créditos Julio ${anioFiltro}`,
+        monto: totalMonto,
+        cuenta: 'Caja',
+        origen: 'Crédito',
+        observaciones: `${records.length} créditos generados para beneficiarios al día`,
+      });
+
       return { count: records.length, result };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['creditos'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
       toast.success(`${data.count} créditos de Julio generados`);
       setGenerandoCreditos(false);
     },
