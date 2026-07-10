@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Wallet, ChevronRight, ChevronDown, CreditCard, Tent, ShoppingCart, ArrowRightLeft, FileDown } from 'lucide-react';
-import { RAMAS, formatMoney } from '@/lib/ramaUtils';
+import { TODOS_LOS_ROLES, formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { jsPDF } from 'jspdf';
 
@@ -57,9 +57,13 @@ export default function CreditosConsulta({ beneficiarios }) {
     if (actividadSel !== 'todas') filtered = filtered.filter(c => (c.actividad_id || c.observaciones || 'sin-actividad') === actividadSel);
     if (ramaSel !== 'todas') filtered = filtered.filter(c => benRamaMap[c.beneficiario_id] === ramaSel);
     return [...filtered].sort((a, b) => {
-      const ra = RAMAS.indexOf(benRamaMap[a.beneficiario_id]);
-      const rb = RAMAS.indexOf(benRamaMap[b.beneficiario_id]);
-      if (ra !== rb && ra !== -1 && rb !== -1) return ra - rb;
+      const ra = TODOS_LOS_ROLES.indexOf(benRamaMap[a.beneficiario_id]);
+      const rb = TODOS_LOS_ROLES.indexOf(benRamaMap[b.beneficiario_id]);
+      if (ra !== -1 || rb !== -1) {
+        if (ra === -1) return 1;
+        if (rb === -1) return -1;
+        return ra - rb;
+      }
       return (a.beneficiario_nombre || '').localeCompare(b.beneficiario_nombre || '');
     });
   }, [creditos, actividadSel, ramaSel, benRamaMap]);
@@ -222,7 +226,7 @@ export default function CreditosConsulta({ beneficiarios }) {
               <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas las ramas</SelectItem>
-                {RAMAS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                {TODOS_LOS_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={actividadSel} onValueChange={setActividadSel}>
