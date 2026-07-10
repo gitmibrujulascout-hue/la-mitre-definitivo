@@ -91,6 +91,11 @@
       },
       "description": "IDs de adultos responsables"
     },
+    "ganancia_grupo_acreditada": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si la ganancia del grupo ya fue acreditada a caja o distribuida a beneficiarios"
+    },
     "observaciones": {
       "type": "string",
       "description": "Notas adicionales"

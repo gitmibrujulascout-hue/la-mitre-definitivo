@@ -52,8 +52,10 @@ export default function GananciasGrupoDialog({ open, onClose, onSaved, actividad
         observaciones: `${pctGrupo}% ganancia de actividad económica: ${actividad.nombre}`,
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await base44.entities.ActividadEconomica.update(actividad.id, { ganancia_grupo_acreditada: true });
       queryClient.invalidateQueries({ queryKey: ['movimientos-banco'] });
+      queryClient.invalidateQueries({ queryKey: ['actividades'] });
       toast.success('Ingreso registrado en caja correctamente');
       onSaved();
     },
@@ -76,9 +78,11 @@ export default function GananciasGrupoDialog({ open, onClose, onSaved, actividad
           observaciones: `Crédito del grupo (${pctGrupo}%) — ${actividad.nombre}`,
         })
       ));
+      await base44.entities.ActividadEconomica.update(actividad.id, { ganancia_grupo_acreditada: true });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creditos'] });
+      queryClient.invalidateQueries({ queryKey: ['actividades'] });
       toast.success('Créditos distribuidos correctamente');
       onSaved();
     },

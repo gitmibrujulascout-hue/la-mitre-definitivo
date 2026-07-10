@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, TrendingUp, DollarSign, Users, Wallet } from 'lucide-react';
+import { Plus, Search, TrendingUp, DollarSign, Users, Wallet, CheckCircle2 } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import ActividadForm from '@/components/actividades/ActividadForm';
 import ActividadDetalle from '@/components/actividades/ActividadDetalle';
@@ -35,6 +35,33 @@ export default function ActividadesEconomicas() {
     queryFn: () => base44.entities.Beneficiario.list(),
   });
 
+  // Fetch real de ventas y gastos para calcular totales precisos
+  const { data: todasVentas = [] } = useQuery({
+    queryKey: ['ventas-todas-act'],
+    queryFn: () => base44.entities.VentaActividad.list('-created_date', 5000),
+  });
+  const { data: todosGastos = [] } = useQuery({
+    queryKey: ['gastos-todos-act'],
+    queryFn: () => base44.entities.Gasto.list('-created_date', 5000),
+  });
+
+  // Agrupar por actividad_id
+  const statsPorActividad = React.useMemo(() => {
+    const map = {};
+    todasVentas.forEach(v => {
+      if (!v.actividad_id) return;
+      if (!map[v.actividad_id]) map[v.actividad_id] = { ingreso: 0, ventas: 0 };
+      map[v.actividad_id].ingreso += v.monto_recaudado || 0;
+      map[v.actividad_id].ventas++;
+    });
+    todosGastos.forEach(g => {
+      if (!g.actividad_id) return;
+      if (!map[g.actividad_id]) map[g.actividad_id] = { ingreso: 0, ventas: 0 };
+      map[g.actividad_id].costo = (map[g.actividad_id].costo || 0) + (g.monto || 0);
+    });
+    return map;
+  }, [todasVentas, todosGastos]);
+
   const filtered = actividades.filter(a =>
     !search || a.nombre?.toLowerCase().includes(search.toLowerCase()) || a.tipo_producto?.toLowerCase().includes(search.toLowerCase())
   );
@@ -53,9 +80,18 @@ export default function ActividadesEconomicas() {
       <ActividadDetalle
         actividad={actividadActual}
         beneficiarios={beneficiarios}
-        onBack={() => setDetalle(null)}
+        onBack={() => {
+          queryClient.invalidateQueries({ queryKey: ['ventas-todas-act'] });
+          queryClient.invalidateQueries({ queryKey: ['gastos-todos-act'] });
+          queryClient.invalidateQueries({ queryKey: ['actividades'] });
+          setDetalle(null);
+        }}
         onEdit={() => { setEditing(actividadActual); setDetalle(null); }}
-        onSaved={() => { queryClient.invalidateQueries({ queryKey: ['actividades'] }); }}
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: ['actividades'] });
+          queryClient.invalidateQueries({ queryKey: ['ventas-todas-act'] });
+          queryClient.invalidateQueries({ queryKey: ['gastos-todos-act'] });
+        }}
       />
     );
   }
@@ -90,7 +126,10 @@ export default function ActividadesEconomicas() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(a => {
-            const ganancia = (a.ingreso_total || 0) - (a.costo_total || 0);
+            const stats = statsPorActividad[a.id] || {};
+            const ingreso = stats.ingreso || 0;
+            const costo = stats.costo || 0;
+            const ganancia = ingreso - costo;
             return (
               <Card
                 key={a.id}
@@ -104,24 +143,35 @@ export default function ActividadesEconomicas() {
                   </div>
                   <Badge className={ESTADO_COLORS[a.estado] || 'bg-secondary'}>{a.estado}</Badge>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="bg-muted/50 rounded p-2 text-center">
-                    <p className="text-xs text-muted-foreground">Ingreso</p>
-                    <p className="font-semibold text-green-600">{formatMoney(a.ingreso_total || 0)}</p>
-                  </div>
-                  <div className="bg-muted/50 rounded p-2 text-center">
-                    <p className="text-xs text-muted-foreground">Costo</p>
-                    <p className="font-semibold text-red-500">{formatMoney(a.costo_total || 0)}</p>
-                  </div>
-                </div>
-                {ganancia > 0 && (
-                  <div className="mt-2 bg-green-50 border border-green-200 rounded p-2 text-center">
-                    <p className="text-xs text-green-600">Ganancia neta</p>
-                    <p className="font-bold text-green-700">{formatMoney(ganancia)}</p>
+                {stats.ventas > 0 || costo > 0 ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="bg-muted/50 rounded p-2 text-center">
+                        <p className="text-xs text-muted-foreground">Ingreso</p>
+                        <p className="font-semibold text-green-600">{formatMoney(ingreso)}</p>
+                      </div>
+                      <div className="bg-muted/50 rounded p-2 text-center">
+                        <p className="text-xs text-muted-foreground">Costo</p>
+                        <p className="font-semibold text-red-500">{formatMoney(costo)}</p>
+                      </div>
+                    </div>
+                    <div className={`mt-2 rounded p-2 text-center border ${ganancia >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                      <p className={`text-xs ${ganancia >= 0 ? 'text-green-600' : 'text-red-600'}`}>Ganancia neta</p>
+                      <p className={`font-bold ${ganancia >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatMoney(ganancia)}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="bg-muted/30 rounded p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Sin ventas registradas</p>
                   </div>
                 )}
                 <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                   <span>{a.fecha}</span>
+                  {a.ganancia_grupo_acreditada && (
+                    <span className="flex items-center gap-1 text-green-600 font-medium">
+                      <CheckCircle2 className="w-3 h-3" />Acreditada
+                    </span>
+                  )}
                   {a.ramas_participantes?.length > 0 && (
                     <span className="flex items-center gap-1"><Users className="w-3 h-3" />{a.ramas_participantes.join(', ')}</span>
                   )}

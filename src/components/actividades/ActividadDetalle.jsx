@@ -280,19 +280,28 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
             </Card>
           )}
           {/* Ganancias del grupo */}
-          <Card className="p-4 bg-amber-50 border-amber-200">
-            <div className="flex flex-col gap-2">
-              <div>
-                <p className="font-semibold text-sm text-amber-800">Ganancias del grupo</p>
-                <p className="text-xs text-amber-600 mt-0.5">
-                  {actividad.porcentaje_grupo || 50}% de la ganancia → {formatMoney(Math.max(0, gananciaReal) * (actividad.porcentaje_grupo || 50) / 100)}
-                </p>
+          {actividad.ganancia_grupo_acreditada ? (
+            <Card className="p-4 bg-green-50 border-green-200">
+              <div className="flex items-center gap-2 text-green-700">
+                <CheckCircle2 className="w-4 h-4" />
+                <span className="text-sm font-medium">Ganancias del grupo ya acreditadas</span>
               </div>
-              <Button onClick={() => setShowGananciasGrupo(true)} variant="outline" className="w-full border-amber-300 text-amber-800 hover:bg-amber-100">
-                <Banknote className="w-4 h-4 mr-2" />Acreditar / Distribuir
-              </Button>
-            </div>
-          </Card>
+            </Card>
+          ) : (
+            <Card className="p-4 bg-amber-50 border-amber-200">
+              <div className="flex flex-col gap-2">
+                <div>
+                  <p className="font-semibold text-sm text-amber-800">Ganancias del grupo</p>
+                  <p className="text-xs text-amber-600 mt-0.5">
+                    {actividad.porcentaje_grupo || 50}% de la ganancia → {formatMoney(Math.max(0, gananciaReal) * (actividad.porcentaje_grupo || 50) / 100)}
+                  </p>
+                </div>
+                <Button onClick={() => setShowGananciasGrupo(true)} variant="outline" className="w-full border-amber-300 text-amber-800 hover:bg-amber-100">
+                  <Banknote className="w-4 h-4 mr-2" />Acreditar / Distribuir
+                </Button>
+              </div>
+            </Card>
+          )}
         </div>
       )}
 
