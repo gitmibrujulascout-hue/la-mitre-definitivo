@@ -11,6 +11,7 @@ import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import ProductoGaleria from '@/components/tienda/ProductoGaleria';
+import { getStockDisponiblePorTalle } from '@/lib/tiendaStock';
 
 export default function TiendaFamilia({ grupoFamiliar }) {
   const [encargos, setEncargos] = useState({});
@@ -38,20 +39,32 @@ export default function TiendaFamilia({ grupoFamiliar }) {
     [preEncargos, familiaresIds]
   );
 
+  // Stock disponible por producto (físico - reservas activas), calculado dinámicamente
+  const disponiblePorProducto = useMemo(() => {
+    const map = {};
+    productos.forEach(p => { map[p.id] = getStockDisponiblePorTalle(p, preEncargos); });
+    return map;
+  }, [productos, preEncargos]);
+
   const crearEncargo = useMutation({
     mutationFn: async ({ producto, benId, benNombre, cantidad, talle }) => {
-      // Re-fetch del producto para stock actualizado
-      const prod = await base44.entities.ProductoTienda.get(producto.id);
+      // Re-fetch del producto y pre-encargos para validación contra stock disponible actual
+      const [prod, encargosActuales] = await Promise.all([
+        base44.entities.ProductoTienda.get(producto.id),
+        base44.entities.PreEncargoTienda.list('-fecha', 500),
+      ]);
+      const disp = getStockDisponiblePorTalle(prod, encargosActuales);
 
-      // Validar stock disponible
+      // Validar stock disponible (físico - reservas activas)
       if (prod.tiene_talles && talle) {
-        const stockDisp = prod.stock_por_talle?.[talle] ?? 0;
+        const stockDisp = disp[talle] ?? 0;
         if (stockDisp < cantidad) throw new Error(`Stock insuficiente para talle ${talle}. Disponible: ${stockDisp}`);
       } else if (!prod.tiene_talles) {
-        if ((prod.stock || 0) < cantidad) throw new Error(`Stock insuficiente. Disponible: ${prod.stock || 0}`);
+        const stockDisp = disp._sin_talle ?? 0;
+        if (stockDisp < cantidad) throw new Error(`Stock insuficiente. Disponible: ${stockDisp}`);
       }
 
-      // Crear pre-encargo
+      // Crear pre-encargo (NO decrementa stock físico; la reserva se calcula dinámicamente)
       await base44.entities.PreEncargoTienda.create({
         beneficiario_id: benId,
         beneficiario_nombre: benNombre,
@@ -66,64 +79,37 @@ export default function TiendaFamilia({ grupoFamiliar }) {
         stock_reservado: true,
         fecha: new Date().toISOString().split('T')[0],
       });
-
-      // Reservar stock (decrementar)
-      if (prod.tiene_talles && talle) {
-        const stockActual = prod.stock_por_talle?.[talle] ?? 0;
-        await base44.entities.ProductoTienda.update(prod.id, {
-          stock_por_talle: { ...prod.stock_por_talle, [talle]: stockActual - cantidad },
-        });
-      } else {
-        await base44.entities.ProductoTienda.update(prod.id, {
-          stock: (prod.stock || 0) - cantidad,
-        });
-      }
     },
     onSuccess: () => {
-      toast.success('Pre-encargo enviado. El stock fue reservado.');
+      toast.success('Pre-encargo enviado. Queda reservado hasta la entrega.');
       setEncargos({});
     },
     onError: (err) => toast.error('Error: ' + err.message),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
-      queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
     },
   });
 
   const cancelarEncargo = useMutation({
     mutationFn: async (encargo) => {
-      // Solo se pueden cancelar pre-encargos pendientes
       if (encargo.estado !== 'Pendiente') {
         throw new Error('Solo se pueden cancelar pre-encargos pendientes');
       }
-
-      // Restaurar stock solo si fue reservado
-      if (encargo.stock_reservado) {
-        const prod = await base44.entities.ProductoTienda.get(encargo.producto_id);
-        if (prod) {
-          if (prod.tiene_talles && encargo.talle) {
-            const stockActual = prod.stock_por_talle?.[encargo.talle] ?? 0;
-            await base44.entities.ProductoTienda.update(prod.id, {
-              stock_por_talle: { ...prod.stock_por_talle, [encargo.talle]: stockActual + (encargo.cantidad || 0) },
-            });
-          } else {
-            await base44.entities.ProductoTienda.update(prod.id, {
-              stock: (prod.stock || 0) + (encargo.cantidad || 0),
-            });
-          }
-        }
-      }
-
-      // Eliminar el pre-encargo
-      await base44.entities.PreEncargoTienda.delete(encargo.id);
+      // No se restaura stock físico: la reserva se calcula dinámicamente,
+      // al cancelar deja de contar como reserva automáticamente.
+      await base44.entities.PreEncargoTienda.update(encargo.id, {
+        estado: 'Cancelado',
+        stock_reservado: false,
+      });
     },
     onSuccess: () => {
-      toast.success('Pre-encargo cancelado. Stock restaurado.');
+      toast.success('Pre-encargo cancelado.');
     },
     onError: (err) => toast.error('Error: ' + err.message),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
-      queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
     },
   });
 
@@ -148,6 +134,10 @@ export default function TiendaFamilia({ grupoFamiliar }) {
           const benSel = grupoFamiliar.find(b => b.id === enc.benId);
           const cant = parseInt(enc.cantidad) || 1;
           const total = p.precio_venta * cant;
+          const disp = disponiblePorProducto[p.id] || {};
+          const dispTotal = p.tiene_talles
+            ? Object.values(disp).reduce((s, v) => s + Math.max(0, v), 0)
+            : (disp._sin_talle ?? 0);
 
           return (
             <Card key={p.id} className="overflow-hidden flex flex-col">
@@ -162,8 +152,8 @@ export default function TiendaFamilia({ grupoFamiliar }) {
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-lg font-bold">{formatMoney(p.precio_venta)}</span>
                   {!p.tiene_talles && (
-                    <Badge className={cn('text-xs', (p.stock || 0) === 0 ? 'bg-red-100 text-red-700' : (p.stock || 0) <= (p.stock_minimo || 0) ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700')}>
-                      {(p.stock || 0)} disp.
+                    <Badge className={cn('text-xs', dispTotal === 0 ? 'bg-red-100 text-red-700' : dispTotal <= (p.stock_minimo || 0) ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700')}>
+                      {dispTotal} disp.
                     </Badge>
                   )}
                 </div>
@@ -184,13 +174,13 @@ export default function TiendaFamilia({ grupoFamiliar }) {
                         <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Talle..." /></SelectTrigger>
                         <SelectContent>
                           {p.talles.map(t => {
-                            const st = p.stock_por_talle?.[t] ?? 0;
-                            return <SelectItem key={t} value={t} disabled={st === 0}>{t} ({st} disp.)</SelectItem>;
+                            const st = disp[t] ?? 0;
+                            return <SelectItem key={t} value={t} disabled={st <= 0}>{t} ({st} disp.)</SelectItem>;
                           })}
                         </SelectContent>
                       </Select>
-                      {enc.talle && (p.stock_por_talle?.[enc.talle] ?? 0) === 0 && (
-                        <p className="text-xs text-red-500">Sin stock para este talle</p>
+                      {enc.talle && (disp[enc.talle] ?? 0) <= 0 && (
+                        <p className="text-xs text-red-500">Sin stock disponible para este talle</p>
                       )}
                       {p.tabla_talles_url && (
                         <button
@@ -225,8 +215,8 @@ export default function TiendaFamilia({ grupoFamiliar }) {
 
                   {(() => {
                     const sinStock = p.tiene_talles
-                      ? (enc.talle ? (p.stock_por_talle?.[enc.talle] ?? 0) < cant : false)
-                      : (p.stock || 0) < cant;
+                      ? (enc.talle ? (disp[enc.talle] ?? 0) < cant : false)
+                      : (disp._sin_talle ?? 0) < cant;
                     return (
                       <Button
                         size="sm"
@@ -277,7 +267,7 @@ export default function TiendaFamilia({ grupoFamiliar }) {
                       size="sm"
                       className="h-7 text-xs text-red-500 hover:text-red-700"
                       disabled={cancelarEncargo.isPending}
-                      onClick={() => { if (confirm('¿Cancelar este pre-encargo? Se restaurará el stock reservado.')) cancelarEncargo.mutate(e); }}
+                      onClick={() => { if (confirm('¿Cancelar este pre-encargo?')) cancelarEncargo.mutate(e); }}
                     >
                       <X className="w-3.5 h-3.5 mr-0.5" />Cancelar
                     </Button>

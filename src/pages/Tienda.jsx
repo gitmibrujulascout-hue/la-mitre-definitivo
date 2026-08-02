@@ -7,13 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Wallet, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Wallet, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2, FileText } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import ProductoTiendaForm from '@/components/tienda/ProductoTiendaForm';
 import VentaTiendaForm from '@/components/tienda/VentaTiendaForm';
 import ProductoGaleria from '@/components/tienda/ProductoGaleria';
 import EntregarEncargoDialog from '@/components/tienda/EntregarEncargoDialog';
+import ReporteEncargosDialog from '@/components/tienda/ReporteEncargosDialog';
 import { formatMoney } from '@/lib/ramaUtils';
+import { getStockDisponiblePorTalle, getStockFisicoTotal } from '@/lib/tiendaStock';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +27,7 @@ export default function Tienda() {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('todas');
   const [entregarEncargo, setEntregarEncargo] = useState(null);
+  const [showReporteEncargos, setShowReporteEncargos] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: productos = [] } = useQuery({
@@ -88,25 +91,10 @@ export default function Tienda() {
       if (!encargo) return;
       const update = { estado };
       if (estado === 'Confirmado') update.fecha_confirmacion = new Date().toISOString().split('T')[0];
+      if (estado === 'Cancelado') update.stock_reservado = false;
 
-      // Si se cancela, restaurar stock solo si fue reservado y no entregado
-      if (estado === 'Cancelado' && encargo.stock_reservado) {
-        const prod = await base44.entities.ProductoTienda.get(encargo.producto_id);
-        if (prod) {
-          if (prod.tiene_talles && encargo.talle) {
-            const stockActual = prod.stock_por_talle?.[encargo.talle] ?? 0;
-            await base44.entities.ProductoTienda.update(prod.id, {
-              stock_por_talle: { ...prod.stock_por_talle, [encargo.talle]: stockActual + (encargo.cantidad || 0) },
-            });
-          } else {
-            await base44.entities.ProductoTienda.update(prod.id, {
-              stock: (prod.stock || 0) + (encargo.cantidad || 0),
-            });
-          }
-        }
-        update.stock_reservado = false;
-      }
-
+      // No se modifica el stock físico al cancelar: las reservas se calculan
+      // dinámicamente desde los pre-encargos activos (Pendiente/Confirmado).
       await base44.entities.PreEncargoTienda.update(id, update);
     },
     onSuccess: () => {
@@ -118,10 +106,24 @@ export default function Tienda() {
     },
   });
 
-  // Calcular stock total de un producto
-  const getStockTotal = (p) => {
-    if (p.tiene_talles) return Object.values(p.stock_por_talle || {}).reduce((s, v) => s + (v || 0), 0);
-    return p.stock || 0;
+  // Stock físico total del producto
+  const getStockTotal = (p) => getStockFisicoTotal(p);
+
+  // Reservas activas (pre-encargos Pendiente/Confirmado) por producto
+  const reservasPorProducto = useMemo(() => {
+    const map = {};
+    preEncargos.forEach(e => {
+      if (['Pendiente', 'Confirmado'].includes(e.estado)) {
+        map[e.producto_id] = (map[e.producto_id] || 0) + (e.cantidad || 0);
+      }
+    });
+    return map;
+  }, [preEncargos]);
+
+  // Stock disponible (físico - reservas) por producto y talle
+  const getDisponibleTalle = (p, talle) => {
+    const disp = getStockDisponiblePorTalle(p, preEncargos);
+    return talle ? (disp[talle] ?? 0) : (disp._sin_talle ?? 0);
   };
 
   const productosFiltrados = useMemo(() => {
@@ -278,13 +280,22 @@ export default function Tienda() {
                     {p.tiene_talles ? (
                       <div className="space-y-1">
                         {p.talles?.map(t => {
-                          const st = p.stock_por_talle?.[t] ?? 0;
+                          const fisico = p.stock_por_talle?.[t] ?? 0;
+                          const disp = getDisponibleTalle(p, t);
+                          const reservado = fisico - disp;
                           return (
                             <div key={t} className="flex items-center justify-between text-xs">
                               <span className="text-muted-foreground">Talle {t}</span>
-                              <Badge className={cn('text-xs', st === 0 ? 'bg-red-100 text-red-700' : st <= (p.stock_minimo || 0) ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700')}>
-                                {st} disp.
-                              </Badge>
+                              <div className="flex items-center gap-1.5">
+                                {reservado > 0 && (
+                                  <span className="text-amber-600 text-xs" title="Reservado por pre-encargos">
+                                    ({reservado} res.)
+                                  </span>
+                                )}
+                                <Badge className={cn('text-xs', disp === 0 ? 'bg-red-100 text-red-700' : disp <= (p.stock_minimo || 0) ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700')}>
+                                  {disp} disp.
+                                </Badge>
+                              </div>
                             </div>
                           );
                         })}
@@ -292,9 +303,16 @@ export default function Tienda() {
                     ) : (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Stock total</span>
-                        <Badge className={cn(stockTotal === 0 ? 'bg-red-100 text-red-700' : bajo ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700')}>
-                          {stockTotal} disp.
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          {reservasPorProducto[p.id] > 0 && (
+                            <span className="text-amber-600 text-xs" title="Reservado por pre-encargos">
+                              ({reservasPorProducto[p.id]} res.)
+                            </span>
+                          )}
+                          <Badge className={cn(getDisponibleTalle(p) === 0 ? 'bg-red-100 text-red-700' : getDisponibleTalle(p) <= (p.stock_minimo || 0) ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700')}>
+                            {getDisponibleTalle(p)} disp.
+                          </Badge>
+                        </div>
                       </div>
                     )}
 
@@ -365,6 +383,11 @@ export default function Tienda() {
         {/* Pre-encargos */}
         {tab === 'encargos' && (
           <TabsContent value="encargos">
+            <div className="flex justify-end mb-3">
+              <Button variant="outline" size="sm" onClick={() => setShowReporteEncargos(true)}>
+                <FileText className="w-4 h-4 mr-1.5" />Reporte proveedor / entrega
+              </Button>
+            </div>
             <Card className="overflow-hidden">
               <Table>
                 <TableHeader>
@@ -441,6 +464,12 @@ export default function Tienda() {
           encargo={entregarEncargo}
           producto={productos.find(p => p.id === entregarEncargo.producto_id)}
           onClose={() => setEntregarEncargo(null)}
+        />
+      )}
+      {showReporteEncargos && (
+        <ReporteEncargosDialog
+          encargos={preEncargos}
+          onClose={() => setShowReporteEncargos(false)}
         />
       )}
     </div>

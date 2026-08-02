@@ -45,7 +45,22 @@ export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
         });
       }
 
-      // 3. Actualizar pre-encargo a Entregado y liberar la reserva (el stock ya fue consumido por la venta)
+      // 3. Decrementar stock físico (la entrega consume el stock real)
+      const prod = await base44.entities.ProductoTienda.get(encargo.producto_id);
+      if (prod) {
+        if (prod.tiene_talles && encargo.talle) {
+          const stockActual = prod.stock_por_talle?.[encargo.talle] ?? 0;
+          await base44.entities.ProductoTienda.update(prod.id, {
+            stock_por_talle: { ...prod.stock_por_talle, [encargo.talle]: Math.max(0, stockActual - (encargo.cantidad || 0)) },
+          });
+        } else {
+          await base44.entities.ProductoTienda.update(prod.id, {
+            stock: Math.max(0, (prod.stock || 0) - (encargo.cantidad || 0)),
+          });
+        }
+      }
+
+      // 4. Actualizar pre-encargo a Entregado (la reserva deja de contar, el stock físico ya fue consumido)
       await base44.entities.PreEncargoTienda.update(encargo.id, {
         estado: 'Entregado',
         stock_reservado: false,
@@ -58,7 +73,8 @@ export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
       queryClient.invalidateQueries({ queryKey: ['ventas_tienda'] });
       queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
       queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
-      toast.success('Pre-encargo entregado. Venta registrada.');
+      queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
+      toast.success('Pre-encargo entregado. Venta registrada y stock actualizado.');
       onClose();
     },
     onError: (err) => toast.error('Error: ' + err.message),
@@ -70,7 +86,7 @@ export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
         <DialogHeader>
           <DialogTitle>Entregar pre-encargo</DialogTitle>
           <DialogDescription>
-            Al confirmar, se generará la venta y el ingreso de dinero correspondiente.
+            Al confirmar, se generará la venta, el ingreso de dinero y se descontará el stock físico.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
