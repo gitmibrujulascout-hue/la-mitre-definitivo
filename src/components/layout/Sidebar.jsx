@@ -5,6 +5,7 @@ import {
   BookOpen, Menu, X, TreePine, Landmark, TrendingUp, ExternalLink, FileText, ShieldCheck, MessageCircle, HeartPulse, ShoppingBag, Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAvisosPendientes } from '@/hooks/useAvisosPendientes';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -27,6 +28,11 @@ const navItems = [
 export default function Sidebar() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { encargosPendientes, solicitudesSaludPendientes } = useAvisosPendientes();
+  const avisosPorPath = {
+    '/tienda': encargosPendientes,
+    '/beneficiarios': solicitudesSaludPendientes,
+  };
 
   return (
     <>
@@ -71,6 +77,7 @@ export default function Sidebar() {
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {navItems.map(item => {
             const isActive = location.pathname === item.path;
+            const avisos = avisosPorPath[item.path] || 0;
             return (
               <Link
                 key={item.path}
@@ -83,8 +90,18 @@ export default function Sidebar() {
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
               >
-                <item.icon className="w-4 h-4" />
-                {item.label}
+                <item.icon className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                {avisos > 0 && (
+                  <span className={cn(
+                    "inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold",
+                    isActive
+                      ? "bg-sidebar-primary-foreground/20 text-sidebar-primary-foreground"
+                      : "bg-amber-500 text-white"
+                  )}>
+                    {avisos}
+                  </span>
+                )}
               </Link>
             );
           })}
