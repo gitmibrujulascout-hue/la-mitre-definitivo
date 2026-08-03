@@ -39,6 +39,24 @@
       "type": "number",
       "description": "Monto total del pre-encargo"
     },
+    "monto_pagado": {
+      "type": "number",
+      "default": 0,
+      "description": "Monto ya pagado (se\u00f1a o pago parcial) por el beneficiario"
+    },
+    "fecha_pago": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha del \u00faltimo pago registrado"
+    },
+    "forma_pago": {
+      "type": "string",
+      "enum": [
+        "Efectivo",
+        "Transferencia"
+      ],
+      "description": "Forma de pago de la se\u00f1a/pago"
+    },
     "estado": {
       "type": "string",
       "enum": [

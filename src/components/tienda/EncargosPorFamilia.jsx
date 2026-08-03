@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MessageCircle, ChevronDown, Users, Check, CheckCheck, Phone, Pencil } from 'lucide-react';
+import { MessageCircle, ChevronDown, Users, Check, CheckCheck, Phone, Pencil, DollarSign } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { openWhatsApp } from '@/lib/whatsappWindow';
 import { cn } from '@/lib/utils';
@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
  * con un botón de WhatsApp para enviar el pedido completo y solicitar confirmación.
  * Los encargos Cancelados se excluyen del mensaje y del total.
  */
-export default function EncargosPorFamilia({ encargos, beneficiarios, productos, onConfirmarFamilia, onEditarEncargo }) {
+export default function EncargosPorFamilia({ encargos, beneficiarios, productos, onConfirmarFamilia, onEditarEncargo, onRegistrarPago }) {
   // Mapa de beneficiario_id → beneficiario
   const benMap = useMemo(() => {
     const m = {};
@@ -74,6 +74,8 @@ export default function EncargosPorFamilia({ encargos, beneficiarios, productos,
         const pendientes = itemsActivos.filter(i => i.estado === 'Pendiente');
         const confirmados = itemsActivos.filter(i => i.estado === 'Confirmado');
         const total = itemsActivos.reduce((s, i) => s + (i.monto_total || 0), 0);
+        const totalPagado = itemsActivos.reduce((s, i) => s + (i.monto_pagado || 0), 0);
+        const saldoFamilia = total - totalPagado;
         const tels = Object.entries(fam.telefonos); // [[telefono, nombre], ...]
 
         return (
@@ -110,43 +112,92 @@ export default function EncargosPorFamilia({ encargos, beneficiarios, productos,
 
               {/* Items */}
               <div className="space-y-1.5">
-                {itemsActivos.map(item => (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      'flex items-center justify-between gap-2 text-sm py-1.5 px-2 rounded-md group',
-                      item.estado === 'Pendiente' ? 'bg-amber-50' : 'bg-transparent'
-                    )}
-                  >
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {item.estado === 'Pendiente' ? (
-                        <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-                      ) : (
-                        <Check className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                {itemsActivos.map(item => {
+                  const pagado = item.monto_pagado || 0;
+                  const saldo = Math.max(0, (item.monto_total || 0) - pagado);
+                  const tienePago = pagado > 0;
+                  const pagoCompleto = saldo === 0 && (item.monto_total || 0) > 0;
+                  return (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        'flex items-center justify-between gap-2 text-sm py-1.5 px-2 rounded-md group',
+                        item.estado === 'Pendiente' ? 'bg-amber-50' : 'bg-transparent'
                       )}
-                      <span className="font-medium truncate">{item.producto_nombre}</span>
-                      {item.talle && <Badge variant="outline" className="text-xs shrink-0">{item.talle}</Badge>}
-                      <span className="text-muted-foreground text-xs">· {item.cantidad} u.</span>
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {item.estado === 'Pendiente' ? (
+                          <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                        ) : (
+                          <Check className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                        )}
+                        <span className="font-medium truncate">{item.producto_nombre}</span>
+                        {item.talle && <Badge variant="outline" className="text-xs shrink-0">{item.talle}</Badge>}
+                        <span className="text-muted-foreground text-xs">· {item.cantidad} u.</span>
+                        {tienePago && (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-xs shrink-0',
+                              pagoCompleto
+                                ? 'border-green-400 text-green-700 bg-green-50'
+                                : 'border-blue-400 text-blue-700 bg-blue-50'
+                            )}
+                          >
+                            {pagoCompleto ? 'Pagado' : 'Seña'}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-right">
+                          {tienePago ? (
+                            <>
+                              <span className="font-semibold text-green-700">{formatMoney(item.monto_total)}</span>
+                              {saldo > 0 && (
+                                <p className="text-xs text-blue-600">Saldo: {formatMoney(saldo)}</p>
+                              )}
+                            </>
+                          ) : (
+                            <span className="font-semibold text-green-700">{formatMoney(item.monto_total)}</span>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Registrar pago"
+                          onClick={() => onRegistrarPago(item)}
+                        >
+                          <DollarSign className="w-3.5 h-3.5 text-green-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Editar encargo"
+                          onClick={() => onEditarEncargo(item)}
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="font-semibold text-green-700">{formatMoney(item.monto_total)}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Editar encargo"
-                        onClick={() => onEditarEncargo(item)}
-                      >
-                        <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Total */}
               <div className="flex items-center justify-between mt-2 pt-2 border-t">
-                <span className="text-sm font-medium text-muted-foreground">Total del pedido</span>
+                <div className="text-sm font-medium text-muted-foreground">
+                  {totalPagado > 0 ? (
+                    <span>
+                      Pagado: <strong className="text-green-700">{formatMoney(totalPagado)}</strong>
+                      <span className="text-muted-foreground"> · Saldo: </span>
+                      <strong className="text-amber-700">{formatMoney(saldoFamilia)}</strong>
+                    </span>
+                  ) : (
+                    'Total del pedido'
+                  )}
+                </div>
                 <span className="text-base font-bold text-green-700">{formatMoney(total)}</span>
               </div>
             </CardContent>

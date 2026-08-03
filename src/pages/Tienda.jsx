@@ -16,6 +16,7 @@ import EntregarEncargoDialog from '@/components/tienda/EntregarEncargoDialog';
 import ReporteEncargosDialog from '@/components/tienda/ReporteEncargosDialog';
 import EncargosPorFamilia from '@/components/tienda/EncargosPorFamilia';
 import EditarEncargoDialog from '@/components/tienda/EditarEncargoDialog';
+import RegistrarPagoEncargoDialog from '@/components/tienda/RegistrarPagoEncargoDialog';
 import { formatMoney } from '@/lib/ramaUtils';
 import { getStockDisponiblePorTalle, getStockFisicoTotal } from '@/lib/tiendaStock';
 import { toast } from 'sonner';
@@ -30,6 +31,7 @@ export default function Tienda() {
   const [catFilter, setCatFilter] = useState('todas');
   const [entregarEncargo, setEntregarEncargo] = useState(null);
   const [editarEncargo, setEditarEncargo] = useState(null);
+  const [pagoEncargo, setPagoEncargo] = useState(null);
   const [showReporteEncargos, setShowReporteEncargos] = useState(false);
   const queryClient = useQueryClient();
 
@@ -122,6 +124,17 @@ export default function Tienda() {
       queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
       queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
       toast.success(`${ids.length} pedido(s) confirmado(s)`);
+    },
+  });
+
+  const registrarPagoEncargo = useMutation({
+    mutationFn: async ({ id, update }) => {
+      await base44.entities.PreEncargoTienda.update(id, update);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
+      toast.success('Pago registrado');
     },
   });
 
@@ -433,6 +446,7 @@ export default function Tienda() {
                 productos={productos}
                 onConfirmarFamilia={(ids) => confirmarFamilia.mutate(ids)}
                 onEditarEncargo={(item) => setEditarEncargo(item)}
+                onRegistrarPago={(item) => setPagoEncargo(item)}
               />
             </div>
 
@@ -528,6 +542,13 @@ export default function Tienda() {
           producto={productos.find(p => p.id === editarEncargo.producto_id)}
           onClose={() => setEditarEncargo(null)}
           onSave={(id, update) => guardarEdicionEncargo.mutate({ id, update })}
+        />
+      )}
+      {pagoEncargo && (
+        <RegistrarPagoEncargoDialog
+          encargo={pagoEncargo}
+          onClose={() => setPagoEncargo(null)}
+          onSave={(id, update) => registrarPagoEncargo.mutate({ id, update })}
         />
       )}
     </div>
