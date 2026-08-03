@@ -7,13 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Wallet, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2, FileText } from 'lucide-react';
+import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Wallet, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2, FileText, Users } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import ProductoTiendaForm from '@/components/tienda/ProductoTiendaForm';
 import VentaTiendaForm from '@/components/tienda/VentaTiendaForm';
 import ProductoGaleria from '@/components/tienda/ProductoGaleria';
 import EntregarEncargoDialog from '@/components/tienda/EntregarEncargoDialog';
 import ReporteEncargosDialog from '@/components/tienda/ReporteEncargosDialog';
+import EncargosPorFamilia from '@/components/tienda/EncargosPorFamilia';
 import { formatMoney } from '@/lib/ramaUtils';
 import { getStockDisponiblePorTalle, getStockFisicoTotal } from '@/lib/tiendaStock';
 import { toast } from 'sonner';
@@ -103,6 +104,22 @@ export default function Tienda() {
       queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
       queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
       toast.success('Pre-encargo actualizado');
+    },
+  });
+
+  const confirmarFamilia = useMutation({
+    mutationFn: async (ids) => {
+      const hoy = new Date().toISOString().split('T')[0];
+      await base44.entities.PreEncargoTienda.bulkUpdate(
+        ids.map(id => ({ id, estado: 'Confirmado', fecha_confirmacion: hoy }))
+      );
+    },
+    onSuccess: (_data, ids) => {
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
+      queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
+      queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
+      toast.success(`${ids.length} pedido(s) confirmado(s)`);
     },
   });
 
@@ -388,6 +405,22 @@ export default function Tienda() {
                 <FileText className="w-4 h-4 mr-1.5" />Reporte proveedor / entrega
               </Button>
             </div>
+
+            {/* Agrupado por familia con WhatsApp para confirmación */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-primary" />
+                Pedidos por familia (para confirmación)
+              </h3>
+              <EncargosPorFamilia
+                encargos={preEncargos}
+                beneficiarios={beneficiarios}
+                onConfirmarFamilia={(ids) => confirmarFamilia.mutate(ids)}
+              />
+            </div>
+
+            {/* Tabla detallada */}
+            <h3 className="text-sm font-semibold mb-2">Detalle de pre-encargos</h3>
             <Card className="overflow-hidden">
               <Table>
                 <TableHeader>
