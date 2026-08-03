@@ -48,14 +48,10 @@ export default function EncargosPorFamilia({ encargos, beneficiarios, productos,
       }
     });
 
-    // Familias con al menos un encargo Pendiente o Confirmado (para confirmar y/o registrar señas)
+    // Familias con al menos un encargo Pendiente (pendientes de confirmación)
     return Object.values(grupos)
-      .filter(g => g.items.some(i => i.estado === 'Pendiente' || i.estado === 'Confirmado'))
-      .sort((a, b) => {
-        const aPend = a.items.filter(i => i.estado === 'Pendiente').length;
-        const bPend = b.items.filter(i => i.estado === 'Pendiente').length;
-        return bPend - aPend;
-      });
+      .filter(g => g.items.some(i => i.estado === 'Pendiente'))
+      .sort((a, b) => b.items.length - a.items.length);
   }, [encargos, benMap]);
 
   if (familias.length === 0) {
@@ -69,12 +65,11 @@ export default function EncargosPorFamilia({ encargos, beneficiarios, productos,
   return (
     <div className="space-y-3">
       {familias.map(fam => {
-        // Excluir cancelados del display, total y mensaje
-        const itemsActivos = fam.items.filter(i => i.estado !== 'Cancelado');
-        const pendientes = itemsActivos.filter(i => i.estado === 'Pendiente');
-        const confirmados = itemsActivos.filter(i => i.estado === 'Confirmado');
-        const total = itemsActivos.reduce((s, i) => s + (i.monto_total || 0), 0);
-        const totalPagado = itemsActivos.reduce((s, i) => s + (i.monto_pagado || 0), 0);
+        // Solo mostrar pendientes (los confirmados ya no aparecen aquí)
+        const pendientes = fam.items.filter(i => i.estado === 'Pendiente');
+        const itemsActivos = pendientes;
+        const total = pendientes.reduce((s, i) => s + (i.monto_total || 0), 0);
+        const totalPagado = pendientes.reduce((s, i) => s + (i.monto_pagado || 0), 0);
         const saldoFamilia = total - totalPagado;
         const tels = Object.entries(fam.telefonos); // [[telefono, nombre], ...]
 
@@ -90,7 +85,7 @@ export default function EncargosPorFamilia({ encargos, beneficiarios, productos,
                   <div>
                     <h4 className="font-semibold text-sm">{fam.label}</h4>
                     <p className="text-xs text-muted-foreground">
-                      {pendientes.length} pendiente(s) · {confirmados.length} confirmado(s) · {itemsActivos.length} item(s)
+                      {pendientes.length} pendiente(s)
                     </p>
                   </div>
                 </div>
@@ -273,8 +268,8 @@ function limpiarTelefono(tel) {
 }
 
 function armarMensajeFamilia(fam) {
-  // Excluir cancelados del mensaje
-  const items = fam.items.filter(i => i.estado !== 'Cancelado');
+  // Solo incluir pendientes en el mensaje
+  const items = fam.items.filter(i => i.estado === 'Pendiente');
   const total = items.reduce((s, i) => s + (i.monto_total || 0), 0);
 
   let lineas = '';
