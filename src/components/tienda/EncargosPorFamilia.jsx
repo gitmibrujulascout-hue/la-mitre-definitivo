@@ -97,16 +97,18 @@ export default function EncargosPorFamilia({ encargos, beneficiarios, productos,
                 <div className="flex items-center gap-2">
                   {/* WhatsApp */}
                   <WhatsAppFamiliaBtn telefonos={tels} fam={fam} />
-                  {/* Confirmar todos los pendientes */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-green-700 border-green-300 hover:bg-green-50 h-8"
-                    onClick={() => onConfirmarFamilia(pendientes.map(p => p.id))}
-                  >
-                    <CheckCheck className="w-3.5 h-3.5 mr-1" />
-                    Confirmar todos
-                  </Button>
+                  {/* Confirmar todos los pendientes (solo si hay) */}
+                  {pendientes.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-green-700 border-green-300 hover:bg-green-50 h-8"
+                      onClick={() => onConfirmarFamilia(pendientes.map(p => p.id))}
+                    >
+                      <CheckCheck className="w-3.5 h-3.5 mr-1" />
+                      Confirmar todos
+                    </Button>
+                  )}
                 </div>
               </div>
 
