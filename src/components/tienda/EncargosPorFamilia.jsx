@@ -130,7 +130,8 @@ export default function EncargosPorFamilia({ encargos, beneficiarios, productos,
                         )}
                         <span className="font-medium truncate">{item.producto_nombre}</span>
                         {item.talle && <Badge variant="outline" className="text-xs shrink-0">{item.talle}</Badge>}
-                        <span className="text-muted-foreground text-xs">· {item.cantidad} u.</span>
+                        <span className="text-muted-foreground text-xs">· {item.cantidad}u</span>
+                        <span className="text-muted-foreground text-xs truncate">· {item.beneficiario_nombre}</span>
                         {tienePago && (
                           <Badge
                             variant="outline"

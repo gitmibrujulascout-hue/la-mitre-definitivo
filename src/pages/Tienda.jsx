@@ -327,18 +327,18 @@ export default function Tienda() {
                         {p.talles?.map(t => {
                           const fisico = p.stock_por_talle?.[t] ?? 0;
                           const disp = getDisponibleTalle(p, t);
-                          const reservado = fisico - disp;
+                          const reservado = Math.max(0, fisico - disp);
                           return (
                             <div key={t} className="flex items-center justify-between text-xs">
                               <span className="text-muted-foreground">Talle {t}</span>
                               <div className="flex items-center gap-1.5">
                                 {reservado > 0 && (
                                   <span className="text-amber-600 text-xs" title="Reservado por pre-encargos">
-                                    ({reservado} res.)
+                                    ({reservado} res. · {disp} disp.)
                                   </span>
                                 )}
-                                <Badge className={cn('text-xs', disp === 0 ? 'bg-red-100 text-red-700' : disp <= (p.stock_minimo || 0) ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700')}>
-                                  {disp} disp.
+                                <Badge className={cn('text-xs', fisico === 0 ? 'bg-red-100 text-red-700' : fisico <= (p.stock_minimo || 0) ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700')}>
+                                  {fisico}
                                 </Badge>
                               </div>
                             </div>
@@ -347,15 +347,15 @@ export default function Tienda() {
                       </div>
                     ) : (
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Stock total</span>
+                        <span className="text-muted-foreground">Stock</span>
                         <div className="flex items-center gap-1.5">
                           {reservasPorProducto[p.id] > 0 && (
                             <span className="text-amber-600 text-xs" title="Reservado por pre-encargos">
-                              ({reservasPorProducto[p.id]} res.)
+                              ({reservasPorProducto[p.id]} res. · {getDisponibleTalle(p)} disp.)
                             </span>
                           )}
-                          <Badge className={cn(getDisponibleTalle(p) === 0 ? 'bg-red-100 text-red-700' : getDisponibleTalle(p) <= (p.stock_minimo || 0) ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700')}>
-                            {getDisponibleTalle(p)} disp.
+                          <Badge className={cn(getStockTotal(p) === 0 ? 'bg-red-100 text-red-700' : getStockTotal(p) <= (p.stock_minimo || 0) ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700')}>
+                            {getStockTotal(p)}
                           </Badge>
                         </div>
                       </div>

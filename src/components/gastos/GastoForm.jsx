@@ -76,6 +76,7 @@ export default function GastoForm({ open, onClose, initialData }) {
     setUploading(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
     update('archivo_url', file_url);
+    setFile(null);
     setUploading(false);
     toast.success('Archivo subido');
     return file_url;
@@ -125,13 +126,24 @@ export default function GastoForm({ open, onClose, initialData }) {
     setExtracting(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.descripcion || !form.monto) return;
+    let archivoUrl = form.archivo_url;
+    if (file) {
+      setUploading(true);
+      try {
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        archivoUrl = file_url;
+      } finally {
+        setUploading(false);
+      }
+    }
     const destino = form.forma_pago === 'Transferencia' ? 'Banco' : 'Caja';
     const camp = campamentos.find(c => c.id === form.campamento_id);
     const activ = actividades.find(a => a.id === form.actividad_id);
     const data = {
       ...form,
+      archivo_url: archivoUrl,
       monto: parseFloat(form.monto),
       destino,
       campamento_nombre: camp?.nombre || '',
@@ -260,7 +272,7 @@ export default function GastoForm({ open, onClose, initialData }) {
               <Label>Adjuntar archivo</Label>
               <div className="flex gap-2 mt-1">
                 <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setFile(e.target.files[0])} />
-                {file && !form.archivo_url && (
+                {file && (
                   <Button variant="outline" size="sm" onClick={handleFileUpload} disabled={uploading}>
                     {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                   </Button>
@@ -273,7 +285,7 @@ export default function GastoForm({ open, onClose, initialData }) {
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={!form.descripcion || !form.monto}>{isEditing ? 'Actualizar' : 'Guardar'}</Button>
+          <Button onClick={handleSave} disabled={!form.descripcion || !form.monto || uploading}>{isEditing ? 'Actualizar' : 'Guardar'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
