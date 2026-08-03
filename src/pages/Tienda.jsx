@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Wallet, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2, FileText, Users } from 'lucide-react';
+import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Wallet, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2, FileText, Users, DollarSign } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import ProductoTiendaForm from '@/components/tienda/ProductoTiendaForm';
 import VentaTiendaForm from '@/components/tienda/VentaTiendaForm';
@@ -463,12 +463,13 @@ export default function Tienda() {
                     <TableHead>Cant.</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Estado</TableHead>
+                    <TableHead>Pago</TableHead>
                     <TableHead className="w-32">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {preEncargos.length === 0 ? (
-                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No hay pre-encargos</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No hay pre-encargos</TableCell></TableRow>
                   ) : preEncargos.map(e => (
                     <TableRow key={e.id}>
                       <TableCell className="text-muted-foreground text-sm whitespace-nowrap">{e.fecha}</TableCell>
@@ -478,6 +479,26 @@ export default function Tienda() {
                       <TableCell className="text-sm">{e.cantidad}</TableCell>
                       <TableCell className="font-semibold text-sm">{formatMoney(e.monto_total)}</TableCell>
                       <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          {(() => {
+                            const pagado = e.monto_pagado || 0;
+                            const saldo = Math.max(0, (e.monto_total || 0) - pagado);
+                            if (pagado === 0) {
+                              return <span className="text-xs text-muted-foreground">Sin pago</span>;
+                            }
+                            if (saldo === 0) {
+                              return <Badge className="bg-green-100 text-green-700 border border-green-300 text-xs w-fit">Pagado</Badge>;
+                            }
+                            return (
+                              <>
+                                <Badge className="bg-blue-100 text-blue-700 border border-blue-300 text-xs w-fit">Seña {formatMoney(pagado)}</Badge>
+                                <span className="text-xs text-muted-foreground">Saldo {formatMoney(saldo)}</span>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         {e.estado === 'Pendiente' && <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">Pendiente</Badge>}
                         {e.estado === 'Confirmado' && <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs">Confirmado</Badge>}
                         {e.estado === 'Entregado' && <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">Entregado</Badge>}
@@ -485,6 +506,11 @@ export default function Tienda() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          {(e.estado === 'Pendiente' || e.estado === 'Confirmado') && (
+                            <Button variant="outline" size="sm" className="h-7 text-xs text-green-700 border-green-300 hover:bg-green-50" onClick={() => setPagoEncargo(e)} title="Registrar pago / seña">
+                              <DollarSign className="w-3 h-3 mr-1" />Pago
+                            </Button>
+                          )}
                           {e.estado === 'Pendiente' && (
                             <>
                               <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => actualizarEncargo.mutate({ id: e.id, estado: 'Confirmado' })}>

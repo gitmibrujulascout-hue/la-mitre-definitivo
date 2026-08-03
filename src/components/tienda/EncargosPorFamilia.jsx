@@ -48,9 +48,9 @@ export default function EncargosPorFamilia({ encargos, beneficiarios, productos,
       }
     });
 
-    // Solo familias con al menos un encargo Pendiente (necesitan confirmación)
+    // Familias con al menos un encargo Pendiente o Confirmado (para confirmar y/o registrar señas)
     return Object.values(grupos)
-      .filter(g => g.items.some(i => i.estado === 'Pendiente'))
+      .filter(g => g.items.some(i => i.estado === 'Pendiente' || i.estado === 'Confirmado'))
       .sort((a, b) => {
         const aPend = a.items.filter(i => i.estado === 'Pendiente').length;
         const bPend = b.items.filter(i => i.estado === 'Pendiente').length;
@@ -61,7 +61,7 @@ export default function EncargosPorFamilia({ encargos, beneficiarios, productos,
   if (familias.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground text-sm">
-        No hay pedidos pendientes de confirmación.
+        No hay pedidos pendientes de confirmación o pago.
       </div>
     );
   }
