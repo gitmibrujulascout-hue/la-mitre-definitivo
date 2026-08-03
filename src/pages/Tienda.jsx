@@ -15,6 +15,7 @@ import ProductoGaleria from '@/components/tienda/ProductoGaleria';
 import EntregarEncargoDialog from '@/components/tienda/EntregarEncargoDialog';
 import ReporteEncargosDialog from '@/components/tienda/ReporteEncargosDialog';
 import EncargosPorFamilia from '@/components/tienda/EncargosPorFamilia';
+import EditarEncargoDialog from '@/components/tienda/EditarEncargoDialog';
 import { formatMoney } from '@/lib/ramaUtils';
 import { getStockDisponiblePorTalle, getStockFisicoTotal } from '@/lib/tiendaStock';
 import { toast } from 'sonner';
@@ -28,6 +29,7 @@ export default function Tienda() {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('todas');
   const [entregarEncargo, setEntregarEncargo] = useState(null);
+  const [editarEncargo, setEditarEncargo] = useState(null);
   const [showReporteEncargos, setShowReporteEncargos] = useState(false);
   const queryClient = useQueryClient();
 
@@ -120,6 +122,19 @@ export default function Tienda() {
       queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
       queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
       toast.success(`${ids.length} pedido(s) confirmado(s)`);
+    },
+  });
+
+  const guardarEdicionEncargo = useMutation({
+    mutationFn: async ({ id, update }) => {
+      await base44.entities.PreEncargoTienda.update(id, update);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
+      queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
+      queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
+      toast.success('Encargo actualizado');
     },
   });
 
@@ -415,7 +430,9 @@ export default function Tienda() {
               <EncargosPorFamilia
                 encargos={preEncargos}
                 beneficiarios={beneficiarios}
+                productos={productos}
                 onConfirmarFamilia={(ids) => confirmarFamilia.mutate(ids)}
+                onEditarEncargo={(item) => setEditarEncargo(item)}
               />
             </div>
 
@@ -503,6 +520,14 @@ export default function Tienda() {
         <ReporteEncargosDialog
           encargos={preEncargos}
           onClose={() => setShowReporteEncargos(false)}
+        />
+      )}
+      {editarEncargo && (
+        <EditarEncargoDialog
+          encargo={editarEncargo}
+          producto={productos.find(p => p.id === editarEncargo.producto_id)}
+          onClose={() => setEditarEncargo(null)}
+          onSave={(id, update) => guardarEdicionEncargo.mutate({ id, update })}
         />
       )}
     </div>

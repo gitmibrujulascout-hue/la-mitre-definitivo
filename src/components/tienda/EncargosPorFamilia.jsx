@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MessageCircle, ChevronDown, Users, Check, CheckCheck, Phone } from 'lucide-react';
+import { MessageCircle, ChevronDown, Users, Check, CheckCheck, Phone, Pencil } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { openWhatsApp } from '@/lib/whatsappWindow';
 import { cn } from '@/lib/utils';
@@ -16,8 +16,9 @@ import { cn } from '@/lib/utils';
 /**
  * Muestra los pre-encargos agrupados por familia (grupo_familiar),
  * con un botón de WhatsApp para enviar el pedido completo y solicitar confirmación.
+ * Los encargos Cancelados se excluyen del mensaje y del total.
  */
-export default function EncargosPorFamilia({ encargos, beneficiarios, onConfirmarFamilia }) {
+export default function EncargosPorFamilia({ encargos, beneficiarios, productos, onConfirmarFamilia, onEditarEncargo }) {
   // Mapa de beneficiario_id → beneficiario
   const benMap = useMemo(() => {
     const m = {};
@@ -68,9 +69,11 @@ export default function EncargosPorFamilia({ encargos, beneficiarios, onConfirma
   return (
     <div className="space-y-3">
       {familias.map(fam => {
-        const pendientes = fam.items.filter(i => i.estado === 'Pendiente');
-        const confirmados = fam.items.filter(i => i.estado === 'Confirmado');
-        const total = fam.items.reduce((s, i) => s + (i.monto_total || 0), 0);
+        // Excluir cancelados del display, total y mensaje
+        const itemsActivos = fam.items.filter(i => i.estado !== 'Cancelado');
+        const pendientes = itemsActivos.filter(i => i.estado === 'Pendiente');
+        const confirmados = itemsActivos.filter(i => i.estado === 'Confirmado');
+        const total = itemsActivos.reduce((s, i) => s + (i.monto_total || 0), 0);
         const tels = Object.entries(fam.telefonos); // [[telefono, nombre], ...]
 
         return (
@@ -85,7 +88,7 @@ export default function EncargosPorFamilia({ encargos, beneficiarios, onConfirma
                   <div>
                     <h4 className="font-semibold text-sm">{fam.label}</h4>
                     <p className="text-xs text-muted-foreground">
-                      {pendientes.length} pendiente(s) · {confirmados.length} confirmado(s) · {fam.items.length} item(s)
+                      {pendientes.length} pendiente(s) · {confirmados.length} confirmado(s) · {itemsActivos.length} item(s)
                     </p>
                   </div>
                 </div>
@@ -107,11 +110,11 @@ export default function EncargosPorFamilia({ encargos, beneficiarios, onConfirma
 
               {/* Items */}
               <div className="space-y-1.5">
-                {fam.items.map(item => (
+                {itemsActivos.map(item => (
                   <div
                     key={item.id}
                     className={cn(
-                      'flex items-center justify-between gap-2 text-sm py-1.5 px-2 rounded-md',
+                      'flex items-center justify-between gap-2 text-sm py-1.5 px-2 rounded-md group',
                       item.estado === 'Pendiente' ? 'bg-amber-50' : 'bg-transparent'
                     )}
                   >
@@ -125,7 +128,18 @@ export default function EncargosPorFamilia({ encargos, beneficiarios, onConfirma
                       {item.talle && <Badge variant="outline" className="text-xs shrink-0">{item.talle}</Badge>}
                       <span className="text-muted-foreground text-xs">· {item.cantidad} u.</span>
                     </div>
-                    <span className="font-semibold text-green-700 shrink-0">{formatMoney(item.monto_total)}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-semibold text-green-700">{formatMoney(item.monto_total)}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Editar encargo"
+                        onClick={() => onEditarEncargo(item)}
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -206,7 +220,8 @@ function limpiarTelefono(tel) {
 }
 
 function armarMensajeFamilia(fam) {
-  const items = fam.items;
+  // Excluir cancelados del mensaje
+  const items = fam.items.filter(i => i.estado !== 'Cancelado');
   const total = items.reduce((s, i) => s + (i.monto_total || 0), 0);
 
   let lineas = '';
