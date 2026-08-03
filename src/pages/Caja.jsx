@@ -154,8 +154,9 @@ export default function Caja() {
     return 'Caja';
   };
 
-  // Helper: destino efectivo de un pago
+  // Helper: destino efectivo de un pago (los subsidios del grupo no mueven dinero real)
   const destinoPago = (p) => {
+    if (p.forma_pago === 'Subsidio del grupo' || p.destino === 'Grupo') return null;
     if (p.destino === 'Banco') return 'Banco';
     if (p.destino === 'Caja') return 'Caja';
     if (p.forma_pago === 'Transferencia') return 'Banco';

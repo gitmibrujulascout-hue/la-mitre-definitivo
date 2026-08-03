@@ -61,18 +61,20 @@
       "enum": [
         "Efectivo",
         "Transferencia",
-        "Cr\u00e9dito actividad"
+        "Cr\u00e9dito actividad",
+        "Subsidio del grupo"
       ],
-      "description": "Forma de pago"
+      "description": "Forma de pago. 'Subsidio del grupo' indica que el grupo absorbe el costo (no mueve dinero real)."
     },
     "destino": {
       "type": "string",
       "enum": [
         "Caja",
-        "Banco"
+        "Banco",
+        "Grupo"
       ],
       "default": "Caja",
-      "description": "Destino del dinero: Caja (efectivo) o Banco (transferencia)"
+      "description": "Destino del dinero: Caja (efectivo), Banco (transferencia) o Grupo (absorbido por el grupo, no mueve fondos)"
     },
     "monto": {
       "type": "number",
@@ -85,7 +87,7 @@
     },
     "observaciones": {
       "type": "string",
-      "description": "Notas adicionales"
+      "description": "Notas adicionales (ej: motivo del subsidio)"
     }
   },
   "required": [

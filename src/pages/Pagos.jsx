@@ -76,7 +76,7 @@ export default function Pagos() {
                         : `${(p.meses?.length ? p.meses.join(', ') : (p.mes || '—'))} ${p.anio}`}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{p.forma_pago}</Badge>
+                      <Badge variant="outline" className={p.forma_pago === 'Subsidio del grupo' ? 'border-purple-300 bg-purple-50 text-purple-700' : ''}>{p.forma_pago}</Badge>
                     </TableCell>
                     <TableCell className="font-semibold text-green-600">{formatMoney(p.monto)}</TableCell>
                     <TableCell className="hidden sm:table-cell text-muted-foreground">{p.fecha_pago}</TableCell>

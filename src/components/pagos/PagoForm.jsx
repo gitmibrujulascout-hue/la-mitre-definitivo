@@ -218,7 +218,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   const montoFinal = tipoPago === 'Cuota' ? montoCuotas : montoCampamento;
 
   // Destino automático según forma de pago
-  const destino = formaPago === 'Transferencia' ? 'Banco' : 'Caja';
+  const destino = formaPago === 'Transferencia' ? 'Banco' : formaPago === 'Subsidio del grupo' ? 'Grupo' : 'Caja';
 
   // Crédito aplicado
   const montoCreditoNum = creditoSeleccionado ? Math.min(parseFloat(montoCreditoAplicar) || 0, creditoSeleccionado.monto_disponible) : 0;
@@ -465,7 +465,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
           </div>
 
           {/* Hermanos del grupo familiar */}
-          {tipoPago === 'Cuota' && hermanos.length > 0 && formaPago !== 'Crédito actividad' && (
+          {tipoPago === 'Cuota' && hermanos.length > 0 && formaPago !== 'Crédito actividad' && formaPago !== 'Subsidio del grupo' && (
             <div className="p-3 rounded-lg border border-blue-200 bg-blue-50/60 space-y-2">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-blue-600" />
@@ -586,11 +586,14 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
                 {creditosDisponibles.length > 0 && (
                   <SelectItem value="Crédito actividad">Crédito actividad — {formatMoney(totalCreditos)} disp.</SelectItem>
                 )}
+                <SelectItem value="Subsidio del grupo">Subsidio del grupo (absorbido)</SelectItem>
               </SelectContent>
             </Select>
             {formaPago && formaPago !== 'Crédito actividad' && (
               <p className="text-xs text-muted-foreground mt-1">
-                El dinero irá a: <span className="font-medium">{destino}</span>
+                {formaPago === 'Subsidio del grupo'
+                  ? <>El grupo absorbe este monto (no mueve dinero real). Registrá el motivo en observaciones.</>
+                  : <>El dinero irá a: <span className="font-medium">{destino}</span></>}
               </p>
             )}
           </div>
@@ -694,7 +697,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
           </div>
           <div>
             <Label>Observaciones</Label>
-            <Input value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Opcional" />
+            <Input value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder={formaPago === 'Subsidio del grupo' ? 'Motivo del subsidio (evaluado con dirigentes)' : 'Opcional'} />
           </div>
         </div>
         <DialogFooter>

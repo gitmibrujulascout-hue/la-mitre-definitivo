@@ -12,6 +12,7 @@ import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 
 const destinoPago = (p) => {
+  if (p.forma_pago === 'Subsidio del grupo' || p.destino === 'Grupo') return null;
   if (p.destino === 'Banco') return 'Banco';
   if (p.destino === 'Caja') return 'Caja';
   if (p.forma_pago === 'Transferencia') return 'Banco';
