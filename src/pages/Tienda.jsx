@@ -507,7 +507,7 @@ export default function Tienda() {
         <ProductoTiendaForm open onClose={() => setShowProductoForm(false)} producto={editProducto} />
       )}
       {showVentaForm && (
-        <VentaTiendaForm open onClose={() => setShowVentaForm(false)} productos={productos} beneficiarios={beneficiarios} />
+        <VentaTiendaForm open onClose={() => setShowVentaForm(false)} productos={productos} beneficiarios={beneficiarios} preEncargos={preEncargos} />
       )}
       {entregarEncargo && (
         <EntregarEncargoDialog

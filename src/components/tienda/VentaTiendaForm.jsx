@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Trash2 } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
+import { getStockDisponiblePorTalle } from '@/lib/tiendaStock';
 
-export default function VentaTiendaForm({ open, onClose, productos, beneficiarios }) {
+export default function VentaTiendaForm({ open, onClose, productos, beneficiarios, preEncargos = [] }) {
   const [items, setItems] = useState([]);
   const [beneficiarioId, setBeneficiarioId] = useState('');
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
@@ -97,6 +98,11 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
     if (!prod) return false;
     if ((parseInt(it.cantidad) || 0) <= 0) return false;
     if (prod.tiene_talles && !it.talle) return false;
+    // Validar stock disponible (físico - reservas)
+    const disp = prod.tiene_talles
+      ? getStockDisponiblePorTalle(prod, preEncargos)[it.talle] ?? 0
+      : getStockDisponiblePorTalle(prod, preEncargos)._sin_talle ?? 0;
+    if ((parseInt(it.cantidad) || 0) > Math.max(0, disp)) return false;
     return true;
   });
 
@@ -161,11 +167,14 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
                       <Select value={it.talle} onValueChange={v => updateItem(idx, 'talle', v)}>
                         <SelectTrigger className="h-8"><SelectValue placeholder="Talle..." /></SelectTrigger>
                         <SelectContent>
-                          {prod.talles?.map(t => (
-                            <SelectItem key={t} value={t} disabled={(prod.stock_por_talle?.[t] ?? 0) === 0}>
-                              {t} ({prod.stock_por_talle?.[t] ?? 0} disp.)
-                            </SelectItem>
-                          ))}
+                          {prod.talles?.map(t => {
+                            const disp = Math.max(0, getStockDisponiblePorTalle(prod, preEncargos)[t] ?? 0);
+                            return (
+                              <SelectItem key={t} value={t} disabled={disp === 0}>
+                                {t} ({disp} disp.)
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>
