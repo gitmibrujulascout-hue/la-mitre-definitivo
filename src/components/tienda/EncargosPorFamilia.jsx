@@ -273,10 +273,28 @@ function armarMensajeFamilia(fam) {
   const items = fam.items.filter(i => i.estado === 'Pendiente');
   const total = items.reduce((s, i) => s + (i.monto_total || 0), 0);
 
-  let lineas = '';
-  items.forEach((item, idx) => {
-    const talle = item.talle ? ` (talle ${item.talle})` : '';
-    lineas += `${idx + 1}. ${item.producto_nombre}${talle} — ${item.cantidad} u. — ${formatMoney(item.monto_total)}\n`;
+  // Agrupar por beneficiario, preservando el orden de aparición
+  const porBen = {};
+  const ordenBen = [];
+  items.forEach(item => {
+    const key = item.beneficiario_id || item.beneficiario_nombre;
+    if (!porBen[key]) {
+      porBen[key] = { nombre: item.beneficiario_nombre || 'Beneficiario', items: [] };
+      ordenBen.push(key);
+    }
+    porBen[key].items.push(item);
+  });
+
+  let cuerpo = '';
+  ordenBen.forEach((key, idx) => {
+    const grupo = porBen[key];
+    cuerpo += `*${grupo.nombre}:*\n`;
+    grupo.items.forEach(item => {
+      const talle = item.talle ? ` (talle ${item.talle})` : '';
+      const unit = item.precio_unitario != null ? ` · ${formatMoney(item.precio_unitario)}/u` : '';
+      cuerpo += `• ${item.producto_nombre}${talle} — ${item.cantidad}u${unit} = ${formatMoney(item.monto_total)}\n`;
+    });
+    if (idx < ordenBen.length - 1) cuerpo += '\n';
   });
 
   return `Hola! 👋 Les escribimos desde la Tienda del *Grupo Scout Bartolomé Mitre*.
@@ -284,7 +302,7 @@ function armarMensajeFamilia(fam) {
 Hemos recibido el pedido de su familia:
 
 📋 *Pedido:*
-${lineas}
+${cuerpo}
 💰 *Total:* ${formatMoney(total)}
 
 Por favor, confirmen el pedido respondiendo a este mensaje.
