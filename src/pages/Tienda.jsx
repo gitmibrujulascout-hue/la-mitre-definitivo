@@ -7,13 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2, FileText, Users, DollarSign, Undo2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2, Users, DollarSign, Undo2 } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import ProductoTiendaForm from '@/components/tienda/ProductoTiendaForm';
 import VentaTiendaForm from '@/components/tienda/VentaTiendaForm';
 import ProductoGaleria from '@/components/tienda/ProductoGaleria';
 import EntregarEncargoDialog from '@/components/tienda/EntregarEncargoDialog';
-import ReporteEncargosDialog from '@/components/tienda/ReporteEncargosDialog';
+import ReporteProveedorDialog from '@/components/tienda/ReporteProveedorDialog';
+import ListaEntregaDialog from '@/components/tienda/ListaEntregaDialog';
 import EncargosPorFamilia from '@/components/tienda/EncargosPorFamilia';
 import EditarEncargoDialog from '@/components/tienda/EditarEncargoDialog';
 import RegistrarPagoEncargoDialog from '@/components/tienda/RegistrarPagoEncargoDialog';
@@ -33,7 +34,8 @@ export default function Tienda() {
   const [entregarEncargo, setEntregarEncargo] = useState(null);
   const [editarEncargo, setEditarEncargo] = useState(null);
   const [pagoEncargo, setPagoEncargo] = useState(null);
-  const [showReporteEncargos, setShowReporteEncargos] = useState(false);
+  const [showReporteProveedor, setShowReporteProveedor] = useState(false);
+  const [showListaEntrega, setShowListaEntrega] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: productos = [] } = useQuery({
@@ -462,9 +464,12 @@ export default function Tienda() {
         {/* Pre-encargos */}
         {tab === 'encargos' && (
           <TabsContent value="encargos">
-            <div className="flex justify-end mb-3">
-              <Button variant="outline" size="sm" onClick={() => setShowReporteEncargos(true)}>
-                <FileText className="w-4 h-4 mr-1.5" />Reporte proveedor / entrega
+            <div className="flex justify-end gap-2 mb-3">
+              <Button variant="outline" size="sm" onClick={() => setShowReporteProveedor(true)}>
+                <Package className="w-4 h-4 mr-1.5" />Pedido al proveedor
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowListaEntrega(true)}>
+                <ClipboardList className="w-4 h-4 mr-1.5" />Lista de entrega
               </Button>
             </div>
 
@@ -595,10 +600,16 @@ export default function Tienda() {
           onClose={() => setEntregarEncargo(null)}
         />
       )}
-      {showReporteEncargos && (
-        <ReporteEncargosDialog
+      {showReporteProveedor && (
+        <ReporteProveedorDialog
           encargos={preEncargos}
-          onClose={() => setShowReporteEncargos(false)}
+          onClose={() => setShowReporteProveedor(false)}
+        />
+      )}
+      {showListaEntrega && (
+        <ListaEntregaDialog
+          encargos={preEncargos}
+          onClose={() => setShowListaEntrega(false)}
         />
       )}
       {editarEncargo && (
