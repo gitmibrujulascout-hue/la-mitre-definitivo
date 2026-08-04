@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import PageHeader from '@/components/shared/PageHeader';
 import { Eye, EyeOff, Search, CheckCircle2, XCircle, Users } from 'lucide-react';
-import { esBeneficiarioConCuota, compararPorRamaYApellido } from '@/lib/ramaUtils';
+import { esBeneficiarioConCuota, getApellido } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 
 function fechaLinda(d) {
@@ -25,7 +25,7 @@ export default function ConsultasFamilias() {
     queryFn: () => base44.entities.Beneficiario.list(),
   });
 
-  // Familias esperadas: beneficiarios activos con cuota, agrupados por grupo familiar
+  // Familias esperadas: beneficiarios activos con cuota, agrupadas por grupo familiar
   const familias = useMemo(() => {
     const map = {};
     beneficiarios
@@ -35,13 +35,14 @@ export default function ConsultasFamilias() {
         if (!map[key]) map[key] = { key, grupo: b.grupo_familiar, miembros: [] };
         map[key].miembros.push(b);
       });
-    return Object.values(map).map(f => ({
+    const list = Object.values(map).map(f => ({
       ...f,
-      miembros: f.miembros.sort((a, b) =>
-        compararPorRamaYApellido(a.rama, a.nombre, b.rama, b.nombre)
-      ),
+      miembros: f.miembros.sort((a, b) => getApellido(a.nombre).localeCompare(getApellido(b.nombre), 'es')),
       label: f.grupo ? `Familia ${f.grupo}` : (f.miembros[0]?.nombre || '—'),
+      // Clave de ordenamiento: apellido del primer miembro (alfabético)
+      sortKey: f.miembros.map(m => getApellido(m.nombre)).sort((a, b) => a.localeCompare(b, 'es'))[0] || '',
     }));
+    return list.sort((a, b) => a.sortKey.localeCompare(b.sortKey, 'es'));
   }, [beneficiarios]);
 
   // Consultas agrupadas por beneficiario encontrado
@@ -61,16 +62,12 @@ export default function ConsultasFamilias() {
     () => familias.filter(f => f.miembros.some(m => idsConConsulta.has(m.id))),
     [familias, idsConConsulta]
   );
-  const familiasSinConsulta = useMemo(
-    () => familias.filter(f => !f.miembros.some(m => idsConConsulta.has(m.id))),
-    [familias, idsConConsulta]
-  );
 
   const stats = {
     totalConsultas: consultas.length,
     consultasFallidas: consultas.filter(c => !c.encontrado).length,
     consultaron: familiasConConsulta.length,
-    sinConsultar: familiasSinConsulta.length,
+    sinConsultar: familias.length - familiasConConsulta.length,
     totalFamilias: familias.length,
   };
 
@@ -136,48 +133,48 @@ export default function ConsultasFamilias() {
         </Card>
       </div>
 
-      {/* Familias que NO consultaron — insistir */}
-      {familiasSinConsulta.length > 0 && (
-        <Card className="p-4 mb-6 border-red-200 bg-red-50/40">
-          <h3 className="font-semibold text-sm flex items-center gap-2 mb-3 text-red-800">
-            <EyeOff className="w-4 h-4" />
-            Familias que todavía no consultaron ({familiasSinConsulta.length})
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {familiasSinConsulta.map(f => (
-              <div key={f.key} className="rounded-lg border border-red-200 bg-white p-2.5">
-                <p className="font-medium text-sm">{f.label}</p>
-                <p className="text-xs text-muted-foreground">
-                  {f.miembros.map(m => m.nombre).join(' · ')}
-                </p>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Familias que consultaron */}
+      {/* Listado completo de familias */}
       <Card className="p-4 mb-6">
-        <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
-          <Eye className="w-4 h-4 text-green-600" />
-          Familias que consultaron ({familiasConConsulta.length})
-        </h3>
-        {familiasConConsulta.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Todavía no hay consultas registradas.</p>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-sm flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Todas las familias ({familias.length})
+          </h3>
+          <p className="text-xs text-muted-foreground">Ordenadas alfabéticamente · contador de consultas</p>
+        </div>
+        {familias.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sin familias para mostrar.</p>
         ) : (
-          <div className="space-y-2">
-            {familiasConConsulta.map(f => {
-              const ult = ultimaDeFamilia(f);
+          <div className="divide-y">
+            {familias.map(f => {
               const total = totalConsultasDeFamilia(f);
+              const consulto = total > 0;
+              const ult = ultimaDeFamilia(f);
               return (
-                <div key={f.key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border bg-green-50/30 p-3">
-                  <div>
-                    <p className="font-medium text-sm">{f.label}</p>
-                    <p className="text-xs text-muted-foreground">{f.miembros.map(m => m.nombre).join(' · ')}</p>
+                <div
+                  key={f.key}
+                  className={cn(
+                    "flex items-center justify-between gap-3 py-2.5",
+                    consulto ? "" : "opacity-70"
+                  )}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className={cn("font-medium text-sm", !consulto && "text-muted-foreground")}>
+                      {f.label}
+                      {!consulto && <span className="ml-2 text-xs text-red-500">sin consultar</span>}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {f.miembros.map(m => m.nombre).join(' · ')}
+                      {consulto && <span className="ml-1">· última {fechaLinda(ult?.created_date)}</span>}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-3 text-xs">
-                    <Badge variant="secondary">{total} {total === 1 ? 'consulta' : 'consultas'}</Badge>
-                    <span className="text-muted-foreground">Última: <strong className="text-foreground">{fechaLinda(ult?.created_date)}</strong></span>
+                  <div className={cn(
+                    "flex items-center justify-center min-w-[36px] h-7 px-2 rounded-full text-xs font-bold flex-shrink-0",
+                    consulto
+                      ? "bg-green-100 text-green-700 border border-green-300"
+                      : "bg-red-100 text-red-600 border border-red-300"
+                  )}>
+                    {total}
                   </div>
                 </div>
               );
