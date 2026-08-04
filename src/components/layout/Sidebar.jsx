@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, CreditCard, Receipt, Tent, 
-  BookOpen, Menu, X, TreePine, Landmark, TrendingUp, ExternalLink, FileText, ShieldCheck, MessageCircle, HeartPulse, ShoppingBag, Calendar
+  BookOpen, Menu, X, TreePine, Landmark, TrendingUp, ExternalLink, FileText, ShieldCheck, MessageCircle, HeartPulse, ShoppingBag, Calendar, Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAvisosPendientes } from '@/hooks/useAvisosPendientes';
@@ -23,6 +23,7 @@ const navItems = [
   { path: '/afiliaciones', label: 'Afiliaciones', icon: ShieldCheck },
   { path: '/agente-scout', label: 'Agente WhatsApp', icon: MessageCircle },
   { path: '/directorio-emergencias', label: 'Directorio Emergencias', icon: HeartPulse },
+  { path: '/consultas-familias', label: 'Consultas Familias', icon: Eye },
 ];
 
 export default function Sidebar() {

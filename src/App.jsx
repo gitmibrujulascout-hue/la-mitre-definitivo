@@ -22,6 +22,7 @@ import Afiliaciones from '@/pages/Afiliaciones';
 import AgenteScout from '@/pages/AgenteScout';
 import ReporteBeneficiarios from '@/pages/ReporteBeneficiarios';
 import DirectorioEmergencias from '@/pages/DirectorioEmergencias';
+import ConsultasFamilias from '@/pages/ConsultasFamilias';
 import FichaEmergencia from '@/pages/FichaEmergencia.jsx';
 import CampamentoPublico from '@/pages/CampamentoPublico';
 
@@ -78,6 +79,7 @@ const AuthenticatedApp = () => {
         <Route path="/agente-scout" element={<AgenteScout />} />
         <Route path="/reporte-beneficiarios" element={<ReporteBeneficiarios />} />
         <Route path="/directorio-emergencias" element={<DirectorioEmergencias />} />
+        <Route path="/consultas-familias" element={<ConsultasFamilias />} />
       </Route>
       <Route path="/estado-cuenta" element={<EstadoCuenta />} />
       <Route path="/ficha-emergencia" element={<FichaEmergencia />} />

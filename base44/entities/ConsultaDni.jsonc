@@ -1,0 +1,48 @@
+{
+  "name": "ConsultaDni",
+  "type": "object",
+  "properties": {
+    "dni_buscado": {
+      "type": "string",
+      "description": "DNI ingresado en la consulta del estado de cuenta familiar"
+    },
+    "encontrado": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si se encontr\u00f3 un beneficiario con ese DNI"
+    },
+    "beneficiario_id": {
+      "type": "string",
+      "description": "ID del beneficiario encontrado (si aplica)"
+    },
+    "beneficiario_nombre": {
+      "type": "string",
+      "description": "Nombre del beneficiario encontrado (si aplica)"
+    },
+    "grupo_familiar": {
+      "type": "string",
+      "description": "Grupo familiar del beneficiario encontrado (si aplica)"
+    }
+  },
+  "required": [
+    "dni_buscado"
+  ],
+  "rls": {
+    "create": {},
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

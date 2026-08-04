@@ -178,7 +178,19 @@ export default function EstadoCuenta() {
     };
   };
 
-  const handleBuscar = () => setDniBuscado(dniInput);
+  const handleBuscar = () => {
+    const dni = dniInput.trim();
+    setDniBuscado(dni);
+    // Registrar la consulta para seguimiento de adopción familiar (fire-and-forget)
+    const ben = beneficiarios.find(b => b.dni === dni) || null;
+    base44.entities.ConsultaDni.create({
+      dni_buscado: dni,
+      encontrado: !!ben,
+      beneficiario_id: ben?.id || '',
+      beneficiario_nombre: ben?.nombre || '',
+      grupo_familiar: ben?.grupo_familiar || '',
+    }).catch(() => {});
+  };
 
   const loading = loadingBen || loadingPagos;
 
