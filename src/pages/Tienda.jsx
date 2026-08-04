@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2, FileText, Users, DollarSign } from 'lucide-react';
+import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2, FileText, Users, DollarSign, Undo2 } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import ProductoTiendaForm from '@/components/tienda/ProductoTiendaForm';
 import VentaTiendaForm from '@/components/tienda/VentaTiendaForm';
@@ -101,7 +101,12 @@ export default function Tienda() {
       if (!encargo) return;
       const update = { estado };
       if (estado === 'Confirmado') update.fecha_confirmacion = new Date().toISOString().split('T')[0];
-      if (estado === 'Cancelado') update.stock_reservado = false;
+      if (estado === 'Cancelado') {
+        update.stock_reservado = false;
+        update.monto_pagado = 0;
+        // Al cancelar, las señas registradas se anulan (el dinero vuelve a la familia)
+        await base44.entities.MovimientoBanco.deleteMany({ referencia_id: id });
+      }
 
       // No se modifica el stock físico al cancelar: las reservas se calculan
       // dinámicamente desde los pre-encargos activos (Pendiente/Confirmado).
@@ -112,7 +117,24 @@ export default function Tienda() {
       queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
       queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
       queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos_caja_exclusiva'] });
       toast.success('Pre-encargo actualizado');
+    },
+  });
+
+  // Anular señas registradas en un pre-encargo (sin cancelar el pedido)
+  const anularSenia = useMutation({
+    mutationFn: async (encargo) => {
+      await base44.entities.MovimientoBanco.deleteMany({ referencia_id: encargo.id });
+      await base44.entities.PreEncargoTienda.update(encargo.id, { monto_pagado: 0 });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos_caja_exclusiva'] });
+      toast.success('Seña anulada');
     },
   });
 
@@ -521,6 +543,11 @@ export default function Tienda() {
                           {(e.estado === 'Pendiente' || e.estado === 'Confirmado') && (
                             <Button variant="outline" size="sm" className="h-7 text-xs text-green-700 border-green-300 hover:bg-green-50" onClick={() => setPagoEncargo(e)} title="Registrar pago / seña">
                               <DollarSign className="w-3 h-3 mr-1" />Pago
+                            </Button>
+                          )}
+                          {e.monto_pagado > 0 && (e.estado === 'Pendiente' || e.estado === 'Confirmado') && (
+                            <Button variant="outline" size="sm" className="h-7 text-xs text-amber-700 border-amber-300 hover:bg-amber-50" onClick={() => { if (confirm('¿Anular la seña registrada? Se quitará el dinero de la caja y se reiniciará el monto pagado.')) anularSenia.mutate(e); }} title="Anular seña">
+                              <Undo2 className="w-3 h-3 mr-1" />Anular seña
                             </Button>
                           )}
                           {e.estado === 'Pendiente' && (
