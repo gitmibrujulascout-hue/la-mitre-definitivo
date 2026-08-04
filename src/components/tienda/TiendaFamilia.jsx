@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { ShoppingBag, Plus, Minus, Package, Check, Clock, X, CheckCircle2, Ruler } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
@@ -159,26 +159,30 @@ export default function TiendaFamilia({ grupoFamiliar }) {
                 </div>
 
                 <div className="mt-3 space-y-2">
-                  <Select value={enc.benId || ''} onValueChange={v => setEncargo(p.id, 'benId', v)}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Para quién..." /></SelectTrigger>
-                    <SelectContent>
-                      {grupoFamiliar.map(b => (
-                        <SelectItem key={b.id} value={b.id}>{b.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <select
+                    value={enc.benId || ''}
+                    onChange={e => setEncargo(p.id, 'benId', e.target.value)}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                  >
+                    <option value="" disabled>Para quién...</option>
+                    {grupoFamiliar.map(b => (
+                      <option key={b.id} value={b.id}>{b.nombre}</option>
+                    ))}
+                  </select>
 
                   {p.tiene_talles && p.talles?.length > 0 && (
                     <>
-                      <Select value={enc.talle || ''} onValueChange={v => setEncargo(p.id, 'talle', v)}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Talle..." /></SelectTrigger>
-                        <SelectContent>
-                          {p.talles.map(t => {
-                            const st = disp[t] ?? 0;
-                            return <SelectItem key={t} value={t} disabled={st <= 0}>{t} ({st} disp.)</SelectItem>;
-                          })}
-                        </SelectContent>
-                      </Select>
+                      <select
+                        value={enc.talle || ''}
+                        onChange={e => setEncargo(p.id, 'talle', e.target.value)}
+                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                      >
+                        <option value="" disabled>Talle...</option>
+                        {p.talles.map(t => {
+                          const st = disp[t] ?? 0;
+                          return <option key={t} value={t} disabled={st <= 0}>{t} ({st} disp.)</option>;
+                        })}
+                      </select>
                       {enc.talle && (disp[enc.talle] ?? 0) <= 0 && (
                         <p className="text-xs text-red-500">Sin stock disponible para este talle</p>
                       )}
