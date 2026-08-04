@@ -5,8 +5,15 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import PageHeader from '@/components/shared/PageHeader';
 import { Eye, EyeOff, Search, CheckCircle2, XCircle, Users } from 'lucide-react';
-import { getApellido } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
+
+// Extrae el apellido para ordenar: respeta formato "APELLIDO, Nombres"; si no, última palabra.
+function apellidoParaOrden(nombre) {
+  if (!nombre) return '';
+  if (nombre.includes(',')) return nombre.split(',')[0].trim().toUpperCase();
+  const partes = nombre.trim().split(/\s+/);
+  return partes[partes.length - 1].toUpperCase();
+}
 
 function fechaLinda(d) {
   if (!d) return '—';
@@ -36,10 +43,10 @@ export default function ConsultasFamilias() {
       });
     const list = Object.values(map).map(f => ({
       ...f,
-      miembros: f.miembros.sort((a, b) => getApellido(a.nombre).localeCompare(getApellido(b.nombre), 'es')),
+      miembros: f.miembros.sort((a, b) => apellidoParaOrden(a.nombre).localeCompare(apellidoParaOrden(b.nombre), 'es')),
       label: f.grupo ? `Familia ${f.grupo}` : (f.miembros[0]?.nombre || '—'),
       // Clave de ordenamiento: apellido del grupo familiar o del primer miembro (ignora "Familia")
-      sortKey: f.grupo ? f.grupo : (getApellido(f.miembros[0]?.nombre || '') || ''),
+      sortKey: f.grupo ? f.grupo.toUpperCase() : apellidoParaOrden(f.miembros[0]?.nombre || ''),
     }));
     return list
       .filter(f => f.miembros.some(m => m.activo !== false))
