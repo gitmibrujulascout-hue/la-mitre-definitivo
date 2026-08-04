@@ -237,6 +237,30 @@ export function getRamaBadge(rama) {
   return config.badge;
 }
 
+/**
+ * Devuelve el apellido (última palabra del nombre completo) para ordenamiento.
+ * Si el nombre no tiene apellido claro, devuelve el nombre completo.
+ */
+export function getApellido(nombre) {
+  if (!nombre) return '';
+  const parts = nombre.trim().split(/\s+/);
+  if (parts.length <= 1) return parts[0].toLowerCase();
+  return parts[parts.length - 1].toLowerCase();
+}
+
+/**
+ * Comparador para ordenar por rama (según TODOS_LOS_ROLES) y luego por apellido.
+ * Los que no tienen rama conocida van al final.
+ */
+export function compararPorRamaYApellido(ramaA, nombreA, ramaB, nombreB) {
+  const ra = TODOS_LOS_ROLES.indexOf(ramaA);
+  const rb = TODOS_LOS_ROLES.indexOf(ramaB);
+  const raIdx = ra === -1 ? 999 : ra;
+  const rbIdx = rb === -1 ? 999 : rb;
+  if (raIdx !== rbIdx) return raIdx - rbIdx;
+  return getApellido(nombreA).localeCompare(getApellido(nombreB), 'es');
+}
+
 export function formatMoney(amount) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(amount || 0);
 }

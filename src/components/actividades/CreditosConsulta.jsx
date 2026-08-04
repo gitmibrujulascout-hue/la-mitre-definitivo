@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Wallet, ChevronRight, ChevronDown, CreditCard, Tent, ShoppingCart, ArrowRightLeft, FileDown } from 'lucide-react';
-import { TODOS_LOS_ROLES, formatMoney } from '@/lib/ramaUtils';
+import { TODOS_LOS_ROLES, formatMoney, compararPorRamaYApellido } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { jsPDF } from 'jspdf';
 
@@ -56,16 +56,12 @@ export default function CreditosConsulta({ beneficiarios }) {
     let filtered = creditos;
     if (actividadSel !== 'todas') filtered = filtered.filter(c => (c.actividad_id || c.observaciones || 'sin-actividad') === actividadSel);
     if (ramaSel !== 'todas') filtered = filtered.filter(c => benRamaMap[c.beneficiario_id] === ramaSel);
-    return [...filtered].sort((a, b) => {
-      const ra = TODOS_LOS_ROLES.indexOf(benRamaMap[a.beneficiario_id]);
-      const rb = TODOS_LOS_ROLES.indexOf(benRamaMap[b.beneficiario_id]);
-      if (ra !== -1 || rb !== -1) {
-        if (ra === -1) return 1;
-        if (rb === -1) return -1;
-        return ra - rb;
-      }
-      return (a.beneficiario_nombre || '').localeCompare(b.beneficiario_nombre || '');
-    });
+    return [...filtered].sort((a, b) =>
+      compararPorRamaYApellido(
+        benRamaMap[a.beneficiario_id], a.beneficiario_nombre,
+        benRamaMap[b.beneficiario_id], b.beneficiario_nombre
+      )
+    );
   }, [creditos, actividadSel, ramaSel, benRamaMap]);
 
   const totalOriginal = creditosFiltrados.reduce((s, c) => s + (c.monto_original || 0), 0);

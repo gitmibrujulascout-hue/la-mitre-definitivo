@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { formatMoney } from '@/lib/ramaUtils';
+import { formatMoney, compararPorRamaYApellido } from '@/lib/ramaUtils';
 import { RefreshCw, Zap, Percent } from 'lucide-react';
 
 function roundTo500(value) {
@@ -60,11 +60,12 @@ export default function DistribuirCreditosDialog({ open, onClose, onSaved, activ
       return { v, ben, creditoExacto, creditoSugerido, proporcion };
     })
     .filter(d => d.creditoExacto > 0)
-    .sort((a, b) => {
-      const na = (a.ben?.nombre || a.v.beneficiario_nombre || '').toLowerCase();
-      const nb = (b.ben?.nombre || b.v.beneficiario_nombre || '').toLowerCase();
-      return na.localeCompare(nb, 'es');
-    });
+    .sort((a, b) =>
+      compararPorRamaYApellido(
+        a.ben?.rama, (a.ben?.nombre || a.v.beneficiario_nombre || ''),
+        b.ben?.rama, (b.ben?.nombre || b.v.beneficiario_nombre || '')
+      )
+    );
   }, [ventas, gananciaParaBen, totalVentas, beneficiarios]);
 
   // --- Modo por unidad ---
@@ -136,7 +137,12 @@ export default function DistribuirCreditosDialog({ open, onClose, onSaved, activ
         const ben = beneficiarios.find(b => b.id === d.beneficiario_id);
         return { ...d, ben, creditoFinal: Math.round(d.credito) };
       })
-      .sort((a, b) => (a.ben?.nombre || a.beneficiario_nombre || '').localeCompare(b.ben?.nombre || b.beneficiario_nombre || '', 'es'));
+      .sort((a, b) =>
+        compararPorRamaYApellido(
+          a.ben?.rama, (a.ben?.nombre || a.beneficiario_nombre || ''),
+          b.ben?.rama, (b.ben?.nombre || b.beneficiario_nombre || '')
+        )
+      );
   }, [ventas, productos, creditosPorUnidad, modo, beneficiarios]);
 
   // Estado para overrides manuales en modo unidad
