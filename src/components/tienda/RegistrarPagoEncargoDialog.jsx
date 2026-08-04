@@ -6,10 +6,11 @@ import { Label } from '@/components/ui/label';
 import { DollarSign } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
+import { base44 } from '@/api/base44Client';
 
 const FORMAS_PAGO = ['Efectivo', 'Transferencia'];
 
-export default function RegistrarPagoEncargoDialog({ encargo, onClose, onSave }) {
+export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose, onSave }) {
   const [open, setOpen] = useState(true);
   const [monto, setMonto] = useState('');
   const [formaPago, setFormaPago] = useState('Efectivo');
@@ -48,6 +49,19 @@ export default function RegistrarPagoEncargoDialog({ encargo, onClose, onSave })
         fecha_pago: fecha,
         forma_pago: formaPago,
       };
+      // Registrar el dinero de la seña en la caja correspondiente
+      const cuentaMov = producto?.caja_exclusiva
+        ? 'Caja exclusiva'
+        : (formaPago === 'Transferencia' ? 'Banco' : 'Caja');
+      await base44.entities.MovimientoBanco.create({
+        fecha,
+        tipo: 'Ingreso',
+        concepto: `Seña tienda - ${encargo.producto_nombre} (${encargo.beneficiario_nombre})`,
+        monto: montoNum,
+        cuenta: cuentaMov,
+        origen: 'Manual',
+        referencia_id: encargo.id,
+      });
       await onSave(encargo.id, update);
       toast.success('Pago registrado');
       setOpen(false);

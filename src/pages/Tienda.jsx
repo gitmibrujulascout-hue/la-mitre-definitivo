@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Wallet, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2, FileText, Users, DollarSign } from 'lucide-react';
+import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2, FileText, Users, DollarSign } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import ProductoTiendaForm from '@/components/tienda/ProductoTiendaForm';
 import VentaTiendaForm from '@/components/tienda/VentaTiendaForm';
@@ -17,6 +17,7 @@ import ReporteEncargosDialog from '@/components/tienda/ReporteEncargosDialog';
 import EncargosPorFamilia from '@/components/tienda/EncargosPorFamilia';
 import EditarEncargoDialog from '@/components/tienda/EditarEncargoDialog';
 import RegistrarPagoEncargoDialog from '@/components/tienda/RegistrarPagoEncargoDialog';
+import CajaExclusivaPanel from '@/components/tienda/CajaExclusivaPanel';
 import { formatMoney } from '@/lib/ramaUtils';
 import { getStockDisponiblePorTalle, getStockFisicoTotal } from '@/lib/tiendaStock';
 import { toast } from 'sonner';
@@ -63,6 +64,8 @@ export default function Tienda() {
   const deleteVenta = useMutation({
     mutationFn: async (venta) => {
       await base44.entities.VentaTienda.delete(venta.id);
+      // Eliminar el movimiento de caja asociado a esta venta
+      await base44.entities.MovimientoBanco.deleteMany({ referencia_id: venta.id });
       // Restaurar stock del producto
       const prod = productos.find(p => p.id === venta.producto_id);
       if (prod) {
@@ -81,6 +84,8 @@ export default function Tienda() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
       queryClient.invalidateQueries({ queryKey: ['ventas_tienda'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos_caja_exclusiva'] });
       toast.success('Venta eliminada y stock restaurado');
     },
   });
@@ -134,6 +139,8 @@ export default function Tienda() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
       queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos_caja_exclusiva'] });
       toast.success('Pago registrado');
     },
   });
@@ -189,8 +196,7 @@ export default function Tienda() {
   const totalVentas = ventas.reduce((s, v) => s + (v.monto_total || 0), 0);
   const ventasHoy = ventas.filter(v => v.fecha === new Date().toISOString().split('T')[0]);
   const totalHoy = ventasHoy.reduce((s, v) => s + (v.monto_total || 0), 0);
-  const ventasCajaExclusiva = ventas.filter(v => v.destino === 'Caja exclusiva');
-  const totalCajaExclusiva = ventasCajaExclusiva.reduce((s, v) => s + (v.monto_total || 0), 0);
+  const hayCajaExclusiva = productos.some(p => p.caja_exclusiva);
 
   const categorias = ['todas', 'Uniforme', 'Merchandising', 'Libro', 'Accesorio', 'Otro'];
 
@@ -243,15 +249,11 @@ export default function Tienda() {
          </CardContent></Card>
         </div>
 
-        {/* Caja exclusiva */}
-        {totalCajaExclusiva > 0 && (
-        <div className="flex items-center gap-2 p-3 mb-6 bg-purple-50 border border-purple-200 rounded-lg">
-          <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center"><Wallet className="w-4 h-4 text-purple-600" /></div>
-          <div>
-            <p className="text-sm font-medium text-purple-800">Caja exclusiva</p>
-            <p className="text-xs text-purple-600">{ventasCajaExclusiva.length} venta(s) · {formatMoney(totalCajaExclusiva)} — no impacta en caja/banco general</p>
+        {/* Caja exclusiva de la tienda */}
+        {hayCajaExclusiva && (
+          <div className="mb-6">
+            <CajaExclusivaPanel />
           </div>
-        </div>
         )}
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -395,12 +397,13 @@ export default function Tienda() {
                   <TableHead>Precio unit.</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Pago</TableHead>
+                  <TableHead>Destino</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {ventas.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No hay ventas registradas</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">No hay ventas registradas</TableCell></TableRow>
                 ) : ventas.map(v => (
                   <TableRow key={v.id}>
                     <TableCell className="text-muted-foreground text-sm whitespace-nowrap">{v.fecha || '—'}</TableCell>
@@ -414,7 +417,16 @@ export default function Tienda() {
                       <Badge variant="outline" className="text-xs">{v.forma_pago}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => { if (confirm('¿Eliminar esta venta? Se restaurará el stock.')) deleteVenta.mutate(v); }}>
+                      {v.destino === 'Caja exclusiva' ? (
+                        <Badge className="bg-purple-100 text-purple-700 border-purple-300 border text-xs">Caja excl.</Badge>
+                      ) : v.destino === 'Banco' ? (
+                        <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs">Banco</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs">Caja</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => { if (confirm('¿Eliminar esta venta? Se restaurará el stock y se anulará el ingreso en caja.')) deleteVenta.mutate(v); }}>
                         <Trash2 className="w-4 h-4 text-muted-foreground" />
                       </Button>
                     </TableCell>
@@ -573,6 +585,7 @@ export default function Tienda() {
       {pagoEncargo && (
         <RegistrarPagoEncargoDialog
           encargo={pagoEncargo}
+          producto={productos.find(p => p.id === pagoEncargo.producto_id)}
           onClose={() => setPagoEncargo(null)}
           onSave={(id, update) => registrarPagoEncargo.mutate({ id, update })}
         />

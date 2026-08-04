@@ -27,10 +27,11 @@
       "type": "string",
       "enum": [
         "Caja",
-        "Banco"
+        "Banco",
+        "Caja exclusiva"
       ],
       "default": "Caja",
-      "description": "A qu\u00e9 fondo pertenece este movimiento"
+      "description": "A qu\u00e9 fondo pertenece este movimiento. 'Caja exclusiva' es el fondo separado de la tienda."
     },
     "origen": {
       "type": "string",
@@ -45,7 +46,7 @@
     },
     "referencia_id": {
       "type": "string",
-      "description": "ID de referencia (pago, gasto, etc.)"
+      "description": "ID de referencia (pago, gasto, venta tienda, etc.)"
     },
     "saldo_resultante": {
       "type": "number",

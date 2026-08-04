@@ -57,7 +57,7 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
         const cant = parseInt(it.cantidad) || 0;
         const precio = parseFloat(it.precioUnitario) || 0;
 
-        await base44.entities.VentaTienda.create({
+        const venta = await base44.entities.VentaTienda.create({
           producto_id: prod.id,
           producto_nombre: prod.nombre,
           beneficiario_id: beneficiarioId,
@@ -69,6 +69,17 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
           fecha,
           forma_pago: 'Efectivo',
           destino: prod.caja_exclusiva ? 'Caja exclusiva' : 'Caja',
+        });
+
+        // Registrar el ingreso de dinero en la caja correspondiente
+        await base44.entities.MovimientoBanco.create({
+          fecha,
+          tipo: 'Ingreso',
+          concepto: `Venta tienda - ${prod.nombre}${ben?.nombre ? ` (${ben.nombre})` : ''}`,
+          monto: cant * precio,
+          cuenta: prod.caja_exclusiva ? 'Caja exclusiva' : 'Caja',
+          origen: 'Manual',
+          referencia_id: venta.id,
         });
 
         // Decrement stock
@@ -87,6 +98,8 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
       queryClient.invalidateQueries({ queryKey: ['ventas_tienda'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos_caja_exclusiva'] });
       toast.success(`${items.length} venta(s) registrada(s) en efectivo`);
       onClose();
     },

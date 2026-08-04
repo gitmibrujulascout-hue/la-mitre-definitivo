@@ -32,13 +32,14 @@ export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
         observaciones: 'Generado desde pre-encargo',
       });
 
-      // 2. Crear MovimientoBanco si no es caja exclusiva
-      if (destino === 'Caja' || destino === 'Banco') {
+      // 2. Registrar en la caja solo el saldo pendiente (las señas ya se registraron al pagarse)
+      const saldoPendiente = Math.max(0, (encargo.monto_total || 0) - (encargo.monto_pagado || 0));
+      if (saldoPendiente > 0) {
         await base44.entities.MovimientoBanco.create({
           fecha: new Date().toISOString().split('T')[0],
           tipo: 'Ingreso',
           concepto: `Venta tienda - ${encargo.producto_nombre} (${encargo.beneficiario_nombre})`,
-          monto: encargo.monto_total,
+          monto: saldoPendiente,
           cuenta: destino,
           origen: 'Manual',
           referencia_id: venta.id,
@@ -74,6 +75,7 @@ export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
       queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
       queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
       queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos_caja_exclusiva'] });
       toast.success('Pre-encargo entregado. Venta registrada y stock actualizado.');
       onClose();
     },
@@ -109,14 +111,22 @@ export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
           </div>
           <div>
             <Label className="mb-1.5 block">Destino del dinero</Label>
-            <Select value={destino} onValueChange={setDestino}>
+            <Select value={destino} onValueChange={setDestino} disabled={producto?.caja_exclusiva}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Caja">Caja</SelectItem>
-                <SelectItem value="Banco">Banco</SelectItem>
-                <SelectItem value="Caja exclusiva">Caja exclusiva</SelectItem>
+                {producto?.caja_exclusiva ? (
+                  <SelectItem value="Caja exclusiva">Caja exclusiva</SelectItem>
+                ) : (
+                  <>
+                    <SelectItem value="Caja">Caja</SelectItem>
+                    <SelectItem value="Banco">Banco</SelectItem>
+                  </>
+                )}
               </SelectContent>
             </Select>
+            {producto?.caja_exclusiva && (
+              <p className="text-xs text-purple-600 mt-1">Este producto pertenece a la caja exclusiva de la tienda.</p>
+            )}
           </div>
         </div>
         <DialogFooter>
