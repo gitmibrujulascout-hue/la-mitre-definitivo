@@ -208,11 +208,18 @@ export default function Beneficiarios() {
       } else {
         mesUltimoCuota = mesActual;
       }
+      // Mes desde el alta (si se incorporó este año, los meses previos no generan deuda)
+      let mesPrimerCuota = 0;
+      if (editing.fecha_primer_afiliacion) {
+        const [anioAfil, mesAfil] = editing.fecha_primer_afiliacion.split('T')[0].split('-').map(Number);
+        if (anioAfil === anio) mesPrimerCuota = mesAfil - 1;
+      }
 
       const mesesDeudores = MESES.slice(0, mesUltimoCuota + 1).filter((m, idx) => {
         if (MESES_SIN_CUOTA.includes(m)) return false;
         if (m === 'Marzo' && marzoGratis) return false;
         if (mesesPagados.has(m)) return false;
+        if (idx < mesPrimerCuota) return false; // meses anteriores al alta no generan deuda
         return true;
       });
 

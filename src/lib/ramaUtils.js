@@ -109,7 +109,59 @@ export function getCuotaTransferenciaMes(mes, anio, configCuotas = []) {
 }
 
 /**
- * Calcula los meses que generan deuda de cuota para un beneficiario en un año.
+ * Calcula los intervalos activos (índices de mes 0-based, [inicio, fin] inclusive)
+ * para el año dado, considerando alta (afiliación), baja y reingreso.
+ *   - Alta: la deuda corre desde el mes de alta (fecha_primer_afiliacion, o la
+ *     fecha de pago de la afiliación del año si es primera vez y no hay fecha_primer_afiliacion).
+ *   - Baja: no genera deuda a partir del mes siguiente a la baja (el mes de baja sí genera).
+ *   - Reingreso: vuelve a generar deuda desde el mes de reingreso.
+ */
+export function calcularIntervalosActivos(b, anio, afiliaciones = []) {
+  const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
+  const esPrimeraVez = !b.fecha_primer_afiliacion;
+  const fechaAlta = b.fecha_primer_afiliacion || (esPrimeraVez && afiliacionAnio?.fecha_pago ? afiliacionAnio.fecha_pago : null);
+
+  let inicio1 = 0;
+  if (fechaAlta) {
+    const [y, m] = fechaAlta.split('T')[0].split('-').map(Number);
+    if (y > anio) return []; // alta en un año futuro → sin actividad este año
+    if (y === anio) inicio1 = m - 1; // alta este año → desde ese mes (inclusive)
+    // y < anio → activo desde enero
+  }
+
+  let fin1 = 11;
+  if (b.activo === false && b.fecha_baja) {
+    const [y, m] = b.fecha_baja.split('T')[0].split('-').map(Number);
+    if (y < anio) fin1 = -1; // dado de baja antes del año → sin período 1
+    else if (y === anio) fin1 = m - 1; // mes de baja incluido
+  }
+
+  const intervalos = [];
+  if (fin1 >= inicio1) intervalos.push([inicio1, fin1]);
+
+  // Reingreso → segundo período activo
+  if (b.fecha_reingreso) {
+    const [y, m] = b.fecha_reingreso.split('T')[0].split('-').map(Number);
+    if (y < anio) intervalos.push([0, 11]);
+    else if (y === anio) intervalos.push([m - 1, 11]); // mes de reingreso incluido
+  }
+
+  return intervalos;
+}
+
+/**
+ * Devuelve true si el mes (índice 0-based) NO está dentro de ningún período activo
+ * (antes del alta, después de la baja, o entre la baja y el reingreso).
+ * Útil para mostrar "no corresponde" en grillas mensuales.
+ */
+export function mesExcluidoPorActividad(mesIdx, b, anio, afiliaciones = []) {
+  const intervalos = calcularIntervalosActivos(b, anio, afiliaciones);
+  return !intervalos.some(([ini, fin]) => mesIdx >= ini && mesIdx <= fin);
+}
+
+/**
+ * Calcula los meses (nombres) que generan deuda de cuota para un beneficiario en un año.
+ * Considera alta, baja y reingreso (ver calcularIntervalosActivos).
  * Reutilizable desde múltiples componentes (EstadoCuenta, PagoForm, etc.)
  */
 export function calcularMesesQueGeneranDeuda(b, anio, afiliaciones = []) {
@@ -123,24 +175,13 @@ export function calcularMesesQueGeneranDeuda(b, anio, afiliaciones = []) {
   const esPrimeraVez = !b.fecha_primer_afiliacion;
   const marzoGratis = marzoEsBonificado(afiliacionAnio, esPrimeraVez);
 
-  let mesUltimoCuota = 11;
-  if (b.activo === false && b.fecha_baja) {
-    const [anioBaja, mesBaja] = b.fecha_baja.split('T')[0].split('-').map(Number);
-    if (anioBaja === anio) mesUltimoCuota = mesBaja - 1;
-    else if (anioBaja < anio) mesUltimoCuota = -1;
-  }
-
-  let mesPrimerCuotaReingreso = 0;
-  if (b.fecha_reingreso && b.activo !== false) {
-    const [anioReingreso, mesReingreso] = b.fecha_reingreso.split('T')[0].split('-').map(Number);
-    if (anioReingreso === anio) mesPrimerCuotaReingreso = mesReingreso - 1;
-  }
+  const intervalos = calcularIntervalosActivos(b, anio, afiliaciones);
+  const enIntervalo = (idx) => intervalos.some(([ini, fin]) => idx >= ini && idx <= fin);
 
   return MESES.slice(0, mesesTranscurridos).filter((m, idx) => {
     if (MESES_SIN_CUOTA.includes(m)) return false;
     if (m === 'Marzo' && marzoGratis) return false;
-    if (idx > mesUltimoCuota) return false;
-    if (mesPrimerCuotaReingreso > 0 && idx < mesPrimerCuotaReingreso) return false;
+    if (!enIntervalo(idx)) return false;
     return true;
   });
 }

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, CheckCircle2, XCircle, Award, Tent, Gift, Zap, ShieldCheck, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import RamaBadge from '@/components/shared/RamaBadge';
-import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, marzoEsBonificado } from '@/lib/ramaUtils';
+import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, marzoEsBonificado, mesExcluidoPorActividad } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import WhatsAppResumenBtn from '@/components/cuenta/WhatsAppResumenBtn';
@@ -34,14 +34,8 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
   const mesesPagados = pagosAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []));
   const marzoGratis = marzoEsBonificado(afiliacion, esPrimeraVezAfiliacion);
 
-  // Mes desde el que comienza a abonar: solo si se incorporó este año (fecha_primer_afiliacion en el año actual)
-  let mesPrimerCuota = 0;
-  if (beneficiario?.fecha_primer_afiliacion) {
-    const [anioAfil, mesAfil] = beneficiario.fecha_primer_afiliacion.split('T')[0].split('-').map(Number);
-    if (anioAfil === anio) {
-      mesPrimerCuota = mesAfil - 1;
-    }
-  }
+  // Afiliación del año para el cálculo de períodos activos (alta/baja/reingreso)
+  const afiliacionesCalc = afiliacion ? [afiliacion] : [];
 
   return (
     <div>
@@ -150,7 +144,9 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
           const pagado = !!pago;
           const sinCuota = MESES_SIN_CUOTA.includes(mes);
           const bonificado = mes === 'Marzo' && marzoGratis;
-          const antesDeInicio = idx < mesPrimerCuota;
+          // Mes fuera de los períodos activos (antes del alta, después de la baja,
+          // o entre la baja y el reingreso) → no corresponde
+          const antesDeInicio = mesExcluidoPorActividad(idx, beneficiario, anio, afiliacionesCalc);
 
           return (
             <Card key={mes} className={cn(

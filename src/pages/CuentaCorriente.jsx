@@ -13,7 +13,7 @@ import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
 import ResumenDeudas from '@/components/cuenta/ResumenDeudas';
 import GrillaCuotasMensuales from '@/components/cuenta/GrillaCuotasMensuales';
 import PagoForm from '@/components/pagos/PagoForm';
-import { RAMAS, TODOS_LOS_ROLES, MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado } from '@/lib/ramaUtils';
+import { RAMAS, TODOS_LOS_ROLES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado, calcularMesesQueGeneranDeuda } from '@/lib/ramaUtils';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 
 const CUOTA_EFECTIVO_REF = CUOTA_EFECTIVO;
@@ -85,44 +85,11 @@ export default function CuentaCorriente() {
       // Restar lo pagado de campamentos
       const pagadoCamp = pagosDelBen.filter(p => p.tipo_pago === 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
 
-      // Deuda cuotas: solo desde AÑO_INICIO
-      const mesActual = new Date().getMonth();
-      const mesesTranscurridos = anio < new Date().getFullYear() ? 12 : anio > new Date().getFullYear() ? 0 : mesActual + 1;
+      // Deuda cuotas: cálculo centralizado (alta + baja + reingreso). Solo desde AÑO_INICIO.
       const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
       const esPrimeraVez = !b.fecha_primer_afiliacion;
       const marzoGratis = marzoEsBonificado(afiliacionAnio, esPrimeraVez);
-      // Mes desde el que el beneficiario empieza a abonar cuota.
-      // Solo aplica si tiene fecha_primer_afiliacion en el año en curso (se incorporó este año).
-      // En ese caso, los meses anteriores a su incorporación no generan deuda.
-      let mesPrimerCuota = 0; // por defecto, desde el inicio del año
-      if (b.fecha_primer_afiliacion) {
-        const [anioAfil, mesAfil] = b.fecha_primer_afiliacion.split('T')[0].split('-').map(Number);
-        if (anioAfil === anio) {
-          mesPrimerCuota = mesAfil - 1; // índice 0-based (Enero=0)
-        }
-      }
-
-      // Mes de baja: si el beneficiario está inactivo y tiene fecha_baja en este año,
-      // los meses a partir de ese mes no generan deuda
-      let mesUltimoCuota = 11; // por defecto, hasta Diciembre
-      if (b.activo === false && b.fecha_baja) {
-        const [anioBaja, mesBaja] = b.fecha_baja.split('T')[0].split('-').map(Number);
-        if (anioBaja === anio) {
-          // El mes de baja es el último que genera deuda.
-          // mesBaja es 1-based (Enero=1), el array MESES es 0-based → mesBaja - 1
-          mesUltimoCuota = mesBaja - 1;
-        } else if (anioBaja < anio) {
-          mesUltimoCuota = -1; // dado de baja antes de este año → no debe nada
-        }
-      }
-
-      const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter((m, idx) => {
-        if (MESES_SIN_CUOTA.includes(m)) return false;
-        if (m === 'Marzo' && marzoGratis) return false;
-        if (idx < mesPrimerCuota) return false; // meses anteriores al inicio no generan deuda
-        if (idx > mesUltimoCuota) return false; // meses posteriores a la baja no generan deuda
-        return true;
-      });
+      const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : calcularMesesQueGeneranDeuda(b, anio, afiliaciones);
       const cuotaIndividual = esAdulto ? 0 : getCuotaBeneficiario(b, activos);
       const deudaCuotas = (!esBeneficiarioConCuota(b)) ? 0 : mesesQueGeneranDeuda.length * cuotaIndividual;
       // Para el saldo del beneficiario, los pagos por transferencia se computan a valor efectivo

@@ -15,7 +15,7 @@ import RamaBadge from '@/components/shared/RamaBadge';
 import {
   MESES, MESES_SIN_CUOTA,
   CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, getCuotaBaseMes, getCuotaTransferenciaMes, marzoEsBonificado,
-  estaAlDia, getCuotaMes
+  estaAlDia, getCuotaMes, calcularMesesQueGeneranDeuda, mesExcluidoPorActividad
 } from '@/lib/ramaUtils';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 import { cn } from '@/lib/utils';
@@ -91,33 +91,8 @@ export default function EstadoCuenta() {
     const esPrimeraVez = !b.fecha_primer_afiliacion;
     const marzoGratis = marzoEsBonificado(afiliacionAnio, esPrimeraVez);
 
-    const mesActual = new Date().getMonth(); // 0-indexed
-    const mesesTranscurridos = anio < new Date().getFullYear() ? 12 : anio > new Date().getFullYear() ? 0 : mesActual + 1;
-
-    // Mes hasta el que genera deuda (si está dado de baja)
-    let mesUltimoCuota = 11;
-    if (b.activo === false && b.fecha_baja) {
-      const [anioBaja, mesBaja] = b.fecha_baja.split('T')[0].split('-').map(Number);
-      if (anioBaja === anio) {
-        mesUltimoCuota = mesBaja - 1; // mes de baja incluido (0-based)
-      } else if (anioBaja < anio) {
-        mesUltimoCuota = -1;
-      }
-    }
-    // Mes desde el que vuelve a generar deuda (si reingresó)
-    let mesPrimerCuotaReingreso = 0;
-    if (b.fecha_reingreso && b.activo !== false) {
-      const [anioReingreso, mesReingreso] = b.fecha_reingreso.split('T')[0].split('-').map(Number);
-      if (anioReingreso === anio) mesPrimerCuotaReingreso = mesReingreso - 1;
-    }
-
-    const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : MESES.slice(0, mesesTranscurridos).filter((m, idx) => {
-      if (MESES_SIN_CUOTA.includes(m)) return false;
-      if (m === 'Marzo' && marzoGratis) return false;
-      if (idx > mesUltimoCuota) return false; // posteriores a la baja no generan deuda
-      if (mesPrimerCuotaReingreso > 0 && idx < mesPrimerCuotaReingreso) return false; // anteriores al reingreso
-      return true;
-    });
+    // Cálculo centralizado de meses que generan deuda (alta + baja + reingreso)
+    const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : calcularMesesQueGeneranDeuda(b, anio, afiliaciones);
 
     // Cuota del mes actual para display
     const mesActualNombre = MESES[new Date().getMonth()];
@@ -465,17 +440,9 @@ export default function EstadoCuenta() {
                     const mesActualIdx = new Date().getMonth();
                     const yaTranscurrioEsteAnio = anio < new Date().getFullYear() || mesIdx <= mesActualIdx;
 
-                    // ¿Este mes no genera deuda por baja?
-                    let esBaja = false;
-                    if (b.activo === false && b.fecha_baja) {
-                      const [anioBaja, mesBajaNum] = b.fecha_baja.split('T')[0].split('-').map(Number);
-                      if (anioBaja === anio && mesIdx > mesBajaNum - 1) esBaja = true;
-                      if (anioBaja < anio) esBaja = true;
-                    }
-                    if (b.fecha_reingreso && b.activo !== false) {
-                      const [anioReingreso, mesReingresoNum] = b.fecha_reingreso.split('T')[0].split('-').map(Number);
-                      if (anioReingreso === anio && mesIdx < mesReingresoNum - 1) esBaja = true;
-                    }
+                    // Mes fuera de los períodos activos (antes del alta, después de la baja,
+                    // o entre la baja y el reingreso) → no genera deuda
+                    const esBaja = mesExcluidoPorActividad(mesIdx, b, anio, afiliaciones);
 
                     const esDeuda = !sinCuota && !b.becado && !bonificado && !pagado && !esBaja && yaTranscurrioEsteAnio && esBeneficiarioConCuota(b);
                     return (
