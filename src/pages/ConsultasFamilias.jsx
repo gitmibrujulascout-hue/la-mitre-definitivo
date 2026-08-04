@@ -38,10 +38,12 @@ export default function ConsultasFamilias() {
       ...f,
       miembros: f.miembros.sort((a, b) => getApellido(a.nombre).localeCompare(getApellido(b.nombre), 'es')),
       label: f.grupo ? `Familia ${f.grupo}` : (f.miembros[0]?.nombre || '—'),
-      // Clave de ordenamiento: apellido del primer miembro (alfabético)
-      sortKey: f.miembros.map(m => getApellido(m.nombre)).sort((a, b) => a.localeCompare(b, 'es'))[0] || '',
+      // Clave de ordenamiento: apellido del grupo familiar o del primer miembro (ignora "Familia")
+      sortKey: f.grupo ? f.grupo : (getApellido(f.miembros[0]?.nombre || '') || ''),
     }));
-    return list.sort((a, b) => a.sortKey.localeCompare(b.sortKey, 'es'));
+    return list
+      .filter(f => f.miembros.some(m => m.activo !== false))
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey, 'es'));
   }, [beneficiarios]);
 
   // Consultas agrupadas por beneficiario encontrado
