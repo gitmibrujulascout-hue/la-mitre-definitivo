@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import PageHeader from '@/components/shared/PageHeader';
 import { Eye, EyeOff, Search, CheckCircle2, XCircle, Users } from 'lucide-react';
-import { esBeneficiarioConCuota, getApellido } from '@/lib/ramaUtils';
+import { getApellido } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 
 function fechaLinda(d) {
@@ -29,7 +29,6 @@ export default function ConsultasFamilias() {
   const familias = useMemo(() => {
     const map = {};
     beneficiarios
-      .filter(b => b.activo !== false && esBeneficiarioConCuota(b))
       .forEach(b => {
         const key = b.grupo_familiar || `__ind_${b.id}`;
         if (!map[key]) map[key] = { key, grupo: b.grupo_familiar, miembros: [] };
@@ -164,7 +163,7 @@ export default function ConsultasFamilias() {
                       {!consulto && <span className="ml-2 text-xs text-red-500">sin consultar</span>}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {f.miembros.map(m => m.nombre).join(' · ')}
+                      {f.miembros.map(m => m.activo === false ? `${m.nombre} (inactivo)` : m.nombre).join(' · ')}
                       {consulto && <span className="ml-1">· última {fechaLinda(ult?.created_date)}</span>}
                     </p>
                   </div>
