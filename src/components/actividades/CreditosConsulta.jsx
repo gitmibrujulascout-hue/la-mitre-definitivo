@@ -68,6 +68,31 @@ export default function CreditosConsulta({ beneficiarios }) {
   const totalDisponible = creditosFiltrados.reduce((s, c) => s + (c.monto_disponible || 0), 0);
   const totalUsado = totalOriginal - totalDisponible;
 
+  // Agrupar créditos por beneficiario (una fila por persona, con totales de todas las actividades)
+  const creditosPorBeneficiario = useMemo(() => {
+    const map = {};
+    creditosFiltrados.forEach(c => {
+      const key = c.beneficiario_id || c.beneficiario_nombre || '__sin_ben__';
+      if (!map[key]) {
+        map[key] = {
+          key,
+          beneficiario_id: c.beneficiario_id,
+          beneficiario_nombre: c.beneficiario_nombre,
+          rama: benRamaMap[c.beneficiario_id],
+          creditos: [],
+          totalOriginal: 0,
+          totalDisponible: 0,
+        };
+      }
+      map[key].creditos.push(c);
+      map[key].totalOriginal += c.monto_original || 0;
+      map[key].totalDisponible += c.monto_disponible || 0;
+    });
+    return Object.values(map).sort((a, b) =>
+      compararPorRamaYApellido(a.rama, a.beneficiario_nombre, b.rama, b.beneficiario_nombre)
+    );
+  }, [creditosFiltrados, benRamaMap]);
+
   const getUsos = (credito) => {
     const usos = [];
     const actNombre = credito.actividad_nombre || credito.observaciones || '';
@@ -270,66 +295,76 @@ export default function CreditosConsulta({ beneficiarios }) {
                 <TableRow>
                   <TableHead className="w-8"></TableHead>
                   <TableHead>Beneficiario</TableHead>
-                  {actividadSel === 'todas' && <TableHead>Actividad</TableHead>}
                   <TableHead className="text-right">Acreditado</TableHead>
                   <TableHead className="text-right">Usado</TableHead>
                   <TableHead className="text-right">Disponible</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {creditosFiltrados.map(c => {
-                  const usado = (c.monto_original || 0) - (c.monto_disponible || 0);
-                  const isExpanded = expanded[c.id];
-                  const usos = isExpanded ? getUsos(c) : [];
+                {creditosPorBeneficiario.map(ben => {
+                  const benUsado = ben.totalOriginal - ben.totalDisponible;
+                  const isExpanded = expanded[ben.key];
                   return (
-                    <React.Fragment key={c.id}>
+                    <React.Fragment key={ben.key}>
                       <TableRow
                         className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => toggleExpand(c.id)}
+                        onClick={() => toggleExpand(ben.key)}
                       >
                         <TableCell>
                           {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="font-medium">{c.beneficiario_nombre}</span>
-                            {benRamaMap[c.beneficiario_id] && (
-                              <span className="text-xs text-muted-foreground">{benRamaMap[c.beneficiario_id]}</span>
+                            <span className="font-medium">{ben.beneficiario_nombre}</span>
+                            {ben.rama && (
+                              <span className="text-xs text-muted-foreground">{ben.rama}</span>
                             )}
                           </div>
                         </TableCell>
-                        {actividadSel === 'todas' && <TableCell className="text-sm text-muted-foreground">{getActividadNombre(c)}</TableCell>}
-                        <TableCell className="text-right">{formatMoney(c.monto_original || 0)}</TableCell>
-                        <TableCell className="text-right text-orange-600">{formatMoney(usado)}</TableCell>
-                        <TableCell className="text-right font-semibold text-green-600">{formatMoney(c.monto_disponible || 0)}</TableCell>
+                        <TableCell className="text-right">{formatMoney(ben.totalOriginal)}</TableCell>
+                        <TableCell className="text-right text-orange-600">{formatMoney(benUsado)}</TableCell>
+                        <TableCell className="text-right font-semibold text-green-600">{formatMoney(ben.totalDisponible)}</TableCell>
                       </TableRow>
                       {isExpanded && (
                         <TableRow>
-                          <TableCell colSpan={actividadSel === 'todas' ? 6 : 5} className="bg-muted/30">
-                            {usos.length === 0 ? (
-                              <p className="text-sm text-muted-foreground py-2">Sin uso registrado</p>
-                            ) : (
-                              <div className="space-y-1 py-2">
-                                <p className="text-xs font-medium text-muted-foreground mb-2">Detalle de uso del crédito:</p>
-                                {usos.map((u, i) => {
-                                  const UIcon = USAGE_ICON[u.tipo] || CreditCard;
-                                  return (
-                                    <div key={i} className="flex items-center gap-3 text-sm py-1.5 border-b border-border last:border-0">
-                                      <UIcon className={cn('w-4 h-4 flex-shrink-0', USAGE_COLOR[u.tipo])} />
-                                      <div className="flex-1">
-                                        <span className="font-medium">{u.descripcion}</span>
-                                        <span className="text-xs text-muted-foreground ml-2">{u.fecha}</span>
+                          <TableCell colSpan={5} className="bg-muted/30 p-3">
+                            <div className="space-y-2">
+                              {ben.creditos.map(c => {
+                                const usado = (c.monto_original || 0) - (c.monto_disponible || 0);
+                                const usos = getUsos(c);
+                                return (
+                                  <div key={c.id} className="border rounded-lg p-2.5 bg-background">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-sm font-medium">{getActividadNombre(c)}</span>
+                                      <div className="flex gap-3 text-xs">
+                                        <span className="text-muted-foreground">Acreditado: <b className="text-foreground">{formatMoney(c.monto_original || 0)}</b></span>
+                                        <span className="text-orange-600">Usado: <b>{formatMoney(usado)}</b></span>
+                                        <span className="text-green-600">Disponible: <b>{formatMoney(c.monto_disponible || 0)}</b></span>
                                       </div>
-                                      <span className="font-medium text-orange-600">−{formatMoney(u.monto)}</span>
                                     </div>
-                                  );
-                                })}
-                                <div className="flex justify-between pt-2 text-xs font-medium border-t border-border">
-                                  <span>Total usado:</span>
-                                  <span className="text-orange-600">{formatMoney(usos.reduce((s, u) => s + u.monto, 0))}</span>
-                                </div>
-                              </div>
-                            )}
+                                    {usos.length === 0 ? (
+                                      <p className="text-xs text-muted-foreground pl-1">Sin consumos registrados</p>
+                                    ) : (
+                                      <div className="space-y-0.5">
+                                        {usos.map((u, i) => {
+                                          const UIcon = USAGE_ICON[u.tipo] || CreditCard;
+                                          return (
+                                            <div key={i} className="flex items-center gap-2 text-sm py-1 border-t border-border/60">
+                                              <UIcon className={cn('w-3.5 h-3.5 flex-shrink-0', USAGE_COLOR[u.tipo])} />
+                                              <div className="flex-1">
+                                                <span className="font-medium">{u.descripcion}</span>
+                                                <span className="text-xs text-muted-foreground ml-2">{u.fecha}</span>
+                                              </div>
+                                              <span className="font-medium text-orange-600">−{formatMoney(u.monto)}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </TableCell>
                         </TableRow>
                       )}
