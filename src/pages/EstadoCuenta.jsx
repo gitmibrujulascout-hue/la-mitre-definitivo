@@ -179,8 +179,12 @@ export default function EstadoCuenta() {
   };
 
   const handleBuscar = () => {
-    const dni = dniInput.trim();
+    const input = dniInput.trim();
+    // Prefijo "#" = modo admin/test: consulta sin registrar la visita
+    const esModoTest = input.startsWith('#');
+    const dni = esModoTest ? input.substring(1).trim() : input;
     setDniBuscado(dni);
+    if (esModoTest) return;
     // Registrar la consulta para seguimiento de adopción familiar (fire-and-forget)
     const ben = beneficiarios.find(b => b.dni === dni) || null;
     base44.entities.ConsultaDni.create({
