@@ -12,7 +12,7 @@ const CATS = ['Materiales', 'Alimentos', 'Transporte', 'Servicios', 'Mantenimien
 
 export default function GastoActividadForm({ open, onClose, onSaved, actividad }) {
   const [form, setForm] = useState({
-    descripcion: '', monto: '', fecha: actividad?.fecha || new Date().toISOString().split('T')[0],
+    descripcion: '', monto: '', fecha: actividad?.fecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
     categoria: 'Alimentos', forma_pago: 'Efectivo', proveedor: '', numero_factura: '', observaciones: '',
   });
 

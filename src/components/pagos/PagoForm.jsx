@@ -44,7 +44,7 @@ async function procesarCreditoJulio(pagos, beneficiario, pagosExistentes, afilia
     beneficiario_nombre: beneficiario.nombre,
     monto_original: montoCredito,
     monto_disponible: montoCredito,
-    fecha: new Date().toISOString().split('T')[0],
+    fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
     observaciones: labelJulio,
   });
 }
@@ -57,7 +57,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   const [campamentoId, setCampamentoId] = useState('');
   const [montoManual, setMontoManual] = useState('');
   const [formaPago, setFormaPago] = useState('Efectivo');
-  const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
+  const [fechaPago, setFechaPago] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
   const [observaciones, setObservaciones] = useState('');
   const [hermanosSeleccionados, setHermanosSeleccionados] = useState([]);
   const [creditoId, setCreditoId] = useState('');

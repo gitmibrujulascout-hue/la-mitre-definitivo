@@ -21,7 +21,7 @@ export default function Campamentos() {
   const [search, setSearch] = useState('');
   const [filterRama, setFilterRama] = useState('todas');
   const [mostrarPasados, setMostrarPasados] = useState(false);
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   const queryClient = useQueryClient();
 
   const { data: campamentos = [], isLoading } = useQuery({

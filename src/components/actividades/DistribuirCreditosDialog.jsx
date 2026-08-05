@@ -176,7 +176,7 @@ export default function DistribuirCreditosDialog({ open, onClose, onSaved, activ
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const fecha = new Date().toISOString().split('T')[0];
+      const fecha = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
       const creditos = datosFinales.filter(d => d.monto > 0);
       await Promise.all(creditos.map(d => {
         const ben = 'ben' in d ? d.ben : beneficiarios.find(b => b.id === d.beneficiario_id);

@@ -171,7 +171,7 @@ export default function RevisionSolicitudesSaludDialog({ open, onClose, solicitu
                     <div>
                       <p className="font-semibold">{sol.beneficiario_nombre}</p>
                       <p className="text-xs text-muted-foreground">
-                        Enviado el {sol.created_date ? new Date(sol.created_date).toLocaleDateString('es-AR') : '—'}
+                        Enviado el {sol.created_date ? new Date(sol.created_date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '—'}
                       </p>
                     </div>
                     <Badge className="bg-amber-100 text-amber-700 border-amber-300">Pendiente</Badge>

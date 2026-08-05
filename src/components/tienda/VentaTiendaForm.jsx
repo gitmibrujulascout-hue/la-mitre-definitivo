@@ -14,7 +14,7 @@ import { getStockDisponiblePorTalle } from '@/lib/tiendaStock';
 export default function VentaTiendaForm({ open, onClose, productos, beneficiarios, preEncargos = [] }) {
   const [items, setItems] = useState([]);
   const [beneficiarioId, setBeneficiarioId] = useState('');
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [fecha, setFecha] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
   const queryClient = useQueryClient();
 
   const ben = beneficiarios.find(b => b.id === beneficiarioId);
@@ -23,7 +23,7 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
     if (!open) return;
     setItems([{ productoId: '', talle: '', cantidad: '1', precioUnitario: '' }]);
     setBeneficiarioId('');
-    setFecha(new Date().toISOString().split('T')[0]);
+    setFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
   }, [open]);
 
   const updateItem = (idx, field, val) => {

@@ -74,7 +74,7 @@ export default function ActividadDetalle({ actividad, beneficiarios, onBack, onE
   const marcarEntregadoMut = useMutation({
     mutationFn: ({ id, entregado, comprador_nombre }) => base44.entities.VentaActividad.update(id, {
       entregado,
-      fecha_entrega: entregado ? new Date().toISOString().split('T')[0] : null,
+      fecha_entrega: entregado ? new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }) : null,
       ...(comprador_nombre ? { comprador_nombre } : {}),
     }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ventas-actividad', actividad.id] }),

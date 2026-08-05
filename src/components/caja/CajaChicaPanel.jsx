@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 function CajaChicaForm({ open, onClose, inicial }) {
   const [form, setForm] = useState(inicial || {
     monto: '',
-    fecha: new Date().toISOString().split('T')[0],
+    fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
     concepto: 'Caja chica cocina',
     responsable: '',
     observaciones: '',

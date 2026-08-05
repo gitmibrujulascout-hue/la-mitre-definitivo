@@ -32,7 +32,7 @@ export default function GastoForm({ open, onClose, initialData }) {
   const [form, setForm] = useState(initialData ? {
     descripcion: initialData.descripcion || '',
     monto: initialData.monto || '',
-    fecha: initialData.fecha || new Date().toISOString().split('T')[0],
+    fecha: initialData.fecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
     categoria: initialData.categoria || '',
     proveedor: initialData.proveedor || '',
     numero_factura: initialData.numero_factura || '',
@@ -45,7 +45,7 @@ export default function GastoForm({ open, onClose, initialData }) {
     actividad_id: initialData.actividad_id || '',
     actividad_nombre: initialData.actividad_nombre || '',
   } : {
-    descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0],
+    descripcion: '', monto: '', fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
     categoria: '', proveedor: '', numero_factura: '', archivo_url: '', observaciones: '',
     forma_pago: 'Efectivo', destino: '', campamento_id: '', campamento_nombre: '',
     actividad_id: '', actividad_nombre: '',

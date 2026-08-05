@@ -18,7 +18,7 @@ function apellidoParaOrden(nombre) {
 function fechaLinda(d) {
   if (!d) return '—';
   return new Date(d).toLocaleString('es-AR', {
-    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 }
 

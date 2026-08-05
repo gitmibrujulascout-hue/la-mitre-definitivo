@@ -60,12 +60,12 @@ function buildPeriodo(pago) {
 
   if (pago.tipo_pago === 'Campamento') {
     // Para campamento usamos la fecha de pago como período de un día
-    const f = new Date((pago.fecha_pago || new Date().toISOString().split('T')[0]) + 'T12:00:00');
+    const f = new Date((pago.fecha_pago || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })) + 'T12:00:00');
     return { desde: fmtExcel(f), hasta: fmtExcel(f) };
   }
 
   if (meses.length === 0) {
-    const f = new Date((pago.fecha_pago || new Date().toISOString().split('T')[0]) + 'T12:00:00');
+    const f = new Date((pago.fecha_pago || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })) + 'T12:00:00');
     return { desde: fmtExcel(f), hasta: fmtExcel(f) };
   }
 
@@ -80,7 +80,7 @@ function buildPeriodo(pago) {
 
 function exportarExcel(pagosFiltrados, beneficiariosMap) {
   const filas = pagosFiltrados.map(p => {
-    const fechaComprobante = fmtExcel(new Date((p.fecha_pago || new Date().toISOString().split('T')[0]) + 'T12:00:00'));
+    const fechaComprobante = fmtExcel(new Date((p.fecha_pago || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })) + 'T12:00:00'));
     const { desde, hasta } = buildPeriodo(p);
     const ben = beneficiariosMap[p.beneficiario_id];
     const email = ben?.email_contacto || null;
@@ -127,7 +127,7 @@ function exportarExcel(pagosFiltrados, beneficiariosMap) {
   });
 
   XLSX.utils.book_append_sheet(wb, ws, 'Datos de Facturas');
-  XLSX.writeFile(wb, `facturacion_masiva_${new Date().toISOString().split('T')[0]}.xlsx`);
+  XLSX.writeFile(wb, `facturacion_masiva_${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })}.xlsx`);
 }
 
 export default function ReportePagos() {
@@ -188,7 +188,7 @@ export default function ReportePagos() {
     window.print();
   };
 
-  const formatFecha = (f) => f ? new Date(f + 'T12:00:00').toLocaleDateString('es-AR') : '-';
+  const formatFecha = (f) => f ? new Date(f + 'T12:00:00').toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '-';
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -262,7 +262,7 @@ export default function ReportePagos() {
             Período: {formatFecha(desde)} al {formatFecha(hasta)}
             {filtroTipo !== 'Todos' ? ` · Tipo: ${filtroTipo}` : ''}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">Generado el {new Date().toLocaleDateString('es-AR', { dateStyle: 'long' })}</p>
+          <p className="text-xs text-muted-foreground mt-1">Generado el {new Date().toLocaleDateString('es-AR', { dateStyle: 'long', timeZone: 'America/Argentina/Buenos_Aires' })}</p>
         </div>
 
         {/* Resumen */}

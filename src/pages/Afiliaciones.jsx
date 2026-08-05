@@ -33,7 +33,7 @@ function EditarTipoAfiliacionDialog({ open, onClose, beneficiario }) {
   });
 
   const handleSave = () => {
-    const nuevaFecha = tipo === 'primera_vez' ? null : (fecha || new Date().toISOString().split('T')[0]);
+    const nuevaFecha = tipo === 'primera_vez' ? null : (fecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
     updateMutation.mutate({
       id: beneficiario.id,
       data: { fecha_primer_afiliacion: nuevaFecha }
@@ -81,7 +81,7 @@ function EditarTipoAfiliacionDialog({ open, onClose, beneficiario }) {
                 type="date"
                 value={fecha}
                 onChange={e => setFecha(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
+                max={new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })}
               />
               <p className="text-xs text-muted-foreground mt-1">Puede ser aproximada, sirve para registrar el historial.</p>
             </div>
@@ -107,7 +107,7 @@ function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, 
     beneficiario_id: '',
     monto: MONTO_SEGURO_DEFAULT.toString(),
     monto_pagado: MONTO_SEGURO_DEFAULT.toString(),
-    fecha_pago: new Date().toISOString().split('T')[0],
+    fecha_pago: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
     forma_pago: 'Efectivo',
     observaciones: '',
   });
@@ -259,7 +259,7 @@ function AfiliacionMasivaDialog({ open, onClose, beneficiarios, afiliacionesExis
 
   // Separar quienes deben pagar y quienes no (primera vez)
   const [montoGlobal, setMontoGlobal] = useState(MONTO_SEGURO_DEFAULT.toString());
-  const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
+  const [fechaPago, setFechaPago] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
   const [formaPago, setFormaPago] = useState('Efectivo');
 
   // IDs ya afiliados este año

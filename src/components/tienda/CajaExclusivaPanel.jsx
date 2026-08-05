@@ -101,7 +101,7 @@ export default function CajaExclusivaPanel() {
 
 function EgresoDialog({ onClose }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ concepto: '', monto: '', fecha: new Date().toISOString().split('T')[0] });
+  const [form, setForm] = useState({ concepto: '', monto: '', fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }) });
 
   const mut = useMutation({
     mutationFn: data => base44.entities.MovimientoBanco.create(data),
@@ -162,7 +162,7 @@ function TransferDialog({ saldoActual, onClose }) {
   const queryClient = useQueryClient();
   const [monto, setMonto] = useState('');
   const [destino, setDestino] = useState('Caja');
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [fecha, setFecha] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
 
   const mut = useMutation({
     mutationFn: async () => {

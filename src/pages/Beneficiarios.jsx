@@ -157,7 +157,7 @@ export default function Beneficiarios() {
         forma_pago: 'Efectivo',
         destino: 'Caja',
         monto: 0,
-        fecha_pago: new Date().toISOString().split('T')[0],
+        fecha_pago: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
         observaciones: 'Deuda condonada por baja del beneficiario',
       });
     }

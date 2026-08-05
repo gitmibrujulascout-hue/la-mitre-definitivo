@@ -26,7 +26,7 @@ const destinoGasto = (g) => {
 };
 
 export default function ReporteCajaDialog({ open, onClose, cuentaInicial = 'Caja' }) {
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   const primerDiaMes = hoy.substring(0, 8) + '01';
 
   const [cuenta, setCuenta] = useState(cuentaInicial);

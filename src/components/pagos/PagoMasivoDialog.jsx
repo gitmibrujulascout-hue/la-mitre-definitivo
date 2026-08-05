@@ -17,7 +17,7 @@ export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
   const [mesesSeleccionados, setMesesSeleccionados] = useState([]);
   const [anio, setAnio] = useState(new Date().getFullYear().toString());
   const [formaPago, setFormaPago] = useState('Efectivo');
-  const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
+  const [fechaPago, setFechaPago] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
   const [bensSeleccionados, setBensSeleccionados] = useState([]);
   const [searchBen, setSearchBen] = useState('');
 
@@ -74,7 +74,7 @@ export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
           beneficiario_nombre: ben.nombre,
           monto_original: montoCredito,
           monto_disponible: montoCredito,
-          fecha: new Date().toISOString().split('T')[0],
+          fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
           observaciones: labelJulio,
         });
       }

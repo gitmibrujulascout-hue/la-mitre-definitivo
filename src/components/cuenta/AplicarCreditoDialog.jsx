@@ -114,7 +114,7 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
   const mutation = useMutation({
     mutationFn: async () => {
       const campamento = campamentos.find(c => c.id === campamentoId);
-      const fechaPago = new Date().toISOString().split('T')[0];
+      const fechaPago = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
 
       // Construir label con desglose de fuentes
       const debitos = distribuirDebito(creditoNum);

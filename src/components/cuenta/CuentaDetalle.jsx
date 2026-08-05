@@ -381,7 +381,7 @@ function TransferirCreditoDialog({ credito, origenId, grupoFamiliar, todosLosBen
         actividad_nombre: credito.actividad_nombre,
         monto_original: montoNum,
         monto_disponible: montoNum,
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
         observaciones: `Transferido desde ${credito.beneficiario_nombre}`,
       });
       // Descontar del crédito origen (re-fetch para evitar estado stale)

@@ -80,7 +80,7 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
             archivo: file.name,
             descripcion: d.descripcion || file.name,
             monto: d.monto_total || 0,
-            fecha: d.fecha || new Date().toISOString().split('T')[0],
+            fecha: d.fecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
             proveedor: d.proveedor || '',
             numero_factura: numFactura,
             categoria: d.categoria || 'Otro',
@@ -90,10 +90,10 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
             duplicado: duplicadoEn,
           });
         } else {
-          resultados.push({ archivo: file.name, ok: false, descripcion: file.name, monto: 0, fecha: new Date().toISOString().split('T')[0], categoria: 'Otro' });
+          resultados.push({ archivo: file.name, ok: false, descripcion: file.name, monto: 0, fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }), categoria: 'Otro' });
         }
       } catch {
-        resultados.push({ archivo: file.name, ok: false, descripcion: file.name, monto: 0, fecha: new Date().toISOString().split('T')[0], categoria: 'Otro' });
+        resultados.push({ archivo: file.name, ok: false, descripcion: file.name, monto: 0, fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }), categoria: 'Otro' });
       }
       setProgreso(Math.round(((i + 1) / archivos.length) * 100));
     }

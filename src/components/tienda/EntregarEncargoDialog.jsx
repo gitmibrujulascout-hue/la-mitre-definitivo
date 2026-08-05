@@ -26,7 +26,7 @@ export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
         cantidad: encargo.cantidad,
         precio_unitario: encargo.precio_unitario,
         monto_total: encargo.monto_total,
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
         forma_pago: formaPago,
         destino: destino,
         observaciones: 'Generado desde pre-encargo',
@@ -36,7 +36,7 @@ export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
       const saldoPendiente = Math.max(0, (encargo.monto_total || 0) - (encargo.monto_pagado || 0));
       if (saldoPendiente > 0) {
         await base44.entities.MovimientoBanco.create({
-          fecha: new Date().toISOString().split('T')[0],
+          fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
           tipo: 'Ingreso',
           concepto: `Venta tienda - ${encargo.producto_nombre} (${encargo.beneficiario_nombre})`,
           monto: saldoPendiente,
@@ -65,7 +65,7 @@ export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
       await base44.entities.PreEncargoTienda.update(encargo.id, {
         estado: 'Entregado',
         stock_reservado: false,
-        fecha_confirmacion: encargo.fecha_confirmacion || new Date().toISOString().split('T')[0],
+        fecha_confirmacion: encargo.fecha_confirmacion || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
       });
     },
     onSuccess: () => {

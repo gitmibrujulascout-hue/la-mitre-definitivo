@@ -32,7 +32,7 @@ export default function RendicionDialog({ open, onClose, venta, actividadId }) {
     mutation.mutate({
       estado_rendicion: estado,
       monto_rendido: monto,
-      fecha_rendicion: new Date().toISOString().split('T')[0],
+      fecha_rendicion: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
     });
   };
 

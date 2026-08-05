@@ -365,10 +365,10 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                     if (v) {
                       // Reingreso: limpiar fecha de baja y registrar reingreso
                       update('fecha_baja', '');
-                      update('fecha_reingreso', new Date().toISOString().split('T')[0]);
+                      update('fecha_reingreso', new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
                     } else {
                       // Baja: registrar fecha de hoy por defecto
-                      update('fecha_baja', new Date().toISOString().split('T')[0]);
+                      update('fecha_baja', new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
                       update('fecha_reingreso', '');
                     }
                   }}

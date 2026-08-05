@@ -19,7 +19,7 @@ export default function GananciasGrupoDialog({ open, onClose, onSaved, actividad
 
   // --- MODO CAJA ---
   const [formaPago, setFormaPago] = useState('Efectivo');
-  const [fechaCaja, setFechaCaja] = useState(new Date().toISOString().split('T')[0]);
+  const [fechaCaja, setFechaCaja] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
   const [montoCaja, setMontoCaja] = useState(Math.round(gananciaGrupo));
 
   // --- MODO DISTRIBUIR ---
@@ -64,7 +64,7 @@ export default function GananciasGrupoDialog({ open, onClose, onSaved, actividad
   // Mutation: distribuir como créditos a beneficiarios
   const distribuirMutation = useMutation({
     mutationFn: async () => {
-      const fecha = new Date().toISOString().split('T')[0];
+      const fecha = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
       const validas = distribuciones.filter(d => d.beneficiario_id && Number(d.monto) > 0);
       await Promise.all(validas.map(d =>
         base44.entities.CreditoBeneficiario.create({

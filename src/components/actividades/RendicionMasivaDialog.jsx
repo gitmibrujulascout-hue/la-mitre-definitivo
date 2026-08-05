@@ -59,7 +59,7 @@ export default function RendicionMasivaDialog({ open, onClose, ventas, actividad
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const fecha = new Date().toISOString().split('T')[0];
+      const fecha = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
       for (const id of seleccionados) {
         const v = ventas.find(x => x.id === id);
         await base44.entities.VentaActividad.update(id, {

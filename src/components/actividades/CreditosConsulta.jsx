@@ -161,7 +161,7 @@ export default function CreditosConsulta({ beneficiarios }) {
     if (actividadSel !== 'todas') filtros.push(`Actividad: ${actividadesMap.find(a => a.id === actividadSel)?.nombre || ''}`);
     pdf.text(filtros.length > 0 ? filtros.join('  ·  ') : 'Todos los créditos', margin, y);
     y += 5;
-    pdf.text(`Generado: ${new Date().toLocaleDateString('es-AR')} ${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`, margin, y);
+    pdf.text(`Generado: ${new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })} ${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}`, margin, y);
     y += 7;
 
     // Totals box

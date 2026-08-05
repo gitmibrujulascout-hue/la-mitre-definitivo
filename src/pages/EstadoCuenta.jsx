@@ -304,7 +304,7 @@ export default function EstadoCuenta() {
                       {b.fecha_nacimiento && (
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                           <Calendar className="w-3.5 h-3.5" />
-                          <span>Nac.: <span className="text-foreground font-medium">{new Date(b.fecha_nacimiento + 'T12:00:00').toLocaleDateString('es-AR')}</span></span>
+                          <span>Nac.: <span className="text-foreground font-medium">{new Date(b.fecha_nacimiento + 'T12:00:00').toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</span></span>
                         </div>
                       )}
                       {b.telefono_contacto && (

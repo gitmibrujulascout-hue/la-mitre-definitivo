@@ -22,7 +22,7 @@ import ReporteCajaDialog from '@/components/caja/ReporteCajaDialog';
 function MovimientoManualDialog({ open, onClose, cuentaDestino }) {
   const [form, setForm] = useState({
     tipo: 'Ingreso', concepto: '', monto: '',
-    fecha: new Date().toISOString().split('T')[0], observaciones: '',
+    fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }), observaciones: '',
     forma_pago: cuentaDestino === 'Caja' ? 'Efectivo' : 'Transferencia',
   });
   const queryClient = useQueryClient();

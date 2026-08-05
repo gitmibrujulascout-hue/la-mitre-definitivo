@@ -14,14 +14,14 @@ export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose,
   const [open, setOpen] = useState(true);
   const [monto, setMonto] = useState('');
   const [formaPago, setFormaPago] = useState('Efectivo');
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [fecha, setFecha] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (encargo) {
       setMonto('');
       setFormaPago('Efectivo');
-      setFecha(new Date().toISOString().split('T')[0]);
+      setFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
     }
   }, [encargo]);
 

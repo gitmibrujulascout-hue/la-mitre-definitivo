@@ -26,7 +26,7 @@ const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 // ——— Mini formulario de gasto de campamento (para enlace externo) ———
 function GastoCampamentoDialog({ open, onClose, campamento, onSaved }) {
   const [form, setForm] = useState({
-    descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0],
+    descripcion: '', monto: '', fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
     proveedor: '', observaciones: '',
   });
   const queryClient = useQueryClient();
@@ -37,7 +37,7 @@ function GastoCampamentoDialog({ open, onClose, campamento, onSaved }) {
       queryClient.invalidateQueries({ queryKey: ['gastos_pub'] });
       toast.success('Gasto registrado');
       onClose();
-      setForm({ descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0], proveedor: '', observaciones: '' });
+      setForm({ descripcion: '', monto: '', fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }), proveedor: '', observaciones: '' });
       if (onSaved) onSaved();
     },
   });
@@ -104,7 +104,7 @@ function GastoCampamentoDialog({ open, onClose, campamento, onSaved }) {
 function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos, creditos, onSaved }) {
   const [benId, setBenId] = useState('');
   const [monto, setMonto] = useState('');
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [fecha, setFecha] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
   const [usarCredito, setUsarCredito] = useState(false);
   const [creditoId, setCreditoId] = useState('');
   const queryClient = useQueryClient();

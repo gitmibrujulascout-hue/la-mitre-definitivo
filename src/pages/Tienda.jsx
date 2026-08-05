@@ -102,7 +102,7 @@ export default function Tienda() {
       const encargo = preEncargos.find(e => e.id === id);
       if (!encargo) return;
       const update = { estado };
-      if (estado === 'Confirmado') update.fecha_confirmacion = new Date().toISOString().split('T')[0];
+      if (estado === 'Confirmado') update.fecha_confirmacion = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
       if (estado === 'Cancelado') {
         update.stock_reservado = false;
         update.monto_pagado = 0;
@@ -142,7 +142,7 @@ export default function Tienda() {
 
   const confirmarFamilia = useMutation({
     mutationFn: async (ids) => {
-      const hoy = new Date().toISOString().split('T')[0];
+      const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
       await base44.entities.PreEncargoTienda.bulkUpdate(
         ids.map(id => ({ id, estado: 'Confirmado', fecha_confirmacion: hoy }))
       );
@@ -218,7 +218,7 @@ export default function Tienda() {
 
   // Stats
   const totalVentas = ventas.reduce((s, v) => s + (v.monto_total || 0), 0);
-  const ventasHoy = ventas.filter(v => v.fecha === new Date().toISOString().split('T')[0]);
+  const ventasHoy = ventas.filter(v => v.fecha === new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
   const totalHoy = ventasHoy.reduce((s, v) => s + (v.monto_total || 0), 0);
   const hayCajaExclusiva = productos.some(p => p.caja_exclusiva);
 

@@ -143,7 +143,7 @@ export default function ConfiguracionCuotas() {
         actividad_nombre: label,
         monto_original: getCreditoJulioBeneficiario(b, activos, baseJulio),
         monto_disponible: getCreditoJulioBeneficiario(b, activos, baseJulio),
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
         observaciones: label,
       }));
 
@@ -152,7 +152,7 @@ export default function ConfiguracionCuotas() {
 
       // Egreso en Caja: la plata pasa a la "caja de créditos" (reservada)
       await base44.entities.MovimientoBanco.create({
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
         tipo: 'Egreso',
         concepto: `Reserva — Créditos Julio ${anioFiltro}`,
         monto: totalMonto,
