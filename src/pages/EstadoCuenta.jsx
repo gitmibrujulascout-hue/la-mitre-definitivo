@@ -180,9 +180,9 @@ export default function EstadoCuenta() {
 
   const handleBuscar = () => {
     const input = dniInput.trim();
-    // Prefijo "#" = modo admin/test: consulta sin registrar la visita
-    const esModoTest = input.startsWith('#');
-    const dni = esModoTest ? input.substring(1).trim() : input;
+    // Prefijo "9" + DNI (más de 8 dígitos) = modo admin/test: consulta sin registrar la visita
+    const esModoTest = input.startsWith('9') && input.length > 8;
+    const dni = esModoTest ? input.substring(1) : input;
     setDniBuscado(dni);
     if (esModoTest) return;
     // Registrar la consulta para seguimiento de adopción familiar (fire-and-forget)
