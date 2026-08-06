@@ -584,8 +584,16 @@ export default function Afiliaciones() {
         return true;
       })
       .sort((a, b) => {
-        if (!a.afiliacion && b.afiliacion) return -1;
-        if (a.afiliacion && !b.afiliacion) return 1;
+        const prioridad = (f) => {
+          const { afiliacion, esPrimeraVez } = f;
+          if (!afiliacion) return esPrimeraVez ? 2 : 0; // 0 = deuda total, 2 = bonificado
+          if (afiliacion.es_primera_vez) return 2;
+          const saldo = (afiliacion.monto || 0) - (afiliacion.monto_pagado || afiliacion.monto || 0);
+          return saldo > 0 ? 1 : 2; // 1 = parcial, 2 = cancelado
+        };
+        const pa = prioridad(a);
+        const pb = prioridad(b);
+        if (pa !== pb) return pa - pb;
         return a.beneficiario.nombre?.localeCompare(b.beneficiario.nombre);
       });
   }, [beneficiariosActivos, mapAfiliados, busqueda, filtroVista]);
