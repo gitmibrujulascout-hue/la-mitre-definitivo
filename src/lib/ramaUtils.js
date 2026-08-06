@@ -245,7 +245,11 @@ export function calcularMontoPorMes(pagosCuota, beneficiario, todosBeneficiarios
     if (meses.length === 0) return;
     let montoPorMes;
     if (p.forma_pago === 'Transferencia') {
-      montoPorMes = cuotaEfectiva;
+      // Convierte el monto real transferido a su valor efectivo equivalente.
+      // Así un pago por transferencia menor al esperado se detecta como parcial.
+      const cuotaTransfBen = getCuotaBeneficiario(beneficiario, todosBeneficiarios, CUOTA_TRANSFERENCIA);
+      const ratio = cuotaTransfBen > 0 ? cuotaEfectiva / cuotaTransfBen : 1;
+      montoPorMes = ((p.monto || 0) / meses.length) * ratio;
     } else {
       montoPorMes = (p.monto || 0) / meses.length;
     }

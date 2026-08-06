@@ -103,7 +103,9 @@ export default function CuentaCorriente() {
         .reduce((s, p) => {
           if (p.forma_pago === 'Transferencia' && p.meses?.length > 0) {
             const cuotaBenEfectivo = getCuotaBeneficiario(b, activos);
-            return s + p.meses.length * cuotaBenEfectivo;
+            const cuotaBenTransf = getCuotaBeneficiario(b, activos, CUOTA_TRANSFERENCIA);
+            const ratio = cuotaBenTransf > 0 ? cuotaBenEfectivo / cuotaBenTransf : 1;
+            return s + (p.monto || 0) * ratio;
           }
           return s + (p.monto || 0);
         }, 0);

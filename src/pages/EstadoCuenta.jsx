@@ -109,10 +109,11 @@ export default function EstadoCuenta() {
     let pagadoCuotas = 0;
     const alDia = esBeneficiarioConCuota(b) ? estaAlDia(b, pagosCuotasAnio, mesesQueGeneranDeuda) : false;
     if (esBeneficiarioConCuota(b)) {
-      const mesesCubiertos = new Set(
-        pagosCuotasAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []))
-      );
-      const mesesPendientes = mesesQueGeneranDeuda.filter(m => !mesesCubiertos.has(m));
+      const mesesPendientes = mesesQueGeneranDeuda.filter(m => {
+        const baseMes = getCuotaBaseMes(m, anio, configCuotas);
+        const cuotaBenMes = getCuotaBeneficiario(b, activos, baseMes);
+        return (montoPorMes[m] || 0) < cuotaBenMes - 0.01;
+      });
       deudaCuotas = mesesPendientes.reduce((s, m) => {
         const baseMes = getCuotaBaseMes(m, anio, configCuotas);
         const cuotaBenMes = getCuotaBeneficiario(b, activos, baseMes);
