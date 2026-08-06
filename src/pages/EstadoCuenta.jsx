@@ -90,7 +90,7 @@ export default function EstadoCuenta() {
     const esperadoPorMes = calcularEsperadoPorMes(pagosCuotasAnio, b, activos);
 
     const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
-    const esPrimeraVez = !b.fecha_primer_afiliacion;
+    const esPrimeraVez = !b.fecha_primer_afiliacion || afiliacionAnio?.es_primera_vez === true;
     const marzoGratis = marzoEsBonificado(afiliacionAnio, esPrimeraVez);
 
     // Cálculo centralizado de meses que generan deuda (alta + baja + reingreso)
@@ -154,8 +154,8 @@ export default function EstadoCuenta() {
     // Afiliación: si no es primera vez, sumar deuda pendiente al saldo
     let saldoAfiliacion = 0;
     if (!esPrimeraVez && anio >= AÑO_INICIO) {
-      const montoPagadoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto_pagado || afiliacionAnio.monto || 0) : 0;
-      const montoDebidoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto || MONTO_SEGURO_AFILIACION) : MONTO_SEGURO_AFILIACION;
+      const montoPagadoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto_pagado ?? afiliacionAnio.monto ?? 0) : 0;
+      const montoDebidoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto ?? MONTO_SEGURO_AFILIACION) : MONTO_SEGURO_AFILIACION;
       saldoAfiliacion = montoPagadoAfiliacion - montoDebidoAfiliacion;
     }
 

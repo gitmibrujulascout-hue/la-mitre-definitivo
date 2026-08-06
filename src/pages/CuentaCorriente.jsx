@@ -92,7 +92,7 @@ export default function CuentaCorriente() {
 
       // Deuda cuotas: cálculo centralizado (alta + baja + reingreso). Solo desde AÑO_INICIO.
       const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
-      const esPrimeraVez = !b.fecha_primer_afiliacion;
+      const esPrimeraVez = !b.fecha_primer_afiliacion || afiliacionAnio?.es_primera_vez === true;
       const marzoGratis = marzoEsBonificado(afiliacionAnio, esPrimeraVez);
       const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : calcularMesesQueGeneranDeuda(b, anio, afiliaciones);
       const cuotaIndividual = esAdulto ? 0 : getCuotaBeneficiario(b, activos);
@@ -107,8 +107,8 @@ export default function CuentaCorriente() {
       let saldoAfiliacion = 0;
       if (!esPrimeraVez && anio >= AÑO_INICIO) {
         // Debe pagar afiliación: si no tiene registro o tiene saldo pendiente
-        const montoPagadoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto_pagado || afiliacionAnio.monto || 0) : 0;
-        const montoDebidoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto || MONTO_SEGURO_AFILIACION) : MONTO_SEGURO_AFILIACION;
+        const montoPagadoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto_pagado ?? afiliacionAnio.monto ?? 0) : 0;
+        const montoDebidoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto ?? MONTO_SEGURO_AFILIACION) : MONTO_SEGURO_AFILIACION;
         saldoAfiliacion = montoPagadoAfiliacion - montoDebidoAfiliacion;
       }
 
