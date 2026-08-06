@@ -226,13 +226,6 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     return Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) > 0 && (montoPorMes[m] || 0) < (esperadoPorMes[m] || cuotaEfectiva) - 0.01);
   }, [montoPorMes, esperadoPorMes, selectedBen, beneficiarios]);
 
-  // Saldo pendiente total de los meses parciales seleccionados (para saldar)
-  const saldoPendienteParciales = useMemo(() => {
-    return mesesSeleccionados
-      .filter(m => mesesParciales.includes(m))
-      .reduce((s, m) => s + Math.max(0, (esperadoPorMes[m] || cuotaBaseEfectivo) - (montoPorMes[m] || 0)), 0);
-  }, [mesesSeleccionados, mesesParciales, esperadoPorMes, montoPorMes, cuotaBaseEfectivo]);
-
   // Calcular meses ya pagados por este beneficiario en el año seleccionado (alias para compatibilidad)
   const mesesYaPagados = mesesTotalmentePagados;
 
@@ -246,6 +239,13 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   // Mantener la proporción transferencia/efectivo
   const ratio = CUOTA_TRANSFERENCIA / CUOTA_EFECTIVO;
   const cuotaBaseTransferencia = Math.round(cuotaBaseEfectivo * ratio);
+
+  // Saldo pendiente total de los meses parciales seleccionados (para saldar)
+  const saldoPendienteParciales = useMemo(() => {
+    return mesesSeleccionados
+      .filter(m => mesesParciales.includes(m))
+      .reduce((s, m) => s + Math.max(0, (esperadoPorMes[m] || cuotaBaseEfectivo) - (montoPorMes[m] || 0)), 0);
+  }, [mesesSeleccionados, mesesParciales, esperadoPorMes, montoPorMes, cuotaBaseEfectivo]);
   const cuotaUnitaria = !formaPago ? 0 : formaPago === 'Transferencia' ? cuotaBaseTransferencia : cuotaBaseEfectivo;
   const tieneDescuento = cuotaBaseEfectivo < CUOTA_EFECTIVO;
   const montoCuotas = tipoPago === 'Cuota' ? mesesSeleccionados.length * cuotaUnitaria : 0;
