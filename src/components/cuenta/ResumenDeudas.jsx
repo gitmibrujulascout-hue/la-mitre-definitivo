@@ -18,7 +18,11 @@ export default function ResumenDeudas({ cuentas, anio, onSelectBen, onRegisterPa
       const deudores = cuentas
         .filter(c => c.mesesDeuda?.includes(mes) && !c.becado)
         .sort((a, b) => a.nombre.localeCompare(b.nombre));
-      const total = deudores.reduce((s, c) => s + (c.cuotaIndividual || 0), 0);
+      const total = deudores.reduce((s, c) => {
+        const esperado = c.esperadoPorMes?.[mes] || c.cuotaIndividual || 0;
+        const pagado = c.montoPorMes?.[mes] || 0;
+        return s + Math.max(0, esperado - pagado);
+      }, 0);
       return { mes, deudores, total };
     }).filter(d => d.deudores.length > 0);
   }, [cuentas]);

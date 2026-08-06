@@ -232,10 +232,10 @@ export function getCuotaBeneficiario(b, todosBeneficiarios = [], baseEfectivo = 
 }
 
 /**
- * Calcula el monto efectivo pagado por mes para un beneficiario.
+ * Calcula el monto real pagado por mes para un beneficiario.
  * Devuelve { [mes]: montoPagado }.
- * Para transferencias, computa a valor efectivo (cuota base, los $2.000 extra son impuestos bancarios).
- * Para efectivo/subsidio/crédito, usa el monto real dividido entre los meses del pago.
+ * Usa el monto real del pago dividido entre los meses que cubre.
+ * Para determinar si un mes está pagado o parcial, comparar contra calcularEsperadoPorMes.
  */
 export function calcularMontoPorMes(pagosCuota, beneficiario, todosBeneficiarios = []) {
   const resultado = {};
