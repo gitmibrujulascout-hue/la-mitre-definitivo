@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, getCreditoJulioBeneficiario, marzoEsBonificado, estaAlDia, calcularMesesQueGeneranDeuda, JULIO_LABEL_CREDITO, calcularMontoPorMes } from '@/lib/ramaUtils';
+import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, getCreditoJulioBeneficiario, marzoEsBonificado, estaAlDia, calcularMesesQueGeneranDeuda, JULIO_LABEL_CREDITO, calcularMontoPorMes, calcularEsperadoPorMes } from '@/lib/ramaUtils';
 import { registrarPagos } from '@/lib/registros';
 import { toast } from 'sonner';
 import { Tent, CreditCard, Users, Wallet, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -200,25 +200,38 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     return pagosExistentes.filter(p => p.beneficiario_id === beneficiarioId && p.anio === parseInt(anio) && p.tipo_pago === 'Cuota');
   }, [beneficiarioId, anio, pagosExistentes]);
 
-  // Monto pagado por mes (para distinguir pagos parciales de completos)
+  // Monto pagado por mes (monto real, sin conversión)
   const montoPorMes = useMemo(() => {
     if (!selectedBen) return {};
     return calcularMontoPorMes(pagosCuotaBen, selectedBen, beneficiarios);
   }, [pagosCuotaBen, selectedBen, beneficiarios]);
 
-  // Meses totalmente pagados (total >= cuota) — no se pueden re-seleccionar
+  // Monto esperado por mes según el método de pago usado (transferencia > efectivo)
+  const esperadoPorMes = useMemo(() => {
+    if (!selectedBen) return {};
+    return calcularEsperadoPorMes(pagosCuotaBen, selectedBen, beneficiarios);
+  }, [pagosCuotaBen, selectedBen, beneficiarios]);
+
+  // Meses totalmente pagados (total >= esperado según método de pago) — no se pueden re-seleccionar
   const mesesTotalmentePagados = useMemo(() => {
     if (!selectedBen) return [];
     const cuotaEfectiva = getCuotaBeneficiario(selectedBen, beneficiarios);
-    return Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) >= cuotaEfectiva - 0.01);
-  }, [montoPorMes, selectedBen, beneficiarios]);
+    return Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) >= (esperadoPorMes[m] || cuotaEfectiva) - 0.01);
+  }, [montoPorMes, esperadoPorMes, selectedBen, beneficiarios]);
 
-  // Meses parcialmente pagados (0 < total < cuota) — se pueden re-seleccionar para saldar
+  // Meses parcialmente pagados (0 < total < esperado) — se pueden re-seleccionar para saldar
   const mesesParciales = useMemo(() => {
     if (!selectedBen) return [];
     const cuotaEfectiva = getCuotaBeneficiario(selectedBen, beneficiarios);
-    return Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) > 0 && (montoPorMes[m] || 0) < cuotaEfectiva - 0.01);
-  }, [montoPorMes, selectedBen, beneficiarios]);
+    return Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) > 0 && (montoPorMes[m] || 0) < (esperadoPorMes[m] || cuotaEfectiva) - 0.01);
+  }, [montoPorMes, esperadoPorMes, selectedBen, beneficiarios]);
+
+  // Saldo pendiente total de los meses parciales seleccionados (para saldar)
+  const saldoPendienteParciales = useMemo(() => {
+    return mesesSeleccionados
+      .filter(m => mesesParciales.includes(m))
+      .reduce((s, m) => s + Math.max(0, (esperadoPorMes[m] || cuotaBaseEfectivo) - (montoPorMes[m] || 0)), 0);
+  }, [mesesSeleccionados, mesesParciales, esperadoPorMes, montoPorMes, cuotaBaseEfectivo]);
 
   // Calcular meses ya pagados por este beneficiario en el año seleccionado (alias para compatibilidad)
   const mesesYaPagados = mesesTotalmentePagados;
@@ -533,7 +546,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
                   const parcial = mesesParciales.includes(mes);
                   const noCobra = mesesNoCobrar.includes(mes);
                   const seleccionado = mesesSeleccionados.includes(mes);
-                  const saldoMes = parcial ? (cuotaBaseEfectivo - (montoPorMes[mes] || 0)) : 0;
+                  const saldoMes = parcial ? ((esperadoPorMes[mes] || cuotaBaseEfectivo) - (montoPorMes[mes] || 0)) : 0;
                   return (
                     <button
                       key={mes}
@@ -584,6 +597,15 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
                     onChange={e => setMontoManualCuota(e.target.value)}
                     placeholder={montoCuotas.toString()}
                   />
+                  {saldoPendienteParciales > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setMontoManualCuota(saldoPendienteParciales.toString())}
+                      className="mt-1.5 text-xs text-orange-600 font-medium hover:text-orange-700 flex items-center gap-1"
+                    >
+                      ◐ Saldar saldo pendiente de meses parciales: {formatMoney(saldoPendienteParciales)}
+                    </button>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     Dejá vacío para registrar el monto completo ({formatMoney(montoCuotas)}).
                     {montoManualValue > 0 && montoManualValue < montoCuotas && (
