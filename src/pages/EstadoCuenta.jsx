@@ -15,7 +15,7 @@ import RamaBadge from '@/components/shared/RamaBadge';
 import {
   MESES, MESES_SIN_CUOTA,
   CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, getCuotaBaseMes, getCuotaTransferenciaMes, marzoEsBonificado,
-  estaAlDia, getCuotaMes, calcularMesesQueGeneranDeuda, mesExcluidoPorActividad
+  estaAlDia, getCuotaMes, calcularMesesQueGeneranDeuda, mesExcluidoPorActividad, calcularMontoPorMes
 } from '@/lib/ramaUtils';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 import { cn } from '@/lib/utils';
@@ -86,6 +86,7 @@ export default function EstadoCuenta() {
     );
     const pagosAnio = pagosDelBen.filter(p => Number(p.anio) === Number(anio));
     const mesesPagados = pagosCuotasAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []));
+    const montoPorMes = calcularMontoPorMes(pagosCuotasAnio, b, activos);
 
     const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
     const esPrimeraVez = !b.fecha_primer_afiliacion;
@@ -160,6 +161,8 @@ export default function EstadoCuenta() {
     return {
       pagosAnio,
       mesesPagados,
+      montoPorMes,
+      cuotaEfectiva: cuotaIndividual,
       campBen,
       totalCampamentos,
       pagadoCamp,
@@ -448,8 +451,11 @@ export default function EstadoCuenta() {
                 <h3 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide">Cuotas {anio}</h3>
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                   {MESES.map(mes => {
-                    const pago = cuenta.pagosAnio.find(p => (p.meses || [p.mes]).includes(mes));
-                    const pagado = !!pago;
+                    const montoMes = cuenta.montoPorMes[mes] || 0;
+                    const cuotaMes = cuenta.cuotaEfectiva || CUOTA_EFECTIVO;
+                    const pagadoTotal = montoMes >= cuotaMes - 0.01;
+                    const parcial = montoMes > 0 && montoMes < cuotaMes - 0.01;
+                    const saldoMes = parcial ? cuotaMes - montoMes : 0;
                     const sinCuota = MESES_SIN_CUOTA.includes(mes);
                     const bonificado = mes === 'Marzo' && cuenta.marzoGratis;
                     const mesIdx = MESES.indexOf(mes);
@@ -460,34 +466,40 @@ export default function EstadoCuenta() {
                     // o entre la baja y el reingreso) → no genera deuda
                     const esBaja = mesExcluidoPorActividad(mesIdx, b, anio, afiliaciones);
 
-                    const esDeuda = !sinCuota && !b.becado && !bonificado && !pagado && !esBaja && yaTranscurrioEsteAnio && esBeneficiarioConCuota(b);
+                    const esDeuda = !sinCuota && !b.becado && !bonificado && !pagadoTotal && !esBaja && yaTranscurrioEsteAnio && esBeneficiarioConCuota(b);
                     return (
                      <Card key={mes} className={cn(
-                       'p-2.5 text-center',
-                       sinCuota ? 'bg-slate-50 border-slate-200 opacity-40' :
-                       esBaja ? 'bg-slate-100 border-slate-300 opacity-60' :
-                       b.becado || bonificado ? 'bg-amber-50 border-amber-200' :
-                       pagado ? 'bg-green-50 border-green-200' :
-                       esDeuda ? 'bg-red-100 border-red-400' : 'bg-slate-50 border-slate-200'
-                     )}>
-                       <p className={cn("text-xs font-medium", esDeuda ? "text-red-700 font-bold" : esBaja ? "text-slate-400" : "text-muted-foreground")}>{mes.substring(0, 3)}</p>
-                       {sinCuota ? (
-                         <p className="text-xs text-slate-300 mt-1">—</p>
-                       ) : esBaja ? (
-                         <UserX className="w-4 h-4 text-slate-400 mx-auto mt-1" title="De baja" />
-                       ) : b.becado ? (
-                         <Award className="w-4 h-4 text-amber-500 mx-auto mt-1" />
-                       ) : bonificado && !pagado ? (
-                         <Award className="w-4 h-4 text-amber-400 mx-auto mt-1" />
-                       ) : pagado ? (
-                         <CheckCircle2 className="w-4 h-4 text-green-500 mx-auto mt-1" />
-                       ) : esDeuda ? (
-                         <XCircle className="w-4 h-4 text-red-600 mx-auto mt-1" />
-                       ) : (
-                         <p className="text-xs text-slate-300 mt-1">—</p>
-                       )}
-                      </Card>
-                    );
+                        'p-2.5 text-center',
+                        sinCuota ? 'bg-slate-50 border-slate-200 opacity-40' :
+                        esBaja ? 'bg-slate-100 border-slate-300 opacity-60' :
+                        b.becado || bonificado ? 'bg-amber-50 border-amber-200' :
+                        pagadoTotal ? 'bg-green-50 border-green-200' :
+                        parcial ? 'bg-orange-50 border-orange-300' :
+                        esDeuda ? 'bg-red-100 border-red-400' : 'bg-slate-50 border-slate-200'
+                      )}>
+                        <p className={cn("text-xs font-medium", esDeuda ? "text-red-700 font-bold" : esBaja ? "text-slate-400" : "text-muted-foreground")}>{mes.substring(0, 3)}</p>
+                        {sinCuota ? (
+                          <p className="text-xs text-slate-300 mt-1">—</p>
+                        ) : esBaja ? (
+                          <UserX className="w-4 h-4 text-slate-400 mx-auto mt-1" title="De baja" />
+                        ) : b.becado ? (
+                          <Award className="w-4 h-4 text-amber-500 mx-auto mt-1" />
+                        ) : bonificado && montoMes === 0 ? (
+                          <Award className="w-4 h-4 text-amber-400 mx-auto mt-1" />
+                        ) : pagadoTotal ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-500 mx-auto mt-1" />
+                        ) : parcial ? (
+                          <div title={`Pagado parcial: ${formatMoney(montoMes)} · Falta: ${formatMoney(saldoMes)}`}>
+                            <AlertCircle className="w-4 h-4 text-orange-500 mx-auto mt-1" />
+                            <p className="text-[9px] text-orange-600 font-medium mt-0.5">{formatMoney(saldoMes)}</p>
+                          </div>
+                        ) : esDeuda ? (
+                          <XCircle className="w-4 h-4 text-red-600 mx-auto mt-1" />
+                        ) : (
+                          <p className="text-xs text-slate-300 mt-1">—</p>
+                        )}
+                       </Card>
+                     );
                   })}
                 </div>
                 {esBeneficiarioConCuota(b) && !b.becado && (
