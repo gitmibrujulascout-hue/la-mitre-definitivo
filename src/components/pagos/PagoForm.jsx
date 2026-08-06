@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, getCreditoJulioBeneficiario, marzoEsBonificado, estaAlDia, calcularMesesQueGeneranDeuda, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
+import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, getCreditoJulioBeneficiario, marzoEsBonificado, estaAlDia, calcularMesesQueGeneranDeuda, JULIO_LABEL_CREDITO, calcularMontoPorMes } from '@/lib/ramaUtils';
 import { registrarPagos } from '@/lib/registros';
 import { toast } from 'sonner';
 import { Tent, CreditCard, Users, Wallet, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -62,6 +62,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   const [hermanosSeleccionados, setHermanosSeleccionados] = useState([]);
   const [creditoId, setCreditoId] = useState('');
   const [montoCreditoAplicar, setMontoCreditoAplicar] = useState('');
+  const [montoManualCuota, setMontoManualCuota] = useState('');
 
   const queryClient = useQueryClient();
 
@@ -193,13 +194,34 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     );
   };
 
-  // Calcular meses ya pagados por este beneficiario en el año seleccionado
-  const mesesYaPagados = useMemo(() => {
+  // Pagos de cuota del beneficiario en el año seleccionado
+  const pagosCuotaBen = useMemo(() => {
     if (!beneficiarioId || !anio) return [];
-    return pagosExistentes
-      .filter(p => p.beneficiario_id === beneficiarioId && p.anio === parseInt(anio) && p.tipo_pago === 'Cuota')
-      .flatMap(p => p.meses || (p.mes ? [p.mes] : []));
+    return pagosExistentes.filter(p => p.beneficiario_id === beneficiarioId && p.anio === parseInt(anio) && p.tipo_pago === 'Cuota');
   }, [beneficiarioId, anio, pagosExistentes]);
+
+  // Monto pagado por mes (para distinguir pagos parciales de completos)
+  const montoPorMes = useMemo(() => {
+    if (!selectedBen) return {};
+    return calcularMontoPorMes(pagosCuotaBen, selectedBen, beneficiarios);
+  }, [pagosCuotaBen, selectedBen, beneficiarios]);
+
+  // Meses totalmente pagados (total >= cuota) — no se pueden re-seleccionar
+  const mesesTotalmentePagados = useMemo(() => {
+    if (!selectedBen) return [];
+    const cuotaEfectiva = getCuotaBeneficiario(selectedBen, beneficiarios);
+    return Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) >= cuotaEfectiva - 0.01);
+  }, [montoPorMes, selectedBen, beneficiarios]);
+
+  // Meses parcialmente pagados (0 < total < cuota) — se pueden re-seleccionar para saldar
+  const mesesParciales = useMemo(() => {
+    if (!selectedBen) return [];
+    const cuotaEfectiva = getCuotaBeneficiario(selectedBen, beneficiarios);
+    return Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) > 0 && (montoPorMes[m] || 0) < cuotaEfectiva - 0.01);
+  }, [montoPorMes, selectedBen, beneficiarios]);
+
+  // Calcular meses ya pagados por este beneficiario en el año seleccionado (alias para compatibilidad)
+  const mesesYaPagados = mesesTotalmentePagados;
 
   const selectedCamp = campamentos.find(c => c.id === campamentoId);
   const pagosDelCampamento = pagosExistentes.filter(p => p.campamento_id === campamentoId && p.beneficiario_id === beneficiarioId);
@@ -214,8 +236,12 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   const cuotaUnitaria = !formaPago ? 0 : formaPago === 'Transferencia' ? cuotaBaseTransferencia : cuotaBaseEfectivo;
   const tieneDescuento = cuotaBaseEfectivo < CUOTA_EFECTIVO;
   const montoCuotas = tipoPago === 'Cuota' ? mesesSeleccionados.length * cuotaUnitaria : 0;
+  const montoManualValue = parseFloat(montoManualCuota) || 0;
+  // Si se ingresa un monto manual para cuota, usarlo (pago parcial); si no, usar el cálculo completo
+  const montoCuotaFinal = montoManualValue > 0 ? montoManualValue : montoCuotas;
+  const saldoParcialCuota = montoManualValue > 0 && montoManualValue < montoCuotas ? montoCuotas - montoManualValue : 0;
   const montoCampamento = tipoPago === 'Campamento' ? parseFloat(montoManual) || saldoCampamento : 0;
-  const montoFinal = tipoPago === 'Cuota' ? montoCuotas : montoCampamento;
+  const montoFinal = tipoPago === 'Cuota' ? montoCuotaFinal : montoCampamento;
 
   // Destino automático según forma de pago
   const destino = formaPago === 'Transferencia' ? 'Banco' : formaPago === 'Subsidio del grupo' ? 'Grupo' : 'Caja';
@@ -243,13 +269,14 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   // Auto-seleccionar el primer mes adeudado cuando cambia el beneficiario o el año
   useEffect(() => {
     if (tipoPago !== 'Cuota' || !beneficiarioId) return;
-    const primerMesAdeudado = MESES.find(m => !mesesYaPagados.includes(m) && !mesesNoCobrar.includes(m));
+    const primerMesAdeudado = MESES.find(m => !mesesTotalmentePagados.includes(m) && !mesesNoCobrar.includes(m));
     if (primerMesAdeudado) {
       setMesesSeleccionados([primerMesAdeudado]);
     } else {
       setMesesSeleccionados([]);
     }
-  }, [beneficiarioId, anio, tipoPago, mesesYaPagados.length, mesesNoCobrar.length]);
+    setMontoManualCuota('');
+  }, [beneficiarioId, anio, tipoPago, mesesTotalmentePagados.length, mesesNoCobrar.length]);
 
   // Auto-seleccionar y calcular crédito cuando se elige "Crédito actividad"
   useEffect(() => {
@@ -502,24 +529,29 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
               </Label>
               <div className="grid grid-cols-3 gap-1.5">
                 {MESES.map(mes => {
-                  const yaPagado = mesesYaPagados.includes(mes);
+                  const pagadoTotal = mesesTotalmentePagados.includes(mes);
+                  const parcial = mesesParciales.includes(mes);
                   const noCobra = mesesNoCobrar.includes(mes);
                   const seleccionado = mesesSeleccionados.includes(mes);
+                  const saldoMes = parcial ? (cuotaBaseEfectivo - (montoPorMes[mes] || 0)) : 0;
                   return (
                     <button
                       key={mes}
                       type="button"
-                      disabled={yaPagado || noCobra}
+                      disabled={pagadoTotal || noCobra}
                       onClick={() => toggleMes(mes)}
+                      title={parcial ? `Pagó ${formatMoney(montoPorMes[mes] || 0)}, saldo: ${formatMoney(saldoMes)}` : ''}
                       className={`p-2 rounded-md text-xs font-medium border transition-all ${
                         noCobra ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed' :
-                        yaPagado ? 'bg-green-50 border-green-200 text-green-600 opacity-60 cursor-not-allowed' :
+                        pagadoTotal ? 'bg-green-50 border-green-200 text-green-600 opacity-60 cursor-not-allowed' :
+                        parcial && seleccionado ? 'bg-orange-500 border-orange-500 text-white' :
+                        parcial ? 'bg-orange-50 border-orange-300 text-orange-600' :
                         seleccionado ? 'bg-primary border-primary text-primary-foreground' :
                         'border-border hover:border-primary/50'
                       }`}
                     >
                       {mes.substring(0, 3)}
-                      {noCobra ? ' —' : yaPagado ? ' ✓' : ''}
+                      {noCobra ? ' —' : pagadoTotal ? ' ✓' : parcial ? ' ◐' : ''}
                     </button>
                   );
                 })}
@@ -534,6 +566,32 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
                       ✓ Descuento familiar aplicado (cuota base: {formatMoney(formaPago === 'Transferencia' ? CUOTA_TRANSFERENCIA : CUOTA_EFECTIVO)})
                     </p>
                   )}
+                  {mesesParciales.length > 0 && (
+                    <p className="text-xs text-orange-600 font-medium">
+                      ◐ Meses con pago parcial (naranja) — seleccioná para saldar el resto
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Monto manual para pago parcial de cuota */}
+              {tipoPago === 'Cuota' && mesesSeleccionados.length > 0 && formaPago && formaPago !== 'Crédito actividad' && formaPago !== 'Subsidio del grupo' && (
+                <div>
+                  <Label>Monto recibido (si es pago parcial)</Label>
+                  <Input
+                    type="number"
+                    value={montoManualCuota}
+                    onChange={e => setMontoManualCuota(e.target.value)}
+                    placeholder={montoCuotas.toString()}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Dejá vacío para registrar el monto completo ({formatMoney(montoCuotas)}).
+                    {montoManualValue > 0 && montoManualValue < montoCuotas && (
+                      <span className="text-orange-600 font-medium block">
+                        Saldo pendiente: {formatMoney(saldoParcialCuota)}
+                      </span>
+                    )}
+                  </p>
                 </div>
               )}
             </div>

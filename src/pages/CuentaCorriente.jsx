@@ -13,7 +13,7 @@ import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
 import ResumenDeudas from '@/components/cuenta/ResumenDeudas';
 import GrillaCuotasMensuales from '@/components/cuenta/GrillaCuotasMensuales';
 import PagoForm from '@/components/pagos/PagoForm';
-import { RAMAS, TODOS_LOS_ROLES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado, calcularMesesQueGeneranDeuda } from '@/lib/ramaUtils';
+import { RAMAS, TODOS_LOS_ROLES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado, calcularMesesQueGeneranDeuda, calcularMontoPorMes } from '@/lib/ramaUtils';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 
 const CUOTA_EFECTIVO_REF = CUOTA_EFECTIVO;
@@ -66,9 +66,13 @@ export default function CuentaCorriente() {
   const cuentas = useMemo(() => {
     return beneficiarios.map(b => {
       const pagosDelBen = pagos.filter(p => p.beneficiario_id === b.id && p.anio === anio);
-      const mesesPagados = pagosDelBen
-        .filter(p => p.tipo_pago !== 'Campamento')
-        .flatMap(p => p.meses || (p.mes ? [p.mes] : []));
+      const pagosCuotaBen = pagosDelBen.filter(p => p.tipo_pago !== 'Campamento');
+      const montoPorMes = calcularMontoPorMes(pagosCuotaBen, b, activos);
+      const cuotaIndividualCalc = esBeneficiarioConCuota(b) ? getCuotaBeneficiario(b, activos) : 0;
+      // Meses totalmente pagados (total >= cuota)
+      const mesesPagados = Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) >= cuotaIndividualCalc - 0.01);
+      // Meses parcialmente pagados (0 < total < cuota)
+      const mesesParciales = Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) > 0 && (montoPorMes[m] || 0) < cuotaIndividualCalc - 0.01);
       const totalPagado = pagosDelBen.reduce((s, p) => s + (p.monto || 0), 0);
 
       // Campamentos donde participó (como niño o como adulto que paga)
@@ -121,6 +125,8 @@ export default function CuentaCorriente() {
       return {
         ...b,
         mesesPagados,
+        mesesParciales,
+        montoPorMes,
         totalPagado,
         totalCampamentos,
         saldo,

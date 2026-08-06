@@ -231,6 +231,31 @@ export function getCuotaBeneficiario(b, todosBeneficiarios = [], baseEfectivo = 
   return Math.round(baseEfectivo * (1 - descuento));
 }
 
+/**
+ * Calcula el monto efectivo pagado por mes para un beneficiario.
+ * Devuelve { [mes]: montoPagado }.
+ * Para transferencias, computa a valor efectivo (cuota base, los $2.000 extra son impuestos bancarios).
+ * Para efectivo/subsidio/crédito, usa el monto real dividido entre los meses del pago.
+ */
+export function calcularMontoPorMes(pagosCuota, beneficiario, todosBeneficiarios = []) {
+  const cuotaEfectiva = getCuotaBeneficiario(beneficiario, todosBeneficiarios);
+  const resultado = {};
+  pagosCuota.forEach(p => {
+    const meses = p.meses || (p.mes ? [p.mes] : []);
+    if (meses.length === 0) return;
+    let montoPorMes;
+    if (p.forma_pago === 'Transferencia') {
+      montoPorMes = cuotaEfectiva;
+    } else {
+      montoPorMes = (p.monto || 0) / meses.length;
+    }
+    meses.forEach(m => {
+      resultado[m] = (resultado[m] || 0) + montoPorMes;
+    });
+  });
+  return resultado;
+}
+
 export function getRamaBadge(rama) {
   const config = RAMA_CONFIG[rama];
   if (!config) return 'bg-muted text-muted-foreground';

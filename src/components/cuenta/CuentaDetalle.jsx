@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, CheckCircle2, XCircle, Award, Tent, Gift, Zap, ShieldCheck, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import RamaBadge from '@/components/shared/RamaBadge';
-import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, marzoEsBonificado, mesExcluidoPorActividad } from '@/lib/ramaUtils';
+import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, marzoEsBonificado, mesExcluidoPorActividad, getCuotaBeneficiario, calcularMontoPorMes } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import WhatsAppResumenBtn from '@/components/cuenta/WhatsAppResumenBtn';
@@ -31,7 +31,9 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
   if (!beneficiario) return null;
 
   const pagosAnio = pagos.filter(p => p.anio === anio);
-  const mesesPagados = pagosAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []));
+  const pagosCuotaAnio = pagosAnio.filter(p => p.tipo_pago !== 'Campamento');
+  const montoPorMes = calcularMontoPorMes(pagosCuotaAnio, beneficiario, todosLosBeneficiarios);
+  const cuotaEfectiva = getCuotaBeneficiario(beneficiario, todosLosBeneficiarios);
   const marzoGratis = marzoEsBonificado(afiliacion, esPrimeraVezAfiliacion);
 
   // Afiliación del año para el cálculo de períodos activos (alta/baja/reingreso)
@@ -140,8 +142,10 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
       <h3 className="font-semibold mb-3">Cuotas {anio}</h3>
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-6">
         {MESES.map((mes, idx) => {
-          const pago = pagosAnio.find(p => (p.meses || [p.mes]).includes(mes));
-          const pagado = !!pago;
+          const montoMes = montoPorMes[mes] || 0;
+          const pagadoTotal = montoMes >= cuotaEfectiva - 0.01;
+          const parcial = montoMes > 0 && montoMes < cuotaEfectiva - 0.01;
+          const saldoMes = parcial ? cuotaEfectiva - montoMes : 0;
           const sinCuota = MESES_SIN_CUOTA.includes(mes);
           const bonificado = mes === 'Marzo' && marzoGratis;
           // Mes fuera de los períodos activos (antes del alta, después de la baja,
@@ -153,22 +157,25 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
               'p-3 text-center transition-all',
               sinCuota || antesDeInicio ? 'bg-slate-50 border-slate-200 opacity-50' :
               beneficiario.becado || bonificado ? 'bg-amber-50 border-amber-200' :
-              pagado ? 'bg-green-50 border-green-200' : 'bg-muted/50'
+              pagadoTotal ? 'bg-green-50 border-green-200' :
+              parcial ? 'bg-orange-50 border-orange-300' : 'bg-muted/50'
             )}>
               <p className="text-xs font-medium text-muted-foreground">{mes.substring(0, 3)}</p>
               {sinCuota || antesDeInicio ? (
                 <p className="text-xs text-slate-400 mt-1">—</p>
               ) : beneficiario.becado ? (
                 <Award className="w-5 h-5 text-amber-500 mx-auto mt-1" />
-              ) : bonificado && !pagado ? (
+              ) : bonificado && montoMes === 0 ? (
                 <>
                   <Award className="w-5 h-5 text-amber-400 mx-auto mt-1" />
                   <p className="text-xs text-amber-600 mt-1">Bonif.</p>
                 </>
-              ) : pagado ? (
+              ) : pagadoTotal ? (
+                <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto mt-1" />
+              ) : parcial ? (
                 <>
-                  <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto mt-1" />
-                  <p className="text-xs text-muted-foreground mt-1">{pago.forma_pago}</p>
+                  <AlertCircle className="w-5 h-5 text-orange-500 mx-auto mt-1" />
+                  <p className="text-xs text-orange-600 font-medium mt-0.5">{formatMoney(saldoMes)}</p>
                 </>
               ) : (
                 <XCircle className="w-5 h-5 text-muted-foreground/30 mx-auto mt-1" />
