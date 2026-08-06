@@ -575,7 +575,7 @@ export default function Afiliaciones() {
       .map(b => ({
         beneficiario: b,
         afiliacion: mapAfiliados[b.id] || null,
-        esPrimeraVez: !b.fecha_primer_afiliacion,
+        esPrimeraVez: !b.fecha_primer_afiliacion || mapAfiliados[b.id]?.es_primera_vez === true,
       }))
       .filter(f => {
         if (filtroVista === 'pagan') return !f.esPrimeraVez;
