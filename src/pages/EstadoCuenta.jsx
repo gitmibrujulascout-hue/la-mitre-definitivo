@@ -15,7 +15,7 @@ import RamaBadge from '@/components/shared/RamaBadge';
 import {
   MESES, MESES_SIN_CUOTA,
   CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, getCuotaBaseMes, getCuotaTransferenciaMes, marzoEsBonificado,
-  estaAlDia, getCuotaMes, calcularMesesQueGeneranDeuda, mesExcluidoPorActividad, calcularMontoPorMes
+  estaAlDia, getCuotaMes, calcularMesesQueGeneranDeuda, mesExcluidoPorActividad, calcularMontoPorMes, calcularEsperadoPorMes
 } from '@/lib/ramaUtils';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 import { cn } from '@/lib/utils';
@@ -87,6 +87,7 @@ export default function EstadoCuenta() {
     const pagosAnio = pagosDelBen.filter(p => Number(p.anio) === Number(anio));
     const mesesPagados = pagosCuotasAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []));
     const montoPorMes = calcularMontoPorMes(pagosCuotasAnio, b, activos);
+    const esperadoPorMes = calcularEsperadoPorMes(pagosCuotasAnio, b, activos);
 
     const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
     const esPrimeraVez = !b.fecha_primer_afiliacion;
@@ -112,12 +113,14 @@ export default function EstadoCuenta() {
       const mesesPendientes = mesesQueGeneranDeuda.filter(m => {
         const baseMes = getCuotaBaseMes(m, anio, configCuotas);
         const cuotaBenMes = getCuotaBeneficiario(b, activos, baseMes);
-        return (montoPorMes[m] || 0) < cuotaBenMes - 0.01;
+        const esperadoMes = esperadoPorMes[m] || cuotaBenMes;
+        return (montoPorMes[m] || 0) < esperadoMes - 0.01;
       });
       deudaCuotas = mesesPendientes.reduce((s, m) => {
         const baseMes = getCuotaBaseMes(m, anio, configCuotas);
         const cuotaBenMes = getCuotaBeneficiario(b, activos, baseMes);
-        return s + getCuotaMes(m, cuotaBenMes, alDia);
+        const esperadoMes = esperadoPorMes[m] || cuotaBenMes;
+        return s + Math.max(0, esperadoMes - (montoPorMes[m] || 0));
       }, 0);
       pagadoCuotas = pagosCuotasAnio.reduce((s, p) => s + (p.monto || 0), 0);
     } else {
@@ -163,6 +166,7 @@ export default function EstadoCuenta() {
       pagosAnio,
       mesesPagados,
       montoPorMes,
+      esperadoPorMes,
       cuotaEfectiva: cuotaIndividual,
       campBen,
       totalCampamentos,
@@ -453,10 +457,10 @@ export default function EstadoCuenta() {
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                   {MESES.map(mes => {
                     const montoMes = cuenta.montoPorMes[mes] || 0;
-                    const cuotaMes = cuenta.cuotaEfectiva || CUOTA_EFECTIVO;
-                    const pagadoTotal = montoMes >= cuotaMes - 0.01;
-                    const parcial = montoMes > 0 && montoMes < cuotaMes - 0.01;
-                    const saldoMes = parcial ? cuotaMes - montoMes : 0;
+                    const esperadoMes = cuenta.esperadoPorMes?.[mes] || cuenta.cuotaEfectiva || CUOTA_EFECTIVO;
+                    const pagadoTotal = montoMes >= esperadoMes - 0.01;
+                    const parcial = montoMes > 0 && montoMes < esperadoMes - 0.01;
+                    const saldoMes = parcial ? esperadoMes - montoMes : 0;
                     const sinCuota = MESES_SIN_CUOTA.includes(mes);
                     const bonificado = mes === 'Marzo' && cuenta.marzoGratis;
                     const mesIdx = MESES.indexOf(mes);

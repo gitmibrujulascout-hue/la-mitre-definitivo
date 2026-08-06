@@ -13,7 +13,7 @@ import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
 import ResumenDeudas from '@/components/cuenta/ResumenDeudas';
 import GrillaCuotasMensuales from '@/components/cuenta/GrillaCuotasMensuales';
 import PagoForm from '@/components/pagos/PagoForm';
-import { RAMAS, TODOS_LOS_ROLES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado, calcularMesesQueGeneranDeuda, calcularMontoPorMes } from '@/lib/ramaUtils';
+import { RAMAS, TODOS_LOS_ROLES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado, calcularMesesQueGeneranDeuda, calcularMontoPorMes, calcularEsperadoPorMes } from '@/lib/ramaUtils';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 
 const CUOTA_EFECTIVO_REF = CUOTA_EFECTIVO;
@@ -68,11 +68,12 @@ export default function CuentaCorriente() {
       const pagosDelBen = pagos.filter(p => p.beneficiario_id === b.id && p.anio === anio);
       const pagosCuotaBen = pagosDelBen.filter(p => p.tipo_pago !== 'Campamento');
       const montoPorMes = calcularMontoPorMes(pagosCuotaBen, b, activos);
+      const esperadoPorMes = calcularEsperadoPorMes(pagosCuotaBen, b, activos);
       const cuotaIndividualCalc = esBeneficiarioConCuota(b) ? getCuotaBeneficiario(b, activos) : 0;
-      // Meses totalmente pagados (total >= cuota)
-      const mesesPagados = Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) >= cuotaIndividualCalc - 0.01);
-      // Meses parcialmente pagados (0 < total < cuota)
-      const mesesParciales = Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) > 0 && (montoPorMes[m] || 0) < cuotaIndividualCalc - 0.01);
+      // Meses totalmente pagados (total >= esperado según método de pago)
+      const mesesPagados = Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) >= (esperadoPorMes[m] || cuotaIndividualCalc) - 0.01);
+      // Meses parcialmente pagados (0 < total < esperado)
+      const mesesParciales = Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) > 0 && (montoPorMes[m] || 0) < (esperadoPorMes[m] || cuotaIndividualCalc) - 0.01);
       const totalPagado = pagosDelBen.reduce((s, p) => s + (p.monto || 0), 0);
 
       // Campamentos donde participó (como niño o como adulto que paga)
@@ -95,20 +96,13 @@ export default function CuentaCorriente() {
       const marzoGratis = marzoEsBonificado(afiliacionAnio, esPrimeraVez);
       const mesesQueGeneranDeuda = anio < AÑO_INICIO ? [] : calcularMesesQueGeneranDeuda(b, anio, afiliaciones);
       const cuotaIndividual = esAdulto ? 0 : getCuotaBeneficiario(b, activos);
-      const deudaCuotas = (!esBeneficiarioConCuota(b)) ? 0 : mesesQueGeneranDeuda.length * cuotaIndividual;
-      // Para el saldo del beneficiario, los pagos por transferencia se computan a valor efectivo
-      // (los $2.000 extra son impuestos bancarios que no son deuda del beneficiario)
-      const pagadoCuotas = pagosDelBen
-        .filter(p => p.tipo_pago !== 'Campamento')
-        .reduce((s, p) => {
-          if (p.forma_pago === 'Transferencia' && p.meses?.length > 0) {
-            const cuotaBenEfectivo = getCuotaBeneficiario(b, activos);
-            const cuotaBenTransf = getCuotaBeneficiario(b, activos, CUOTA_TRANSFERENCIA);
-            const ratio = cuotaBenTransf > 0 ? cuotaBenEfectivo / cuotaBenTransf : 1;
-            return s + (p.monto || 0) * ratio;
-          }
-          return s + (p.monto || 0);
-        }, 0);
+      // Deuda pendiente de cuotas: suma de (esperado - pagado) por cada mes con deuda.
+      // El monto esperado depende del método de pago usado (transferencia > efectivo).
+      const deudaCuotas = (!esBeneficiarioConCuota(b)) ? 0 : mesesQueGeneranDeuda.reduce((s, m) => {
+        const pagado = montoPorMes[m] || 0;
+        const esperado = esperadoPorMes[m] || cuotaIndividual;
+        return s + Math.max(0, esperado - pagado);
+      }, 0);
       // Afiliación del año (ya calculado arriba)
       let saldoAfiliacion = 0;
       if (!esPrimeraVez && anio >= AÑO_INICIO) {
@@ -118,7 +112,7 @@ export default function CuentaCorriente() {
         saldoAfiliacion = montoPagadoAfiliacion - montoDebidoAfiliacion;
       }
 
-      const saldo = pagadoCuotas - deudaCuotas + pagadoCamp - totalCampamentos + saldoAfiliacion;
+      const saldo = -deudaCuotas + pagadoCamp - totalCampamentos + saldoAfiliacion;
 
       const creditoDisponible = todosCreditos
         .filter(c => c.beneficiario_id === b.id && (c.monto_disponible || 0) > 0)
@@ -129,6 +123,7 @@ export default function CuentaCorriente() {
         mesesPagados,
         mesesParciales,
         montoPorMes,
+        esperadoPorMes,
         totalPagado,
         totalCampamentos,
         saldo,

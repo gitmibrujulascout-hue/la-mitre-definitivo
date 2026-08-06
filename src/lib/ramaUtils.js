@@ -238,26 +238,35 @@ export function getCuotaBeneficiario(b, todosBeneficiarios = [], baseEfectivo = 
  * Para efectivo/subsidio/crédito, usa el monto real dividido entre los meses del pago.
  */
 export function calcularMontoPorMes(pagosCuota, beneficiario, todosBeneficiarios = []) {
-  const cuotaEfectiva = getCuotaBeneficiario(beneficiario, todosBeneficiarios);
   const resultado = {};
   pagosCuota.forEach(p => {
     const meses = p.meses || (p.mes ? [p.mes] : []);
     if (meses.length === 0) return;
-    let montoPorMes;
-    if (p.forma_pago === 'Transferencia') {
-      // Convierte el monto real transferido a su valor efectivo equivalente.
-      // Así un pago por transferencia menor al esperado se detecta como parcial.
-      const cuotaTransfBen = getCuotaBeneficiario(beneficiario, todosBeneficiarios, CUOTA_TRANSFERENCIA);
-      const ratio = cuotaTransfBen > 0 ? cuotaEfectiva / cuotaTransfBen : 1;
-      montoPorMes = ((p.monto || 0) / meses.length) * ratio;
-    } else {
-      montoPorMes = (p.monto || 0) / meses.length;
-    }
+    const montoPorMes = (p.monto || 0) / meses.length;
     meses.forEach(m => {
       resultado[m] = (resultado[m] || 0) + montoPorMes;
     });
   });
   return resultado;
+}
+
+/**
+ * Devuelve el monto esperado por mes según el método de pago usado.
+ * Transferencia → cuotaTransferencia (con descuento de hermanos aplicado).
+ * Efectivo/Crédito/Subsidio → cuotaEfectiva (con descuento de hermanos aplicado).
+ * Los meses sin pago no aparecen en el resultado (fallback: cuotaEfectiva).
+ */
+export function calcularEsperadoPorMes(pagosCuota, beneficiario, todosBeneficiarios = []) {
+  const cuotaEfectiva = getCuotaBeneficiario(beneficiario, todosBeneficiarios);
+  const cuotaTransferencia = getCuotaBeneficiario(beneficiario, todosBeneficiarios, CUOTA_TRANSFERENCIA);
+  const esperado = {};
+  pagosCuota.forEach(p => {
+    const meses = p.meses || (p.mes ? [p.mes] : []);
+    if (meses.length === 0) return;
+    const valor = p.forma_pago === 'Transferencia' ? cuotaTransferencia : cuotaEfectiva;
+    meses.forEach(m => { esperado[m] = valor; });
+  });
+  return esperado;
 }
 
 export function getRamaBadge(rama) {

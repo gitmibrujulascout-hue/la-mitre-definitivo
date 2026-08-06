@@ -166,7 +166,7 @@ export default function GrillaCuotasMensuales({ cuentas, anio, onSelectBen }) {
                       const config = STATUS_CONFIG[status];
                       const Icon = config.icon;
                       const saldoMes = status === 'parcial' && c.montoPorMes
-                        ? Math.max(0, (c.cuotaIndividual || 0) - (c.montoPorMes[mes] || 0))
+                        ? Math.max(0, (c.esperadoPorMes?.[mes] || c.cuotaIndividual || 0) - (c.montoPorMes[mes] || 0))
                         : 0;
                       return (
                         <TableCell key={mes} className="text-center px-1 py-1.5">

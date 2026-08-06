@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, CheckCircle2, XCircle, Award, Tent, Gift, Zap, ShieldCheck, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import RamaBadge from '@/components/shared/RamaBadge';
-import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, marzoEsBonificado, mesExcluidoPorActividad, getCuotaBeneficiario, calcularMontoPorMes } from '@/lib/ramaUtils';
+import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, marzoEsBonificado, mesExcluidoPorActividad, getCuotaBeneficiario, calcularMontoPorMes, calcularEsperadoPorMes } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import WhatsAppResumenBtn from '@/components/cuenta/WhatsAppResumenBtn';
@@ -33,6 +33,7 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
   const pagosAnio = pagos.filter(p => p.anio === anio);
   const pagosCuotaAnio = pagosAnio.filter(p => p.tipo_pago !== 'Campamento');
   const montoPorMes = calcularMontoPorMes(pagosCuotaAnio, beneficiario, todosLosBeneficiarios);
+  const esperadoPorMes = calcularEsperadoPorMes(pagosCuotaAnio, beneficiario, todosLosBeneficiarios);
   const cuotaEfectiva = getCuotaBeneficiario(beneficiario, todosLosBeneficiarios);
   const marzoGratis = marzoEsBonificado(afiliacion, esPrimeraVezAfiliacion);
 
@@ -143,9 +144,10 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-6">
         {MESES.map((mes, idx) => {
           const montoMes = montoPorMes[mes] || 0;
-          const pagadoTotal = montoMes >= cuotaEfectiva - 0.01;
-          const parcial = montoMes > 0 && montoMes < cuotaEfectiva - 0.01;
-          const saldoMes = parcial ? cuotaEfectiva - montoMes : 0;
+          const esperadoMes = esperadoPorMes[mes] || cuotaEfectiva;
+          const pagadoTotal = montoMes >= esperadoMes - 0.01;
+          const parcial = montoMes > 0 && montoMes < esperadoMes - 0.01;
+          const saldoMes = parcial ? esperadoMes - montoMes : 0;
           const sinCuota = MESES_SIN_CUOTA.includes(mes);
           const bonificado = mes === 'Marzo' && marzoGratis;
           // Mes fuera de los períodos activos (antes del alta, después de la baja,
