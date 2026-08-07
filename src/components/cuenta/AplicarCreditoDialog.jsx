@@ -197,8 +197,10 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
         if (afiliacion && afiliacion.id) {
           const afilFresh = await base44.entities.Afiliacion.get(afiliacion.id);
           const nuevoPagado = Math.min(afilFresh.monto || 0, (afilFresh.monto_pagado || 0) + totalAImputar);
+          const nuevoCredito = Math.min(afilFresh.monto || 0, (afilFresh.monto_pagado_credito || 0) + creditoNum);
           await base44.entities.Afiliacion.update(afiliacion.id, {
             monto_pagado: nuevoPagado,
+            monto_pagado_credito: nuevoCredito,
             fecha_pago: fechaPago,
             observaciones: afilFresh.observaciones
               ? `${afilFresh.observaciones} | ${obsAf}`
@@ -214,6 +216,7 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
             anio: Number(anio),
             monto: MONTO_SEGURO_AFILIACION,
             monto_pagado: totalAImputar,
+            monto_pagado_credito: creditoNum,
             fecha_pago: fechaPago,
             forma_pago: 'Efectivo',
             es_primera_vez: false,
@@ -228,7 +231,7 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
           tipo_pago: 'Afiliación',
           anio: Number(anio),
           forma_pago: 'Crédito actividad',
-          destino: 'Grupo',
+          destino: 'Caja',
           monto: creditoNum,
           fecha_pago: fechaPago,
           observaciones: `Crédito aplicado de: ${fuentesLabel}`,

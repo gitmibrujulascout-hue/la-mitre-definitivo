@@ -26,11 +26,12 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
     [afiliaciones, anio]
   );
 
-  // Total recaudado de familias (acumulado, no bonificada)
+  // Total recaudado en EFECTIVO de familias (acumulado, no bonificada).
+  // Se excluye la parte pagada con crédito, que ya volvió a caja por el pago de crédito.
   const totalRecaudadoAcumulado = useMemo(
     () => afiliaciones
       .filter(a => Number(a.anio) === Number(anio) && !a.es_primera_vez)
-      .reduce((s, a) => s + (a.monto_pagado || 0), 0),
+      .reduce((s, a) => s + Math.max(0, (a.monto_pagado || 0) - (a.monto_pagado_credito || 0)), 0),
     [afiliaciones, anio]
   );
 
@@ -111,7 +112,7 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
         <div className="space-y-4 py-2">
           <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800 flex gap-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>Scout Argentina cobra por todos los afiliados del padrón. Depositás el monto que SA exige; lo recaudado ingresa a caja y la diferencia sale de la caja común. Los morosos se recuperan por separado.</span>
+            <span>Scout Argentina cobra por todos los afiliados del padrón. Depositás el monto que SA exige; lo recaudado en efectivo ingresa a caja y la diferencia sale de la caja común. La parte pagada con crédito ya volvió a caja. Los morosos se recuperan por separado.</span>
           </div>
 
           {/* Config del depósito */}
@@ -139,7 +140,7 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
           {/* Resumen financiero */}
           <div className="grid grid-cols-3 gap-2">
             <div className="p-2 rounded-lg bg-green-50 border border-green-200 text-center">
-              <p className="text-[10px] text-muted-foreground leading-tight">A ingresar (recaudado)</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">A ingresar (efectivo)</p>
               <p className="text-sm font-bold text-green-700">{formatMoney(recaudadoEstaRendicion)}</p>
             </div>
             <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-center">
@@ -153,7 +154,7 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Recaudado total: {formatMoney(totalRecaudadoAcumulado)} · Ya ingresado en rendiciones anteriores: {formatMoney(yaIngresado)}
+            Recaudado en efectivo: {formatMoney(totalRecaudadoAcumulado)} · Ya ingresado en rendiciones anteriores: {formatMoney(yaIngresado)}
           </p>
         </div>
 

@@ -24,7 +24,12 @@
     },
     "monto_pagado": {
       "type": "number",
-      "description": "Monto efectivamente pagado hasta el momento (puede ser parcial)"
+      "description": "Monto efectivamente pagado hasta el momento (puede ser parcial). Incluye efectivo + cr\u00e9dito."
+    },
+    "monto_pagado_credito": {
+      "type": "number",
+      "default": 0,
+      "description": "Parte del monto_pagado abonada con cr\u00e9dito de actividad (ya volvi\u00f3 a caja por el pago de cr\u00e9dito; no se re-ingresa en la rendici\u00f3n)."
     },
     "fecha_pago": {
       "type": "string",

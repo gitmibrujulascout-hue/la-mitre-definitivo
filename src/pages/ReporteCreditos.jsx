@@ -49,7 +49,6 @@ export default function ReporteCreditos() {
   const totalCuota = creditosUsados.filter(p => p.tipo_pago === 'Cuota').reduce((s, p) => s + (p.monto || 0), 0);
   const totalCampamento = creditosUsados.filter(p => p.tipo_pago === 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
   const totalAfiliacion = creditosUsados.filter(p => p.tipo_pago === 'Afiliación').reduce((s, p) => s + (p.monto || 0), 0);
-  const aTrasladarCaja = totalCuota + totalCampamento;
 
   // Agrupado por mes de aplicación (fecha_pago)
   const porMes = useMemo(() => {
@@ -188,19 +187,18 @@ export default function ReporteCreditos() {
         <Card className="p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <ShieldCheck className="w-4 h-4" />
-            <span className="text-xs">A afiliaciones (→ SA)</span>
+            <span className="text-xs">A afiliaciones</span>
           </div>
           <p className="text-2xl font-bold mt-1 text-purple-600">{formatMoney(totalAfiliacion)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">se rinde a la Asoc.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">recupera en caja · rinde a SA</p>
         </Card>
       </div>
 
       <div className="mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800 flex items-start gap-2">
         <Coins className="w-4 h-4 flex-shrink-0 mt-0.5" />
         <span>
-          Cada aplicación de crédito a cuotas/campamentos representa dinero que ya está físicamente en caja (recaudado en la actividad)
-          y que debe registrarse como <strong>ingreso del grupo</strong>: <strong>{formatMoney(aTrasladarCaja)}</strong> a trasladar a caja.
-          Los créditos imputados a <strong>afiliación</strong> ({formatMoney(totalAfiliacion)}) se rinden a la Asociación y no son ingreso del grupo.
+          Cada aplicación de crédito representa dinero que vuelve de la reserva de créditos a la caja general (<strong>recuperar en caja</strong>): <strong>{formatMoney(totalUtilizado)}</strong>.
+          Cuotas y campamentos quedan como ingreso del grupo; las <strong>afiliaciones</strong> ({formatMoney(totalAfiliacion)}) se recuperan en caja y luego se rinden a Scout Argentina.
         </span>
       </div>
 

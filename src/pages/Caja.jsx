@@ -173,7 +173,9 @@ export default function Caja() {
         id: `pago-${p.id}`, refId: p.id, fecha: p.fecha_pago, tipo: 'Ingreso',
         concepto: p.tipo_pago === 'Campamento'
           ? `Campamento: ${p.campamento_nombre || ''} — ${p.beneficiario_nombre}`
-          : `Cuota ${(p.meses || [p.mes]).filter(Boolean).join(', ')} — ${p.beneficiario_nombre}`,
+          : p.tipo_pago === 'Afiliación'
+            ? `Afiliación/Seguro — ${p.beneficiario_nombre}`
+            : `Cuota ${(p.meses || [p.mes]).filter(Boolean).join(', ')} — ${p.beneficiario_nombre}`,
         monto: p.monto, origen: 'Pago cuota', forma_pago: p.forma_pago,
       }));
 
