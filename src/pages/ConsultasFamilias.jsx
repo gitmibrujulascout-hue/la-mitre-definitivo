@@ -25,6 +25,14 @@ function fechaLinda(d) {
   });
 }
 
+function fechaCompacta(d) {
+  if (!d) return '—';
+  const iso = typeof d === 'string' && !/[zZ]$/.test(d) && /[Tt]\d{2}:\d{2}/.test(d) ? d + 'Z' : d;
+  return new Date(iso).toLocaleString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
+}
+
 export default function ConsultasFamilias() {
   const { data: consultas = [], isLoading } = useQuery({
     queryKey: ['consultas_dni'],
@@ -217,7 +225,7 @@ export default function ConsultasFamilias() {
                 <span className="flex-1 truncate">
                   {c.encontrado ? (c.beneficiario_nombre || 'Encontrado') : <span className="text-muted-foreground italic">DNI no encontrado</span>}
                 </span>
-                <span className="text-xs text-muted-foreground">{fechaLinda(c.created_date)}</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{fechaCompacta(c.created_date)}</span>
               </div>
             ))}
           </div>
