@@ -192,17 +192,9 @@ export default function DistribuirCreditosDialog({ open, onClose, onSaved, activ
         });
       }));
 
-      // Egreso en Caja: la plata pasa a la "caja de créditos" (reservada)
-      const totalMonto = creditos.reduce((s, d) => s + d.monto, 0);
-      await base44.entities.MovimientoBanco.create({
-        fecha,
-        tipo: 'Egreso',
-        concepto: `Reserva — Créditos ${actividad.nombre}`,
-        monto: totalMonto,
-        cuenta: 'Caja',
-        origen: 'Crédito',
-        observaciones: `Distribución de ganancia a beneficiarios (${pctBen}%)`,
-      });
+      // Los créditos se guardan por separado (caja especial, en CreditoBeneficiario).
+      // No mueven la caja normal: vuelven a la caja como ingreso recién cuando el
+      // beneficiario los usa (cuota, campamento, afiliación), como si los pagara.
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creditos'] });

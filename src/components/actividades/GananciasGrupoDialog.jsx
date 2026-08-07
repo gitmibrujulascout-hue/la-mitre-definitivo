@@ -79,17 +79,9 @@ export default function GananciasGrupoDialog({ open, onClose, onSaved, actividad
         })
       ));
 
-      // Egreso en Caja: la plata pasa a la "caja de créditos" (reservada)
-      const totalMonto = validas.reduce((s, d) => s + Number(d.monto), 0);
-      await base44.entities.MovimientoBanco.create({
-        fecha,
-        tipo: 'Egreso',
-        concepto: `Reserva — Créditos grupo ${actividad.nombre}`,
-        monto: totalMonto,
-        cuenta: 'Caja',
-        origen: 'Crédito',
-        observaciones: `Distribución de ganancia del grupo (${pctGrupo}%) a beneficiarios`,
-      });
+      // Los créditos se guardan por separado (caja especial, en CreditoBeneficiario).
+      // No mueven la caja normal: vuelven a la caja como ingreso recién cuando el
+      // beneficiario los usa, como si los pagara.
 
       await base44.entities.ActividadEconomica.update(actividad.id, { ganancia_grupo_acreditada: true });
     },
