@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import PanueloIcon from '@/components/shared/PanueloIcon';
 import TiendaFamilia from '@/components/tienda/TiendaFamilia';
 import CalendarioFamilia from '@/components/dashboard/CalendarioFamilia';
+import DescargarAutorizacionButton from '@/components/campamentos/DescargarAutorizacionButton';
 
 const AÑO_INICIO = 2026;
 
@@ -549,6 +550,9 @@ export default function EstadoCuenta() {
                             <p className={cn("text-sm font-semibold", saldoCamp <= 0 ? "text-green-600" : "text-red-500")}>
                               {saldoCamp <= 0 ? "Pagado ✓" : `Debe: ${formatMoney(saldoCamp)}`}
                             </p>
+                            {c.autorizacion_activa && c.beneficiarios_ids?.includes(b.id) && (
+                              <DescargarAutorizacionButton campamento={c} beneficiario={b} />
+                            )}
                           </div>
                         </Card>
                       );

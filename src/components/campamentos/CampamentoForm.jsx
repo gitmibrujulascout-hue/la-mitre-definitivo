@@ -17,7 +17,8 @@ const EMPTY_FORM = {
   nombre: '', fecha_inicio: '', fecha_fin: '', costo_por_persona: '',
   costo_adultos: '', adultos_pagan: false, es_privado: false,
   ubicacion: '', observaciones: '', ramas_participantes: [],
-  beneficiarios_ids: [], adultos_ids: [], costos_individuales: {}
+  beneficiarios_ids: [], adultos_ids: [], costos_individuales: {},
+  autorizacion_activa: false, autorizacion_texto: ''
 };
 
 export default function CampamentoForm({ open, onClose, beneficiarios, campamento = null }) {
@@ -140,6 +141,27 @@ export default function CampamentoForm({ open, onClose, beneficiarios, campament
             </div>
             <Switch checked={form.es_privado || false} onCheckedChange={v => update('es_privado', v)} />
           </div>
+
+          {/* Autorización descargable para familias */}
+          <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+            <div>
+              <p className="text-sm font-medium">Autorización descargable para familias</p>
+              <p className="text-xs text-muted-foreground">Activala y escribí el texto general; las familias descargan el formulario pre-llenado con los datos del menor</p>
+            </div>
+            <Switch checked={form.autorizacion_activa || false} onCheckedChange={v => update('autorizacion_activa', v)} />
+          </div>
+          {form.autorizacion_activa && (
+            <div>
+              <Label>Texto de la autorización</Label>
+              <Textarea
+                value={form.autorizacion_texto || ''}
+                onChange={e => update('autorizacion_texto', e.target.value)}
+                placeholder={'Por la presente, el/la adulto/a responsable autoriza a su hijo/a a participar del campamento organizado por el Grupo Scout Bartolomé Mitre... (condiciones, obligaciones, declaración de responsabilidad, etc.)'}
+                className="h-32"
+              />
+            </div>
+          )}
+
           {form.adultos_pagan && (
             <div>
               <Label>Costo adultos</Label>

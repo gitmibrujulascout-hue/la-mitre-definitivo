@@ -19,6 +19,7 @@ import { SALUD_FIELDS } from '@/lib/saludFields';
 import { formatMoney } from '@/lib/ramaUtils';
 import BalanceCampamento from '@/components/campamentos/BalanceCampamento';
 import AutorizacionesPanel from '@/components/campamentos/AutorizacionesPanel';
+import DescargarAutorizacionButton from '@/components/campamentos/DescargarAutorizacionButton';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
@@ -661,6 +662,9 @@ export default function CampamentoPublico() {
                     <div key={b.id} className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-muted/40 text-sm border-b border-border/30 last:border-0">
                       <span className="text-muted-foreground w-5 text-xs">{i + 1}.</span>
                       <span className="flex-1 font-medium">{b.nombre}</span>
+                      {campamento.autorizacion_activa && (
+                        <DescargarAutorizacionButton campamento={campamento} beneficiario={b} variant="icon" />
+                      )}
                       <button onClick={() => setFichaBen(b)} className="text-muted-foreground hover:text-primary p-1" title="Ver ficha médica">
                         <HeartPulse className="w-3.5 h-3.5" />
                       </button>

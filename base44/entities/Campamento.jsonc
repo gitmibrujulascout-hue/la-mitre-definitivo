@@ -66,6 +66,15 @@
       },
       "description": "IDs de beneficiarios menores de 18 a\u00f1os que entregaron la autorizaci\u00f3n familiar"
     },
+    "autorizacion_activa": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si el formulario de autorizaci\u00f3n est\u00e1 disponible para que las familias lo descarguen"
+    },
+    "autorizacion_texto": {
+      "type": "string",
+      "description": "Texto general de la autorizaci\u00f3n (condiciones, declaraci\u00f3n legal) que el admin pre-completa; las familias descargan el formulario con este texto y los datos del menor ya cargados."
+    },
     "ubicacion": {
       "type": "string",
       "description": "Ubicaci\u00f3n del campamento"
