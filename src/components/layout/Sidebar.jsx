@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, CreditCard, Receipt, Tent, 
-  BookOpen, Menu, X, TreePine, Landmark, TrendingUp, ExternalLink, FileText, ShieldCheck, MessageCircle, HeartPulse, ShoppingBag, Calendar, Eye
+  BookOpen, Menu, X, TreePine, Landmark, TrendingUp, ExternalLink, FileText, ShieldCheck, MessageCircle, HeartPulse, ShoppingBag, Calendar, Eye, Coins
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAvisosPendientes } from '@/hooks/useAvisosPendientes';
@@ -19,6 +19,7 @@ const navItems = [
   { path: '/tienda', label: 'Tienda', icon: ShoppingBag },
   { path: '/actividades', label: 'Act. Económicas', icon: TrendingUp },
   { path: '/reporte-pagos', label: 'Reporte de Pagos', icon: FileText },
+  { path: '/reporte-creditos', label: 'Créditos usados', icon: Coins },
   { path: '/reporte-beneficiarios', label: 'Reporte Miembros', icon: Users },
   { path: '/afiliaciones', label: 'Afiliaciones', icon: ShieldCheck },
   { path: '/agente-scout', label: 'Agente WhatsApp', icon: MessageCircle },
