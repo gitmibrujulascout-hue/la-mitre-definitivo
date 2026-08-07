@@ -1,339 +1,222 @@
 import { jsPDF } from 'jspdf';
 
-const fmt = (f) => {
-  if (!f) return '';
-  try { const [y, m, d] = f.split('-'); return `${d}/${m}/${y}`; } catch { return f; }
-};
+// ── Datos fijos del grupo (editá estos valores si cambian) ──────────────────
+const GRUPO_NUM = '377';
+const GRUPO_NOMBRE = 'Bartolomé Mitre';
+const DISTRITO_NUM = '5';
+const ZONA_NUM = '42';
 
-const fmtDia = (f) => {
-  if (!f) return '';
-  try { const [, , d] = f.split('-'); return d; } catch { return ''; }
-};
-const fmtMes = (f) => {
-  if (!f) return '';
-  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  try { const [, m] = f.split('-'); return meses[parseInt(m, 10) - 1] || ''; } catch { return ''; }
-};
-const fmtAnio = (f) => {
-  if (!f) return '';
-  try { return f.split('-')[0]; } catch { return ''; }
-};
+const MESES_TXT = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
-// Dibuja un campo rellenable: etiqueta + línea de puntos hasta cierto x final
-const puntos = (doc, texto, x, y, anchoMax) => {
-  const tw = doc.getTextWidth(texto);
-  const disponible = anchoMax - x - tw;
-  if (disponible > 0) {
-    const dotW = doc.getTextWidth('.');
-    const ndots = Math.floor(disponible / dotW);
-    return texto + '.'.repeat(ndots);
-  }
-  return texto;
+const dots = (n) => '.'.repeat(Math.max(0, n));
+
+const fechaPartes = (f) => {
+  if (!f) return { dia: dots(6), mes: dots(20), anio: dots(6) };
+  const [y, m, d] = f.split('-');
+  return { dia: d, mes: MESES_TXT[parseInt(m, 10) - 1] || dots(20), anio: y };
 };
 
 export function generarAutorizacionPDF(campamento, beneficiario) {
   const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
-  const W = doc.internal.pageSize.getWidth();   // 595
-  const H = doc.internal.pageSize.getHeight();  // 842
-  const ML = 45;
-  const MR = W - 45;
-  const TW = MR - ML;
-  let y = 38;
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const ML = 40;
+  const MR = 40;
+  const TW = W - ML - MR;
+  let y = 40;
 
-  const nl = (n = 1) => { y += n; };
-  const ensureSpace = (h) => { if (y + h > H - 50) { doc.addPage(); y = 45; } };
+  const nl = (n) => { y += n; };
+  const ensure = (h) => { if (y + h > H - 50) { doc.addPage(); y = 45; } };
 
-  // ── ENCABEZADO (logo textual) ──────────────────────────────────────────────
+  const FS = 9.5;
+  const LH = 13;
+
+  // ── Encabezado institucional ────────────────────────────────────────────
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(0, 102, 180);
+  doc.setFontSize(10);
+  doc.setTextColor(0, 51, 102);
   doc.text('Autorización de Padres / Madres / Tutores', ML + 2, y);
-  nl(14);
+  nl(12);
   doc.text('para Salidas, Acantonamientos y/o Campamentos', ML + 2, y);
   nl(11);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(80);
   doc.text('Planilla Versión: 07-21', ML + 2, y);
-  nl(10);
+  nl(9);
   doc.text('www.scouts.org.ar', ML + 2, y);
-  nl(10);
+  nl(8);
 
-  // Línea separadora
-  doc.setDrawColor(0, 102, 180);
-  doc.setLineWidth(1.2);
-  doc.line(ML, y, MR, y);
-  nl(3);
+  // doble línea divisoria
+  doc.setDrawColor(0, 51, 102);
+  doc.setLineWidth(1);
+  doc.line(ML, y, W - MR, y);
+  nl(2);
   doc.setLineWidth(0.4);
-  doc.setDrawColor(0, 102, 180);
-  doc.line(ML, y, MR, y);
+  doc.line(ML, y, W - MR, y);
   nl(14);
-
-  // ── TÍTULO PRINCIPAL ───────────────────────────────────────────────────────
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
   doc.setTextColor(0);
+
+  // ── Título principal ────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
   doc.text('AUTORIZACIÓN DE PADRES / MADRES / TUTORES', W / 2, y, { align: 'center' });
-  nl(16);
+  nl(15);
   doc.text('PARA SALIDAS, ACANTONAMIENTOS Y/O CAMPAMENTOS', W / 2, y, { align: 'center' });
-  nl(20);
+  nl(18);
 
-  // ── CUERPO ────────────────────────────────────────────────────────────────
+  // ── Cuerpo: texto oficial verbatim con campos rellenados ────────────────
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(0);
+  doc.setFontSize(FS);
 
-  const FS = 10;
-  const LH = 16; // line height
+  const nombreMenor = beneficiario?.nombre?.trim() || dots(45);
+  const dniMenor = beneficiario?.dni?.trim() || dots(20);
+  const nac = fechaPartes(beneficiario?.fecha_nacimiento);
+  const desde = fechaPartes(campamento?.fecha_inicio);
+  const hasta = fechaPartes(campamento?.fecha_fin || campamento?.fecha_inicio);
+  const lugarCamp = campamento?.ubicacion?.trim() || dots(70);
 
-  // Datos pre-llenados del campamento
-  const localidad   = campamento.ubicacion ? campamento.ubicacion.split(',')[0].trim() : '...................................';
-  const partido     = campamento.ubicacion ? (campamento.ubicacion.split(',')[1] || '').trim() : '......................................';
-  const provincia   = 'Córdoba'; // constante de tu grupo — podés parametrizar
-  const diaFirma    = '......';
-  const mesFirma    = '............................';
-  const anioFirma   = new Date().getFullYear().toString();
-  const diaDesde    = fmtDia(campamento.fecha_inicio);
-  const mesDesde    = fmtMes(campamento.fecha_inicio);
-  const anioDesde   = fmtAnio(campamento.fecha_inicio);
-  const diaHasta    = fmtDia(campamento.fecha_fin || campamento.fecha_inicio);
-  const mesHasta    = fmtMes(campamento.fecha_fin || campamento.fecha_inicio);
-  const anioHasta   = fmtAnio(campamento.fecha_fin || campamento.fecha_inicio);
-  const lugarCamp   = campamento.ubicacion || '...................................';
-  const numGrupo    = '377';
-  const nombreGrupo = 'Bartolomé Mitre';
-  const numDistrito = '5';
-  const numZona     = '42';
+  const cuerpo = [
+    `En la localidad de ${dots(45)}, partido / departamento de ${dots(48)} de la`,
+    `provincia de ${dots(43)}, a los ${dots(6)} días del mes de ${dots(26)} del año ${dots(6)},`,
+    `yo (1) ${dots(48)} de nacionalidad ${dots(38)}, nacido/a él ${dots(7)} de`,
+    `${dots(24)} de ${dots(14)} DNI ${dots(22)} Teléfono: ${dots(18)}, y con domicilio`,
+    `en ${dots(110)} en mi`,
+    `carácter de (2) ${dots(48)} OTORGO AUTORIZACIÓN PARA QUE EL / LA`,
+    `MENOR (3) ${nombreMenor}, de nacionalidad ${dots(33)},`,
+    `nacido/a el ${nac.dia} de ${nac.mes} de ${nac.anio} y DNI ${dniMenor}, con domicilio en`,
+    `${dots(86)}, para que realice la`,
+    `SALIDA / ACANTONAMIENTO/ CAMPAMENTO (tachar lo que no corresponda) desde el día`,
+    `${desde.dia} de ${desde.mes} de ${desde.anio} Hasta el día ${hasta.dia} de ${hasta.mes} de ${hasta.anio}, en el lugar`,
+    `ubicado en ${lugarCamp}, acompañado de`,
+    `sus educadores/as pertenecientes al Grupo Scout N° ${GRUPO_NUM} Nombre ${GRUPO_NOMBRE}`,
+    `del Distrito N° ${DISTRITO_NUM} de la Zona ${ZONA_NUM} de Scouts de Argentina Asociación Civil. ---------------------------------`,
+  ];
 
-  const nombreMenor = beneficiario?.nombre || '...............................................';
-  const dniMenor    = beneficiario?.dni || '......................';
-  const nacMenor    = beneficiario?.fecha_nacimiento
-    ? (() => { const [y2,m2,d2] = beneficiario.fecha_nacimiento.split('-'); return `${d2} de ${fmtMes(beneficiario.fecha_nacimiento)} de ${y2}`; })()
-    : '...... de ................................ de ..........';
+  cuerpo.forEach((linea, i) => {
+    const wrapped = doc.splitTextToSize(linea, TW);
+    ensure(wrapped.length * LH + 2);
+    const yLinea = y;
+    doc.text(wrapped, ML, y);
+    // Tachado de SALIDA y ACANTONAMIENTO en la línea 10 (índice 9) si no envolvió
+    if (i === 9 && wrapped.length === 1) {
+      doc.setFontSize(FS);
+      const wSalida = doc.getTextWidth('SALIDA');
+      const wBarra = doc.getTextWidth(' / ');
+      const wAcant = doc.getTextWidth('ACANTONAMIENTO');
+      doc.setLineWidth(0.6);
+      doc.setDrawColor(0);
+      doc.line(ML, yLinea - 3, ML + wSalida, yLinea - 3);
+      const xAcant = ML + wSalida + wBarra;
+      doc.line(xAcant, yLinea - 3, xAcant + wAcant, yLinea - 3);
+      doc.setLineWidth(0.4);
+    }
+    y += wrapped.length * LH + 2;
+  });
 
-  // Función para texto mixto (negrita para datos pre-llenados)
-  const mixLine = (parts) => {
-    // parts: [{text, bold}]
-    let cx = ML;
-    parts.forEach(({ text, bold }) => {
-      doc.setFont('helvetica', bold ? 'bold' : 'normal');
-      doc.text(text, cx, y);
-      cx += doc.getTextWidth(text);
-    });
-    doc.setFont('helvetica', 'normal');
-  };
+  nl(6);
 
-  const blank = (n) => ' '.repeat(n);
-
-  // Línea 1: localidad, partido, provincia
-  mixLine([
-    { text: 'En la localidad de ' },
-    { text: localidad, bold: true },
-    { text: ', partido / departamento de ' },
-    { text: partido || '..............................', bold: !!partido },
-    { text: ' de la' },
-  ]);
-  nl(LH);
-  mixLine([
-    { text: 'provincia de ' },
-    { text: provincia, bold: true },
-    { text: ', a los ' },
-    { text: diaFirma },
-    { text: ' días del mes de ' },
-    { text: mesFirma },
-    { text: ' del año ' },
-    { text: anioFirma, bold: true },
-    { text: ',' },
-  ]);
-  nl(LH);
-
-  // Línea: yo (1) ...
-  mixLine([
-    { text: 'yo ¹ ' },
-    { text: '...........................................................................', },
-    { text: ' de nacionalidad ' },
-    { text: '................................,' },
-    { text: ' nacido/a él ...... de' },
-  ]);
-  nl(LH);
-  mixLine([
-    { text: '........................ de .............. DNI …............................. Teléfono: ……………….............................., y con domicilio' },
-  ]);
-  nl(LH);
-  mixLine([
-    { text: 'en......................................................................................................................................................................................' },
-    { text: ' en mi' },
-  ]);
-  nl(LH);
-  mixLine([
-    { text: 'carácter de ² ............................................................ OTORGO AUTORIZACIÓN PARA QUE EL / LA' },
-  ]);
-  nl(LH);
-
-  // Menor — pre-llenado
-  mixLine([
-    { text: 'MENOR ³ ' },
-    { text: nombreMenor, bold: true },
-    { text: ', de nacionalidad ....................................,...' },
-  ]);
-  nl(LH);
-  mixLine([
-    { text: 'nacido/a el ' },
-    { text: nacMenor, bold: !!beneficiario?.fecha_nacimiento },
-    { text: ' y DNI ' },
-    { text: dniMenor, bold: !!beneficiario?.dni },
-    { text: ', con domicilio en' },
-  ]);
-  nl(LH);
-  mixLine([
-    { text: '..............................................................................................................................................., para que realice la' },
-  ]);
-  nl(LH);
-
-  // Salida / Campamento — pre-llenado
-  doc.setFont('helvetica', 'bold');
-  doc.text('SALIDA** / ACANTONAMIENTO/ CAMPAMENTO', ML, y);
+  // ── Párrafo "Asimismo..." (verbatim) ────────────────────────────────────
   doc.setFont('helvetica', 'normal');
-  const tacharX = ML;
-  // Tachamos "SALIDA**" y "ACANTONAMIENTO"
-  const wSalida = doc.getTextWidth('SALIDA**');
-  const wBarra = doc.getTextWidth(' / ');
-  const wAcant = doc.getTextWidth('ACANTONAMIENTO');
-  doc.setLineWidth(0.6);
-  doc.setDrawColor(0);
-  doc.line(tacharX, y - 2, tacharX + wSalida, y - 2);
-  doc.line(tacharX + wSalida + wBarra, y - 2, tacharX + wSalida + wBarra + wAcant, y - 2);
-  doc.setLineWidth(0.4);
+  doc.setFontSize(FS);
+  const asimismo = 'Asimismo, doy autorización: 1) Para que los/las responsables de las actividades tomen, en caso de accidente o enfermedad todas las medidas necesarias para salvaguardar la integridad y la salud del / la menor. 2) Para realizar cualquier intervención quirúrgica de urgencia que así lo requiera la integridad y la salud del / la menor, 3) Que el menor sea transportado por la Asociación desde y hasta el lugar donde se realice la actividad autorizada por el medio de transporte que decida la Institución, dando conformidad para que se realicen los trámites y gestiones inherentes a cada viaje, ante las autoridades pertinentes y empresas de transporte, comprometiéndome en caso de revocación a hacerlo saber a las autoridades correspondientes y por escrito. -------------------------------------------------------------------------------------------------';
+  const asimismoLines = doc.splitTextToSize(asimismo, TW);
+  ensure(asimismoLines.length * LH + 4);
+  doc.text(asimismoLines, ML, y);
+  y += asimismoLines.length * LH;
+  nl(18);
 
-  let cx2 = ML + doc.getTextWidth('SALIDA** / ACANTONAMIENTO/ CAMPAMENTO');
-  doc.setFont('helvetica', 'normal');
-  doc.text(' (tachar lo que no corresponda) desde el día', cx2, y);
-  nl(LH);
-
-  mixLine([
-    { text: fmt(campamento.fecha_inicio), bold: true },
-    { text: ' Hasta el día ' },
-    { text: fmt(campamento.fecha_fin || campamento.fecha_inicio), bold: true },
-    { text: ', en el lugar' },
-  ]);
-  nl(LH);
-  mixLine([
-    { text: 'ubicado en ' },
-    { text: lugarCamp, bold: true },
-    { text: ', acompañado de' },
-  ]);
-  nl(LH);
-  mixLine([
-    { text: 'sus educadores/as pertenecientes al Grupo Scout N° ' },
-    { text: numGrupo, bold: true },
-    { text: ' Nombre ' },
-    { text: nombreGrupo, bold: true },
-  ]);
-  nl(LH);
-  mixLine([
-    { text: 'del Distrito N° ' },
-    { text: numDistrito, bold: true },
-    { text: ' de la Zona ' },
-    { text: numZona, bold: true },
-    { text: ' de Scouts de Argentina Asociación Civil. ---------------------------------' },
-  ]);
-  nl(LH + 4);
-
-  // Párrafo de autorizaciones adicionales
-  const parrafo = 'Asimismo, doy autorización: 1) Para que los/las responsables de las actividades tomen, en caso de accidente o enfermedad todas las medidas necesarias para salvaguardar la integridad y la salud del / la menor. 2) Para realizar cualquier intervención quirúrgica de urgencia que así lo requiera la integridad y la salud del / la menor, 3) Que el menor sea transportado por la Asociación desde y hasta el lugar donde se realice la actividad autorizada por el medio de transporte que decida la Institución, dando conformidad para que se realicen los trámites y gestiones inherentes a cada viaje, ante las autoridades pertinentes y empresas de transporte, comprometiéndome en caso de revocación a hacerlo saber a las autoridades correspondientes y por escrito. -------------------------------------------------------------------------------------------------';
-  const parrafoLines = doc.splitTextToSize(parrafo, TW);
-  ensureSpace(parrafoLines.length * 13 + 30);
-  doc.setFontSize(9.5);
-  doc.text(parrafoLines, ML, y);
-  y += parrafoLines.length * 13;
+  // ── Firma del adulto ────────────────────────────────────────────────────
+  doc.setFontSize(FS);
+  doc.text('Firma: ' + dots(50), ML, y);
   nl(24);
 
-  // Firma del responsable
-  doc.setFontSize(10);
-  doc.text('Firma: ...………………………………….', W / 2, y, { align: 'center' });
-  nl(22);
-
-  // Línea divisoria
+  // línea divisoria
   doc.setLineWidth(0.8);
-  doc.setDrawColor(0);
-  doc.line(ML, y, MR, y);
+  doc.line(ML, y, W - MR, y);
   nl(14);
 
-  // ── AVAL ──────────────────────────────────────────────────────────────────
+  // ── AVAL DE LOS RESPONSABLES SCOUTS ─────────────────────────────────────
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10.5);
   doc.text('AVAL DE LOS RESPONSABLES SCOUTS (4)', W / 2, y, { align: 'center' });
   nl(14);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
-  const avalText = 'Certifico que el/la Menor registrado/a en la categoría de Beneficiario, posee el Legajo Personal completo según el capitulo 4, del Manual General de Normas de SAAC y que la persona que está otorgando autorización tiene su firma registrada en la "AUTORIZACIÓN DE INGRESO DE NIÑOS, NIÑAS Y JÓVENES MENORES DE 18 AÑOS".-';
-  const avalLines = doc.splitTextToSize(avalText, TW);
+  doc.setFontSize(9);
+  const aval = 'Certifico que el/la Menor registrado/a en la categoría de Beneficiario, posee el Legajo Personal completo según el capitulo 4, del Manual General de Normas de SAAC y que la persona que está otorgando autorización tiene su firma registrada en la “AUTORIZACIÓN DE INGRESO DE NIÑOS, NIÑAS Y JÓVENES MENORES DE 18 AÑOS”.-';
+  const avalLines = doc.splitTextToSize(aval, TW);
   doc.text(avalLines, ML, y);
-  y += avalLines.length * 13;
+  y += avalLines.length * 12;
   nl(14);
 
-  // Campos de aval con líneas
-  const avalFields = [
-    'Firma:',
-    'Aclaración:',
-    'DNI:',
-    'Función en el Grupo Scout:',
-  ];
-  avalFields.forEach((label) => {
+  // Campos del aval con líneas
+  doc.setFontSize(9);
+  const avalCampo = (label, anchoLinea) => {
+    doc.text(label, ML, y);
     const lw = doc.getTextWidth(label);
-    doc.text(label, ML + 50, y);
     doc.setDrawColor(120);
-    doc.line(ML + 50 + lw + 6, y - 2, ML + 50 + lw + 6 + 200, y - 2);
-    nl(16);
-  });
+    doc.line(ML + lw + 6, y - 2, ML + lw + 6 + anchoLinea, y - 2);
+  };
+  avalCampo('Firma:', 150);
+  let x1 = ML + doc.getTextWidth('Firma:') + 6 + 150 + 20;
+  avalCampo2(doc, 'Aclaración:', x1, y, 150);
+  nl(18);
+  avalCampo('DNI:', 150);
+  x1 = ML + doc.getTextWidth('DNI:') + 6 + 150 + 20;
+  avalCampo2(doc, 'Función en el Grupo Scout:', x1, y, 150);
+  nl(22);
 
-  nl(14);
-
-  // ── NOTAS AL PIE ──────────────────────────────────────────────────────────
-  doc.setLineWidth(0.4);
   doc.setDrawColor(0);
-  doc.line(ML, y, ML + 120, y);
-  nl(10);
-  doc.setFontSize(8);
+
+  // ── Notas al pie (verbatim) ─────────────────────────────────────────────
+  doc.setFontSize(7.5);
   const notas = [
-    '¹ Nombre y apellido completo de quien firma la autorización, tal como figura en el DNI',
-    '² Hay que hacer figurar el carácter en el cual se autoriza al menor: padre/ madre/ tutor/ guardador/ persona que ejerce la tenencia judicial del menor',
-    '³ Nombre y apellido del menor, tal como figura en el DNI',
+    '1 Nombre y apellido completo de quien firma la autorización, tal como figura en el DNI',
+    '2 Hay que hacer figurar el carácter en el cual se autoriza al menor: padre/ madre/ tutor/ guardador/ persona que ejerce la tenencia judicial del menor',
+    '3 Nombre y apellido del menor, tal como figura en el DNI',
   ];
   notas.forEach((n) => {
     const ls = doc.splitTextToSize(n, TW);
-    ensureSpace(ls.length * 11 + 4);
+    ensure(ls.length * 10 + 3);
     doc.text(ls, ML, y);
-    y += ls.length * 11 + 2;
+    y += ls.length * 10 + 2;
   });
+  nl(8);
 
-  nl(12);
-
-  // ── PIE DE PÁGINA ─────────────────────────────────────────────────────────
+  // ── Pie institucional ───────────────────────────────────────────────────
   doc.setLineWidth(1);
-  doc.setDrawColor(0, 102, 180);
-  doc.line(ML, y, MR, y);
+  doc.setDrawColor(0, 51, 102);
+  doc.line(ML, y, W - MR, y);
   nl(2);
   doc.setLineWidth(0.4);
-  doc.line(ML, y, MR, y);
-  nl(10);
-  doc.setFontSize(7.5);
+  doc.line(ML, y, W - MR, y);
+  nl(9);
+  doc.setFontSize(7);
   doc.setTextColor(60);
   doc.setFont('helvetica', 'bold');
   doc.text('MIEMBRO DE LA ORGANIZACIÓN MUNDIAL DEL MOVIMIENTO SCOUT', ML, y);
-  nl(10);
+  nl(9);
   doc.setFont('helvetica', 'italic');
   doc.text('Scouts de Argentina Asociación Civil', ML, y);
+  const wSAAC = doc.getTextWidth('Scouts de Argentina Asociación Civil');
   doc.setFont('helvetica', 'normal');
-  doc.text(', es una organización sin fines de lucro, con Personería', ML + doc.getTextWidth('Scouts de Argentina Asociación Civil'), y);
-  nl(9);
+  doc.text(', es una organización sin fines de lucro, con Personería', ML + wSAAC, y);
+  nl(8);
   doc.text('Jurídica Nacional N° 1645416 – Res IGJ N° 999 del 24 de septiembre de 1998.', ML, y);
-  nl(9);
+  nl(8);
   doc.text('Sede Nacional: Libertad 1282 – CABA – C1012AAZ – Argentina – Tel: +54-11-4811-0185', ML, y);
-  nl(9);
+  nl(8);
   doc.text('CUIT 30-69732250-3 – IVA Exento', ML, y);
 
-  const nombre = (beneficiario?.nombre || campamento.nombre || 'campamento')
+  const nombre = (beneficiario?.nombre || campamento?.nombre || 'campamento')
     .replace(/[^\w\s]/g, '').replace(/\s+/g, '_');
   doc.save(`Autorizacion_${nombre}.pdf`);
+}
+
+// helper para segundo campo en la misma fila del aval
+function avalCampo2(doc, label, x, y, anchoLinea) {
+  doc.text(label, x, y);
+  const lw = doc.getTextWidth(label);
+  doc.setDrawColor(120);
+  doc.line(x + lw + 6, y - 2, x + lw + 6 + anchoLinea, y - 2);
 }
