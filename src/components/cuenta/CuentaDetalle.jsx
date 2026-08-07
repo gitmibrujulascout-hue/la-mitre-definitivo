@@ -229,7 +229,9 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
             <Card key={p.id} className="p-4 flex items-center justify-between">
               <div>
                 <p className="font-medium">
-                  {p.tipo_pago === 'Campamento' ? p.campamento_nombre : (p.meses?.join(', ') || p.mes)} {p.anio}
+                  {p.tipo_pago === 'Campamento' ? p.campamento_nombre
+                    : p.tipo_pago === 'Afiliación' ? 'Afiliación / Seguro'
+                    : (p.meses?.join(', ') || p.mes)} {p.anio}
                 </p>
                 <p className="text-xs text-muted-foreground">{p.forma_pago} · {p.fecha_pago}</p>
               </div>

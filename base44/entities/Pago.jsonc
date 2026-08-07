@@ -14,10 +14,11 @@
       "type": "string",
       "enum": [
         "Cuota",
-        "Campamento"
+        "Campamento",
+        "Afiliaci\u00f3n"
       ],
       "default": "Cuota",
-      "description": "Tipo de pago: cuota mensual o campamento"
+      "description": "Tipo de pago: cuota mensual, campamento o afiliaci\u00f3n/seguro"
     },
     "meses": {
       "type": "array",
@@ -74,7 +75,7 @@
         "Grupo"
       ],
       "default": "Caja",
-      "description": "Destino del dinero: Caja (efectivo), Banco (transferencia) o Grupo (absorbido por el grupo, no mueve fondos)"
+      "description": "Destino del dinero: Caja (efectivo), Banco (transferencia) o Grupo (absorbido por el grupo / rendido a la Asociaci\u00f3n, no mueve fondos)"
     },
     "monto": {
       "type": "number",

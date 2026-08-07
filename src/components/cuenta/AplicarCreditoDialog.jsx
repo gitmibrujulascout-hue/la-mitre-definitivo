@@ -220,6 +220,19 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
             observaciones: obsAf,
           });
         }
+        // Registrar el uso del crédito en un Pago (reporte de créditos usados).
+        // destino 'Grupo' → no impacta en Caja/Banco (se rinde a la Asociación).
+        await base44.entities.Pago.create({
+          beneficiario_id: beneficiarioId,
+          beneficiario_nombre: beneficiarioNombre,
+          tipo_pago: 'Afiliación',
+          anio: Number(anio),
+          forma_pago: 'Crédito actividad',
+          destino: 'Grupo',
+          monto: creditoNum,
+          fecha_pago: fechaPago,
+          observaciones: `Crédito aplicado de: ${fuentesLabel}`,
+        });
       }
 
       // Descontar de cada crédito individual (re-fetch para evitar estado stale)

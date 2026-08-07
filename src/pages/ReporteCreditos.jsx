@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Gift, Download, Filter, Coins, TrendingUp, Calendar } from 'lucide-react';
+import { Gift, Download, Filter, Coins, TrendingUp, Calendar, ShieldCheck } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
@@ -46,8 +46,10 @@ export default function ReporteCreditos() {
   }, [pagos, anio, desde, hasta]);
 
   const totalUtilizado = creditosUsados.reduce((s, p) => s + (p.monto || 0), 0);
-  const totalCuota = creditosUsados.filter(p => p.tipo_pago !== 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
+  const totalCuota = creditosUsados.filter(p => p.tipo_pago === 'Cuota').reduce((s, p) => s + (p.monto || 0), 0);
   const totalCampamento = creditosUsados.filter(p => p.tipo_pago === 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
+  const totalAfiliacion = creditosUsados.filter(p => p.tipo_pago === 'Afiliación').reduce((s, p) => s + (p.monto || 0), 0);
+  const aTrasladarCaja = totalCuota + totalCampamento;
 
   // Agrupado por mes de aplicación (fecha_pago)
   const porMes = useMemo(() => {
@@ -87,7 +89,9 @@ export default function ReporteCreditos() {
       'Tipo': p.tipo_pago || 'Cuota',
       'Concepto': p.tipo_pago === 'Campamento'
         ? (p.campamento_nombre || 'Campamento')
-        : (p.meses?.join(', ') || p.mes || `Año ${p.anio}`),
+        : p.tipo_pago === 'Afiliación'
+          ? 'Afiliación / Seguro'
+          : (p.meses?.join(', ') || p.mes || `Año ${p.anio}`),
       'Origen crédito': extraerOrigen(p.observaciones),
       'Monto': p.monto || 0,
     }));
@@ -183,20 +187,20 @@ export default function ReporteCreditos() {
         </Card>
         <Card className="p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Gift className="w-4 h-4" />
-            <span className="text-xs">A trasladar a caja</span>
+            <ShieldCheck className="w-4 h-4" />
+            <span className="text-xs">A afiliaciones (→ SA)</span>
           </div>
-          <p className="text-2xl font-bold mt-1 text-amber-600">{formatMoney(totalUtilizado)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">ingreso del grupo</p>
+          <p className="text-2xl font-bold mt-1 text-purple-600">{formatMoney(totalAfiliacion)}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">se rinde a la Asoc.</p>
         </Card>
       </div>
 
       <div className="mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800 flex items-start gap-2">
         <Coins className="w-4 h-4 flex-shrink-0 mt-0.5" />
         <span>
-          Cada aplicación de crédito representa dinero que ya está físicamente en caja (recaudado en la actividad)
-          y que debe registrarse como <strong>ingreso del grupo</strong>, sacándolo de la reserva de créditos.
-          Los créditos imputados a afiliación no figuran aquí porque ese dinero se rinde a la Asociación (no es ingreso del grupo).
+          Cada aplicación de crédito a cuotas/campamentos representa dinero que ya está físicamente en caja (recaudado en la actividad)
+          y que debe registrarse como <strong>ingreso del grupo</strong>: <strong>{formatMoney(aTrasladarCaja)}</strong> a trasladar a caja.
+          Los créditos imputados a <strong>afiliación</strong> ({formatMoney(totalAfiliacion)}) se rinden a la Asociación y no son ingreso del grupo.
         </span>
       </div>
 
@@ -269,6 +273,8 @@ export default function ReporteCreditos() {
                     <td className="px-4 py-2">
                       {p.tipo_pago === 'Campamento' ? (
                         <Badge variant="outline" className="text-xs text-blue-700 border-blue-300">{p.campamento_nombre || 'Campamento'}</Badge>
+                      ) : p.tipo_pago === 'Afiliación' ? (
+                        <Badge variant="outline" className="text-xs text-purple-700 border-purple-300">Afiliación / Seguro</Badge>
                       ) : (
                         <Badge variant="outline" className="text-xs">{p.meses?.join(', ') || p.mes || `Año ${p.anio}`}</Badge>
                       )}
