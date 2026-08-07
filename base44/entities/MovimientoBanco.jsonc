@@ -40,7 +40,8 @@
         "Pago cuota",
         "Pago campamento",
         "Gasto",
-        "Cr\u00e9dito"
+        "Cr\u00e9dito",
+        "Afiliaci\u00f3n"
       ],
       "description": "Origen del movimiento"
     },

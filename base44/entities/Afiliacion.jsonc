@@ -51,6 +51,16 @@
     "observaciones": {
       "type": "string",
       "description": "Notas adicionales"
+    },
+    "rendido": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si el dinero de esta afiliaci\u00f3n ya fue depositado (rendido) a Scout Argentina"
+    },
+    "fecha_rendicion": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha en que se deposit\u00f3 a Scout Argentina (rendici\u00f3n)"
     }
   },
   "required": [

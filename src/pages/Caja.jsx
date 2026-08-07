@@ -187,7 +187,7 @@ export default function Caja() {
       }));
 
     const extras = movimientosExtra
-      .filter(m => (m.cuenta || 'Caja') === cuentaFiltro && filtrarPorAnio(m.fecha) && (m.origen === 'Manual' || m.origen === 'Crédito'))
+      .filter(m => (m.cuenta || 'Caja') === cuentaFiltro && filtrarPorAnio(m.fecha) && (m.origen === 'Manual' || m.origen === 'Crédito' || m.origen === 'Afiliación'))
       .map(m => ({ ...m, id: `extra-${m.id}`, refId: m.id, esManual: m.origen === 'Manual' }));
 
     return [...ingresoPagos, ...egresoGastos, ...extras]

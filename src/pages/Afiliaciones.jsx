@@ -10,9 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, CheckCircle2, XCircle, Search, DollarSign, ShieldCheck, Users, AlertCircle, Pencil } from 'lucide-react';
+import { Plus, CheckCircle2, XCircle, Search, DollarSign, ShieldCheck, Users, AlertCircle, Pencil, Landmark } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
+import RegistrarRendicionDialog from '@/components/afiliaciones/RegistrarRendicionDialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -535,6 +536,7 @@ export default function Afiliaciones() {
   const [busqueda, setBusqueda] = useState('');
   const [filtroVista, setFiltroVista] = useState('todos'); // 'todos' | 'pagan' | 'no_pagan' | 'pendientes'
   const [editandoTipo, setEditandoTipo] = useState(null); // beneficiario a editar
+  const [showRendicion, setShowRendicion] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: beneficiarios = [] } = useQuery({
@@ -621,6 +623,12 @@ export default function Afiliaciones() {
     return total;
   }, [beneficiariosActivos, mapAfiliados]);
 
+  const afiliacionesPendientesRendir = useMemo(
+    () => afiliacionesAnio.filter(a => !a.es_primera_vez && (a.monto_pagado || 0) > 0 && !a.rendido),
+    [afiliacionesAnio]
+  );
+  const totalRecaudadoNoRendido = afiliacionesPendientesRendir.reduce((s, a) => s + (a.monto_pagado || 0), 0);
+
   return (
     <div>
       <PageHeader title="Afiliaciones" description={`Registro de afiliaciones y seguros — ${anio}`}>
@@ -633,13 +641,16 @@ export default function Afiliaciones() {
         <Button variant="outline" onClick={() => setShowMasivo(true)}>
           <Users className="w-4 h-4 mr-2" />Afiliación masiva
         </Button>
+        <Button variant="outline" onClick={() => setShowRendicion(true)}>
+          <Landmark className="w-4 h-4 mr-2" />Rendir a Scout Arg.
+        </Button>
         <Button onClick={() => setShowForm(true)}>
           <Plus className="w-4 h-4 mr-2" />Registrar
         </Button>
       </PageHeader>
 
       {/* Resumen */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <Card>
           <CardContent className="pt-4 pb-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
@@ -695,12 +706,23 @@ export default function Afiliaciones() {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-cyan-100 flex items-center justify-center">
+              <Landmark className="w-5 h-5 text-cyan-600" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Pendiente rendir</p>
+              <p className="text-xl font-bold text-cyan-600">{formatMoney(totalRecaudadoNoRendido)}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Nota informativa */}
       <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800 flex items-center gap-2">
         <ShieldCheck className="w-4 h-4 flex-shrink-0" />
-        El dinero de afiliaciones/seguros se rinde directamente a la asociación y <strong className="ml-1">no impacta en Caja ni Banco.</strong>
+        El dinero de afiliaciones se cobra en efectivo y se deposita directo a Scout Argentina. Usá <strong className="ml-1">"Rendir a Scout Arg."</strong> para registrar el ingreso en caja y el depósito, reconciliando el saldo.
         <span className="ml-2 text-amber-600">· {countPagan} deben abonar · {countNoPagan} primera vez (sin costo)</span>
       </div>
 
@@ -811,6 +833,9 @@ export default function Afiliaciones() {
                           {saldoPendiente > 0 && (
                             <p className="text-xs text-muted-foreground">resta {formatMoney(saldoPendiente)}</p>
                           )}
+                          {afiliacion.rendido && (
+                            <p className="text-xs text-cyan-600 flex items-center gap-0.5 mt-0.5"><Landmark className="w-3 h-3" />rendido</p>
+                          )}
                         </>
                       : '—'}
                   </TableCell>
@@ -855,6 +880,15 @@ export default function Afiliaciones() {
           open
           onClose={() => setEditandoTipo(null)}
           beneficiario={editandoTipo}
+        />
+      )}
+
+      {showRendicion && (
+        <RegistrarRendicionDialog
+          open
+          onClose={() => setShowRendicion(false)}
+          afiliaciones={afiliaciones}
+          anio={anio}
         />
       )}
     </div>
