@@ -17,7 +17,10 @@ function apellidoParaOrden(nombre) {
 
 function fechaLinda(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleString('es-AR', {
+  // created_date se guarda en UTC sin sufijo 'Z'; forzamos parseo UTC para que
+  // la conversión a America/Argentina/Buenos_Aires no quede desfasada 3 horas.
+  const iso = typeof d === 'string' && !/[zZ]$/.test(d) && /[Tt]\d{2}:\d{2}/.test(d) ? d + 'Z' : d;
+  return new Date(iso).toLocaleString('es-AR', {
     timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 }
