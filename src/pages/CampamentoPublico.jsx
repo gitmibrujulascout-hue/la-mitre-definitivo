@@ -13,13 +13,14 @@ import { toast } from 'sonner';
 import { differenceInYears, parseISO } from 'date-fns';
 import {
   Users, MapPin, Calendar, AlertTriangle,
-  HeartPulse, Phone, Plus, Trash2, UserPlus, CreditCard, Tent, Printer, FileCheck, Receipt, Gift
+  HeartPulse, Phone, Plus, Trash2, UserPlus, CreditCard, Tent, Printer, FileCheck, Receipt, Gift, FileText
 } from 'lucide-react';
 import { SALUD_FIELDS } from '@/lib/saludFields';
 import { formatMoney } from '@/lib/ramaUtils';
 import BalanceCampamento from '@/components/campamentos/BalanceCampamento';
 import AutorizacionesPanel from '@/components/campamentos/AutorizacionesPanel';
 import DescargarAutorizacionButton from '@/components/campamentos/DescargarAutorizacionButton';
+import DescargarCircularButton from '@/components/campamentos/DescargarCircularButton';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
@@ -607,6 +608,13 @@ export default function CampamentoPublico() {
           <Button variant="outline" onClick={handlePrint} className="flex-1 sm:flex-none">
             <Printer className="w-4 h-4 mr-2" />Exportar listado
           </Button>
+          {campamento.circular_url && (
+            <Button variant="outline" asChild className="flex-1 sm:flex-none">
+              <a href={campamento.circular_url} target="_blank" rel="noreferrer">
+                <FileText className="w-4 h-4 mr-2" />Descargar circular
+              </a>
+            </Button>
+          )}
         </div>
 
         {/* Autorizaciones y Balance */}

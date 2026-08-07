@@ -12,13 +12,14 @@ import { RAMAS, RAMA_CONFIG } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { FileUp, Paperclip, X } from 'lucide-react';
 
 const EMPTY_FORM = {
   nombre: '', fecha_inicio: '', fecha_fin: '', costo_por_persona: '',
   costo_adultos: '', adultos_pagan: false, es_privado: false,
   ubicacion: '', observaciones: '', ramas_participantes: [],
   beneficiarios_ids: [], adultos_ids: [], costos_individuales: {},
-  autorizacion_activa: false, autorizacion_texto: ''
+  autorizacion_activa: false, autorizacion_texto: '', circular_url: ''
 };
 
 export default function CampamentoForm({ open, onClose, beneficiarios, campamento = null }) {
@@ -45,6 +46,28 @@ export default function CampamentoForm({ open, onClose, beneficiarios, campament
   });
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+
+  const [subiendoCircular, setSubiendoCircular] = useState(false);
+  const handleCircular = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type && file.type !== 'application/pdf') {
+      toast.error('El archivo debe ser un PDF');
+      e.target.value = '';
+      return;
+    }
+    setSubiendoCircular(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      update('circular_url', file_url);
+      toast.success('PDF de circular adjuntado');
+    } catch (err) {
+      toast.error('No se pudo subir el PDF');
+    } finally {
+      setSubiendoCircular(false);
+      e.target.value = '';
+    }
+  };
 
   const toggleRama = (rama) => {
     const updated = form.ramas_participantes.includes(rama)
@@ -161,6 +184,31 @@ export default function CampamentoForm({ open, onClose, beneficiarios, campament
               />
             </div>
           )}
+
+          {/* Circular / info del campamento (PDF adjunto) */}
+          <div className="p-3 rounded-lg border border-border bg-muted/30">
+            <div className="mb-2">
+              <p className="text-sm font-medium">PDF de circular / info del campamento</p>
+              <p className="text-xs text-muted-foreground">Las familias de los asistentes podrán descargarlo tal cual, sin edición.</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer">
+                <FileUp className="w-3.5 h-3.5" />
+                {subiendoCircular ? 'Subiendo...' : form.circular_url ? 'Reemplazar PDF' : 'Adjuntar PDF'}
+                <input type="file" accept="application/pdf" onChange={handleCircular} className="hidden" disabled={subiendoCircular} />
+              </label>
+              {form.circular_url && (
+                <>
+                  <a href={form.circular_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
+                    <Paperclip className="w-3.5 h-3.5" />Ver PDF actual
+                  </a>
+                  <button type="button" onClick={() => update('circular_url', '')} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive">
+                    <X className="w-3.5 h-3.5" />Quitar
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
 
           {form.adultos_pagan && (
             <div>

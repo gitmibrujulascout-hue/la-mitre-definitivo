@@ -23,6 +23,7 @@ import PanueloIcon from '@/components/shared/PanueloIcon';
 import TiendaFamilia from '@/components/tienda/TiendaFamilia';
 import CalendarioFamilia from '@/components/dashboard/CalendarioFamilia';
 import DescargarAutorizacionButton from '@/components/campamentos/DescargarAutorizacionButton';
+import DescargarCircularButton from '@/components/campamentos/DescargarCircularButton';
 
 const AÑO_INICIO = 2026;
 
@@ -552,6 +553,9 @@ export default function EstadoCuenta() {
                             </p>
                             {c.autorizacion_activa && c.beneficiarios_ids?.includes(b.id) && (
                               <DescargarAutorizacionButton campamento={c} beneficiario={b} />
+                            )}
+                            {c.circular_url && (
+                              <DescargarCircularButton campamento={c} />
                             )}
                           </div>
                         </Card>

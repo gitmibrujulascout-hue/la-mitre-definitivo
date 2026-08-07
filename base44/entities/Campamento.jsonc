@@ -75,6 +75,10 @@
       "type": "string",
       "description": "Texto general de la autorizaci\u00f3n (condiciones, declaraci\u00f3n legal) que el admin pre-completa; las familias descargan el formulario con este texto y los datos del menor ya cargados."
     },
+    "circular_url": {
+      "type": "string",
+      "description": "URL del PDF de la circular / info del campamento que el admin adjunta. Se descarga tal cual (sin edici\u00f3n) por las familias de los asistentes."
+    },
     "ubicacion": {
       "type": "string",
       "description": "Ubicaci\u00f3n del campamento"
