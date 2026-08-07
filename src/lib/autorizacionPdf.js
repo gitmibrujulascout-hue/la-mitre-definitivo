@@ -41,17 +41,19 @@ export async function generarAutorizacionPDF(campamento, beneficiario) {
   }
   draw(b.dni, 417, 548);
 
-  // Fechas del campamento (línea "[desde] Hasta el día [hasta]")
+  // Fechas del campamento:
+  //   - "desde el día ____" : la línea punteada del inicio de la segunda línea (x~75, y=509)
+  //   - "Hasta el día ____" : justo después de la etiqueta "Hasta el día" (x~326, y=509)
   const fmt = (f) => {
     if (!f) return null;
     const [yF, mF, dF] = f.split('-');
-    return `${dF} de ${MESES[parseInt(mF, 10) - 1]} de ${yF}`;
+    return `${parseInt(dF, 10)} de ${MESES[parseInt(mF, 10) - 1]} de ${yF}`;
   };
-  draw(fmt(c.fecha_inicio), 71, 509, 9);
-  draw(fmt(c.fecha_fin || c.fecha_inicio), 408, 509, 9);
+  draw(fmt(c.fecha_inicio), 75, 509, 9);
+  draw(fmt(c.fecha_fin || c.fecha_inicio), 411, 509, 8.5);
 
-  // Lugar del campamento (línea "ubicado en ....")
-  draw(c.ubicacion, 131, 495, 9);
+  // Lugar del campamento (línea "ubicado en ....", línea punteada larga)
+  draw(c.ubicacion, 150, 495, 9);
 
   const pdfBytes = await doc.save();
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
