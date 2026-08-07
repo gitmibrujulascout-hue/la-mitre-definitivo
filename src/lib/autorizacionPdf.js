@@ -3,12 +3,6 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 // URL del PDF oficial de Scouts Argentina (no se modifica, sólo se superponen datos).
 const PDF_URL = 'https://media.base44.com/files/public/69f1ed5d29db0dc5bc7e0ef8/9257f6412_AUTORIZACINGRUPO.pdf';
 
-// ── Datos fijos del grupo (editá estos valores si cambian) ──────────────────
-const GRUPO_NUM = '377';
-const GRUPO_NOMBRE = 'Bartolomé Mitre';
-const DISTRITO_NUM = '5';
-const ZONA_NUM = '42';
-
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 /**
@@ -58,12 +52,6 @@ export async function generarAutorizacionPDF(campamento, beneficiario) {
 
   // Lugar del campamento (línea "ubicado en ....")
   draw(c.ubicacion, 131, 495, 9);
-
-  // Grupo / Distrito / Zona
-  draw(GRUPO_NUM, 311, 482);
-  draw(GRUPO_NOMBRE, 392, 482, 9);
-  draw(DISTRITO_NUM, 170, 469);
-  draw(ZONA_NUM, 250, 469);
 
   const pdfBytes = await doc.save();
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
