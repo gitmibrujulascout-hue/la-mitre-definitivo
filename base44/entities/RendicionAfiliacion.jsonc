@@ -17,11 +17,11 @@
     },
     "monto_recaudado": {
       "type": "number",
-      "description": "Monto recaudado de las familias al momento de la rendici\u00f3n"
+      "description": "Nuevo efectivo recaudado de las familias desde la \u00faltima rendici\u00f3n (ingreso a caja)"
     },
     "monto_faltante": {
       "type": "number",
-      "description": "Monto sacado de caja com\u00fan (depositado - recaudado), a recuperar de las familias que no abonaron"
+      "description": "Parte del dep\u00f3sito cubierta con caja com\u00fan (depositado - recaudado de esta rendici\u00f3n), a recuperar de morosos"
     },
     "comprobante": {
       "type": "string",
@@ -30,17 +30,6 @@
     "archivo_url": {
       "type": "string",
       "description": "URL del comprobante (PDF) del dep\u00f3sito"
-    },
-    "cantidad_afiliados": {
-      "type": "number",
-      "description": "Cantidad de afiliados cubiertos por el dep\u00f3sito"
-    },
-    "afiliaciones_ids": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "IDs de afiliaciones marcadas como rendidas por este dep\u00f3sito"
     },
     "observaciones": {
       "type": "string",

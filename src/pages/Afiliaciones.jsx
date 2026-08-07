@@ -550,6 +550,15 @@ export default function Afiliaciones() {
     queryFn: () => base44.entities.Afiliacion.list('-fecha_pago', 500),
   });
 
+  const { data: rendicionesAfiliacion = [] } = useQuery({
+    queryKey: ['rendiciones-afiliacion'],
+    queryFn: () => base44.entities.RendicionAfiliacion.list('-fecha', 50),
+  });
+  const totalDepositadoSA = useMemo(
+    () => rendicionesAfiliacion.filter(r => Number(r.anio) === Number(anio)).reduce((s, r) => s + (r.monto_depositado || 0), 0),
+    [rendicionesAfiliacion, anio]
+  );
+
   const deleteMutation = useMutation({
     mutationFn: id => base44.entities.Afiliacion.delete(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['afiliaciones'] }); toast.success('Eliminado'); }
@@ -624,11 +633,11 @@ export default function Afiliaciones() {
     return total;
   }, [beneficiariosActivos, mapAfiliados]);
 
-  const afiliacionesADepositarSA = useMemo(
-    () => afiliacionesAnio.filter(a => !a.es_primera_vez && !a.rendido),
+  const totalExigidoSA = useMemo(
+    () => afiliacionesAnio.filter(a => !a.es_primera_vez).reduce((s, a) => s + (a.monto || 0), 0),
     [afiliacionesAnio]
   );
-  const totalADepositarSA = afiliacionesADepositarSA.reduce((s, a) => s + (a.monto || 0), 0);
+  const totalADepositarSA = Math.max(0, totalExigidoSA - totalDepositadoSA);
 
   return (
     <div>
@@ -833,9 +842,6 @@ export default function Afiliaciones() {
                           </span>
                           {saldoPendiente > 0 && (
                             <p className="text-xs text-muted-foreground">resta {formatMoney(saldoPendiente)}</p>
-                          )}
-                          {afiliacion.rendido && (
-                            <p className="text-xs text-cyan-600 flex items-center gap-0.5 mt-0.5"><Landmark className="w-3 h-3" />rendido</p>
                           )}
                         </>
                       : '—'}
