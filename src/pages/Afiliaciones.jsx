@@ -14,6 +14,7 @@ import { Plus, CheckCircle2, XCircle, Search, DollarSign, ShieldCheck, Users, Al
 import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
 import RegistrarRendicionDialog from '@/components/afiliaciones/RegistrarRendicionDialog';
+import RendicionesList from '@/components/afiliaciones/RendicionesList';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -623,11 +624,11 @@ export default function Afiliaciones() {
     return total;
   }, [beneficiariosActivos, mapAfiliados]);
 
-  const afiliacionesPendientesRendir = useMemo(
-    () => afiliacionesAnio.filter(a => !a.es_primera_vez && (a.monto_pagado || 0) > 0 && !a.rendido),
+  const afiliacionesADepositarSA = useMemo(
+    () => afiliacionesAnio.filter(a => !a.es_primera_vez && !a.rendido),
     [afiliacionesAnio]
   );
-  const totalRecaudadoNoRendido = afiliacionesPendientesRendir.reduce((s, a) => s + (a.monto_pagado || 0), 0);
+  const totalADepositarSA = afiliacionesADepositarSA.reduce((s, a) => s + (a.monto || 0), 0);
 
   return (
     <div>
@@ -712,8 +713,8 @@ export default function Afiliaciones() {
               <Landmark className="w-5 h-5 text-cyan-600" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Pendiente rendir</p>
-              <p className="text-xl font-bold text-cyan-600">{formatMoney(totalRecaudadoNoRendido)}</p>
+              <p className="text-xs text-muted-foreground">A depositar SA</p>
+              <p className="text-xl font-bold text-cyan-600">{formatMoney(totalADepositarSA)}</p>
             </div>
           </CardContent>
         </Card>
@@ -722,7 +723,7 @@ export default function Afiliaciones() {
       {/* Nota informativa */}
       <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800 flex items-center gap-2">
         <ShieldCheck className="w-4 h-4 flex-shrink-0" />
-        El dinero de afiliaciones se cobra en efectivo y se deposita directo a Scout Argentina. Usá <strong className="ml-1">"Rendir a Scout Arg."</strong> para registrar el ingreso en caja y el depósito, reconciliando el saldo.
+        Scout Argentina cobra por todos los afiliados del padrón, aunque la familia no haya abonado. Depositás el monto que SA exige; si lo recaudado no alcanza, la diferencia sale de la caja común y se recupera luego. Usá <strong className="ml-1">"Rendir a Scout Arg."</strong> para registrar el depósito y guardar el comprobante.
         <span className="ml-2 text-amber-600">· {countPagan} deben abonar · {countNoPagan} primera vez (sin costo)</span>
       </div>
 
@@ -854,6 +855,10 @@ export default function Afiliaciones() {
           </TableBody>
         </Table>
       </Card>
+
+      <div className="mt-6">
+        <RendicionesList anio={anio} />
+      </div>
 
       {showForm && (
         <AfiliacionForm

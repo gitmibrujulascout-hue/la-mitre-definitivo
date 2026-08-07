@@ -1,0 +1,77 @@
+{
+  "name": "RendicionAfiliacion",
+  "type": "object",
+  "properties": {
+    "anio": {
+      "type": "number",
+      "description": "A\u00f1o de la rendici\u00f3n"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha del dep\u00f3sito a Scout Argentina"
+    },
+    "monto_depositado": {
+      "type": "number",
+      "description": "Monto total depositado a Scout Argentina (lo que SA exige)"
+    },
+    "monto_recaudado": {
+      "type": "number",
+      "description": "Monto recaudado de las familias al momento de la rendici\u00f3n"
+    },
+    "monto_faltante": {
+      "type": "number",
+      "description": "Monto sacado de caja com\u00fan (depositado - recaudado), a recuperar de las familias que no abonaron"
+    },
+    "comprobante": {
+      "type": "string",
+      "description": "N\u00b0 de comprobante / referencia del dep\u00f3sito"
+    },
+    "archivo_url": {
+      "type": "string",
+      "description": "URL del comprobante (PDF) del dep\u00f3sito"
+    },
+    "cantidad_afiliados": {
+      "type": "number",
+      "description": "Cantidad de afiliados cubiertos por el dep\u00f3sito"
+    },
+    "afiliaciones_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs de afiliaciones marcadas como rendidas por este dep\u00f3sito"
+    },
+    "observaciones": {
+      "type": "string",
+      "description": "Notas adicionales"
+    }
+  },
+  "required": [
+    "anio",
+    "fecha",
+    "monto_depositado"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
