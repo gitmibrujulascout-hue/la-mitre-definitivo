@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { base44 } from '@/api/base44Client';
 import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, getCuotaBeneficiario, marzoEsBonificado } from '@/lib/ramaUtils';
+import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Gift } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Gift, ShieldCheck } from 'lucide-react';
 
 export default function AplicarCreditoDialog({ creditos, beneficiarioId, beneficiarioNombre, beneficiario, campamentos, todosLosBeneficiarios, pagos, anio, afiliacion, esPrimeraVezAfiliacion, onClose, onSaved }) {
   const queryClient = useQueryClient();
@@ -49,6 +50,22 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
     return getCuotaBeneficiario(beneficiario, todosLosBeneficiarios);
   }, [beneficiario, todosLosBeneficiarios]);
 
+  // Saldo pendiente de la afiliación del año
+  const saldoPendienteAfiliacion = useMemo(() => {
+    if (esPrimeraVezAfiliacion) return 0;
+    if (afiliacion) {
+      if (afiliacion.es_primera_vez) return 0;
+      return Math.max(0, (afiliacion.monto || 0) - (afiliacion.monto_pagado || 0));
+    }
+    // Sin afiliación registrada → debe el seguro completo
+    return MONTO_SEGURO_AFILIACION;
+  }, [afiliacion, esPrimeraVezAfiliacion]);
+
+  // Total a cubrir según el tipo seleccionado
+  const totalACubrir = tipo === 'Cuota'
+    ? meses.length * cuotaUnitaria
+    : tipo === 'Afiliación' ? saldoPendienteAfiliacion : 0;
+
   // Auto-seleccionar primer mes adeudado
   useEffect(() => {
     if (tipo !== 'Cuota') return;
@@ -56,27 +73,34 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
     setMeses(primer ? [primer] : []);
   }, [tipo, mesesYaPagados.length, mesesNoCobrar.length]);
 
-  const cuotaTotal = meses.length * cuotaUnitaria;
-
-  // Auto-ajustar montos cuando cambian los meses seleccionados
+  // Auto-ajustar montos cuando cambian los meses seleccionados o se elige afiliación
   useEffect(() => {
-    if (tipo !== 'Cuota' || cuotaTotal === 0) return;
-    const credAuto = Math.min(totalDisponible, cuotaTotal);
-    setMontoCredito(credAuto.toString());
-    const dif = cuotaTotal - credAuto;
-    setDiferenciaEfectivo(dif > 0 ? dif.toString() : '');
-  }, [meses.length, cuotaUnitaria, tipo, cuotaTotal, totalDisponible]);
+    if (tipo === 'Cuota') {
+      if (totalACubrir === 0) return;
+      const credAuto = Math.min(totalDisponible, totalACubrir);
+      setMontoCredito(credAuto.toString());
+      const dif = totalACubrir - credAuto;
+      setDiferenciaEfectivo(dif > 0 ? dif.toString() : '');
+    } else if (tipo === 'Afiliación') {
+      if (saldoPendienteAfiliacion <= 0) { setMontoCredito(''); setDiferenciaEfectivo(''); return; }
+      const credAuto = Math.min(totalDisponible, saldoPendienteAfiliacion);
+      setMontoCredito(credAuto.toString());
+      const dif = saldoPendienteAfiliacion - credAuto;
+      setDiferenciaEfectivo(dif > 0 ? dif.toString() : '');
+    }
+  }, [tipo, meses.length, cuotaUnitaria, totalACubrir, totalDisponible, saldoPendienteAfiliacion]);
 
   const creditoNum = Math.min(parseFloat(montoCredito) || 0, totalDisponible);
   const diferenciaNum = parseFloat(diferenciaEfectivo) || 0;
   const totalAPagar = creditoNum + diferenciaNum;
-  const falta = cuotaTotal - totalAPagar;
+  const falta = totalACubrir - totalAPagar;
   const cubreCompleto = tipo === 'Cuota' && Math.abs(falta) < 1;
 
   const handleMontoCreditoChange = (val) => {
     setMontoCredito(val);
     const cred = parseFloat(val) || 0;
-    const dif = cuotaTotal - cred;
+    const base = tipo === 'Afiliación' ? saldoPendienteAfiliacion : totalACubrir;
+    const dif = base - cred;
     setDiferenciaEfectivo(dif > 0 ? dif.toString() : '');
   };
 
@@ -151,7 +175,7 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
             observaciones: `Diferencia en efectivo (complementa crédito de: ${fuentesLabel})`,
           });
         }
-      } else {
+      } else if (tipo === 'Campamento') {
         await base44.entities.Pago.create({
           beneficiario_id: beneficiarioId,
           beneficiario_nombre: beneficiarioNombre,
@@ -165,6 +189,37 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
           fecha_pago: fechaPago,
           observaciones: `Crédito aplicado de: ${fuentesLabel}`,
         });
+      } else if (tipo === 'Afiliación') {
+        // La afiliación se rinde a la asociación: NO impacta en Caja/Banco.
+        // Solo actualizamos el monto_pagado del registro de afiliación.
+        const totalAImputar = creditoNum + diferenciaNum;
+        const obsAf = `Crédito aplicado de: ${fuentesLabel}${diferenciaNum > 0 ? ' + efectivo' : ''}`;
+        if (afiliacion && afiliacion.id) {
+          const afilFresh = await base44.entities.Afiliacion.get(afiliacion.id);
+          const nuevoPagado = Math.min(afilFresh.monto || 0, (afilFresh.monto_pagado || 0) + totalAImputar);
+          await base44.entities.Afiliacion.update(afiliacion.id, {
+            monto_pagado: nuevoPagado,
+            fecha_pago: fechaPago,
+            observaciones: afilFresh.observaciones
+              ? `${afilFresh.observaciones} | ${obsAf}`
+              : obsAf,
+          });
+        } else {
+          // Sin registro de afiliación: se crea con el monto del seguro por defecto
+          await base44.entities.Afiliacion.create({
+            beneficiario_id: beneficiarioId,
+            beneficiario_nombre: beneficiarioNombre,
+            beneficiario_dni: beneficiario?.dni || '',
+            rama: beneficiario?.rama || '',
+            anio: Number(anio),
+            monto: MONTO_SEGURO_AFILIACION,
+            monto_pagado: totalAImputar,
+            fecha_pago: fechaPago,
+            forma_pago: 'Efectivo',
+            es_primera_vez: false,
+            observaciones: obsAf,
+          });
+        }
       }
 
       // Descontar de cada crédito individual (re-fetch para evitar estado stale)
@@ -178,6 +233,8 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creditos-todos'] });
       queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario', beneficiarioId] });
+      queryClient.invalidateQueries({ queryKey: ['afiliaciones'] });
+      queryClient.invalidateQueries({ queryKey: ['pagos'] });
       toast.success('Crédito aplicado correctamente');
       onSaved();
     },
@@ -185,7 +242,9 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
 
   const canSave = tipo === 'Cuota'
     ? meses.length > 0 && cubreCompleto && creditoNum > 0
-    : !!campamentoId && creditoNum > 0 && creditoNum <= totalDisponible;
+    : tipo === 'Afiliación'
+      ? saldoPendienteAfiliacion > 0 && creditoNum > 0 && creditoNum <= totalDisponible && (creditoNum + diferenciaNum) <= saldoPendienteAfiliacion + 0.01
+      : !!campamentoId && creditoNum > 0 && creditoNum <= totalDisponible;
 
   const hayMesesAdeudados = MESES.some(m => !mesesYaPagados.includes(m) && !mesesNoCobrar.includes(m));
 
@@ -229,6 +288,7 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
               <SelectContent>
                 <SelectItem value="Cuota">Cuotas mensuales</SelectItem>
                 <SelectItem value="Campamento">Campamento</SelectItem>
+                <SelectItem value="Afiliación">Afiliación / Seguro</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -271,7 +331,7 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
                   <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Cuota ({meses.length} mes):</span>
-                      <span className="font-medium">{formatMoney(cuotaTotal)}</span>
+                      <span className="font-medium">{formatMoney(totalACubrir)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Crédito a aplicar:</span>
@@ -302,7 +362,7 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
                     <p className="text-xs text-muted-foreground mt-1">Máximo disponible: {formatMoney(totalDisponible)}</p>
                   </div>
 
-                  {cuotaTotal > creditoNum && (
+                  {totalACubrir > creditoNum && (
                     <div>
                       <Label>Diferencia en efectivo</Label>
                       <Input
@@ -355,6 +415,84 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
                 />
                 <p className="text-xs text-muted-foreground mt-1">Máximo: {formatMoney(totalDisponible)}</p>
               </div>
+            </>
+          )}
+
+          {tipo === 'Afiliación' && (
+            <>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/40 rounded-lg p-2.5">
+                <ShieldCheck className="w-4 h-4 flex-shrink-0 text-primary" />
+                <span>El dinero de la afiliación se rinde a la Asociación y <strong className="ml-1">no impacta en Caja/Banco.</strong></span>
+              </div>
+
+              <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Seguro {anio}:</span>
+                  <span className="font-medium">{formatMoney(afiliacion?.monto || MONTO_SEGURO_AFILIACION)}</span>
+                </div>
+                {afiliacion && !afiliacion.es_primera_vez && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Ya pagado:</span>
+                    <span className="font-medium text-green-600">{formatMoney(afiliacion.monto_pagado || 0)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t pt-1">
+                  <span className="font-semibold">Saldo pendiente:</span>
+                  <span className={cn('font-bold', saldoPendienteAfiliacion > 0 ? 'text-orange-600' : 'text-green-600')}>
+                    {formatMoney(saldoPendienteAfiliacion)}
+                  </span>
+                </div>
+                {creditoNum > 0 && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Crédito a aplicar:</span>
+                      <span className="font-medium text-primary">{formatMoney(creditoNum)}</span>
+                    </div>
+                    {diferenciaNum > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Diferencia en efectivo:</span>
+                        <span className="font-medium text-orange-600">{formatMoney(diferenciaNum)}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {saldoPendienteAfiliacion <= 0 ? (
+                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-2.5">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  <span>{esPrimeraVezAfiliacion ? 'Primera afiliación — no abona seguro.' : 'La afiliación no tiene saldo pendiente.'}</span>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label>Monto de crédito a aplicar</Label>
+                    <Input
+                      type="number"
+                      value={montoCredito}
+                      onChange={e => handleMontoCreditoChange(e.target.value)}
+                      max={Math.min(totalDisponible, saldoPendienteAfiliacion)}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Máximo: {formatMoney(Math.min(totalDisponible, saldoPendienteAfiliacion))}
+                    </p>
+                  </div>
+
+                  {saldoPendienteAfiliacion > creditoNum && (
+                    <div>
+                      <Label>Diferencia en efectivo</Label>
+                      <Input
+                        type="number"
+                        value={diferenciaEfectivo}
+                        onChange={e => setDiferenciaEfectivo(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Complemento en efectivo para cancelar el seguro (opcional, puede imputarse solo el crédito).
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
             </>
           )}
         </div>

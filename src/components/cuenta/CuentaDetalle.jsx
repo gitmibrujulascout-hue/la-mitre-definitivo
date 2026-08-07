@@ -337,6 +337,7 @@ function CreditosPanel({ beneficiarioId, beneficiarioNombre, beneficiario, grupo
             queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario', beneficiarioId] });
             queryClient.invalidateQueries({ queryKey: ['creditos-todos'] });
             queryClient.invalidateQueries({ queryKey: ['pagos'] });
+            queryClient.invalidateQueries({ queryKey: ['afiliaciones'] });
             setShowAplicar(false);
             setCreditoSel(null);
             onSaved();
