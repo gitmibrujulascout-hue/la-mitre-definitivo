@@ -582,12 +582,13 @@ export default function Afiliaciones() {
   }, [afiliacionesAnio]);
 
   const filas = useMemo(() => {
-    return beneficiariosActivos
+    return beneficiarios
       .filter(b => !busqueda || b.nombre?.toLowerCase().includes(busqueda.toLowerCase()) || b.dni?.includes(busqueda))
       .map(b => ({
         beneficiario: b,
         afiliacion: mapAfiliados[b.id] || null,
         esPrimeraVez: !b.fecha_primer_afiliacion || mapAfiliados[b.id]?.es_primera_vez === true,
+        inactivo: b.activo === false,
       }))
       .filter(f => {
         if (filtroVista === 'pagan') return !f.esPrimeraVez;
@@ -596,6 +597,10 @@ export default function Afiliaciones() {
         return true;
       })
       .sort((a, b) => {
+        // Inactivos al final
+        const aInac = a.inactivo ? 1 : 0;
+        const bInac = b.inactivo ? 1 : 0;
+        if (aInac !== bInac) return aInac - bInac;
         const prioridad = (f) => {
           const { afiliacion, esPrimeraVez } = f;
           if (!afiliacion) return esPrimeraVez ? 2 : 0; // 0 = deuda total, 2 = bonificado
@@ -608,7 +613,7 @@ export default function Afiliaciones() {
         if (pa !== pb) return pa - pb;
         return a.beneficiario.nombre?.localeCompare(b.beneficiario.nombre);
       });
-  }, [beneficiariosActivos, mapAfiliados, busqueda, filtroVista]);
+  }, [beneficiarios, mapAfiliados, busqueda, filtroVista]);
 
   const totalAfiliados = afiliacionesAnio.length;
   const totalSinAfiliar = beneficiariosActivos.length - totalAfiliados;
@@ -786,13 +791,25 @@ export default function Afiliaciones() {
               <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
             ) : filas.length === 0 ? (
               <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No hay beneficiarios</TableCell></TableRow>
-            ) : filas.map(({ beneficiario: b, afiliacion, esPrimeraVez }) => {
+            ) : filas.map(({ beneficiario: b, afiliacion, esPrimeraVez, inactivo }) => {
               const saldoPendiente = afiliacion && !afiliacion.es_primera_vez
                 ? (afiliacion.monto || 0) - (afiliacion.monto_pagado || afiliacion.monto || 0)
                 : 0;
               return (
-                <TableRow key={b.id} className={!afiliacion ? 'bg-red-50/30' : ''}>
-                  <TableCell className="font-medium">{b.nombre}</TableCell>
+                <TableRow key={b.id} className={cn(
+                  inactivo ? 'opacity-60 bg-slate-50/40' : '',
+                  !afiliacion && !inactivo ? 'bg-red-50/30' : ''
+                )}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-1.5">
+                      {b.nombre}
+                      {inactivo && (
+                        <Badge variant="outline" className="text-xs bg-slate-100 text-slate-500 border-slate-300">
+                          Inactivo{b.fecha_baja ? ` ${new Date(b.fecha_baja + 'T00:00:00').toLocaleDateString('es-AR')}` : ''}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-xs">{b.rama || '—'}</Badge>
                   </TableCell>
