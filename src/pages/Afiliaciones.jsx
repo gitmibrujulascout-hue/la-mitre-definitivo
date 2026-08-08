@@ -196,7 +196,7 @@ function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, 
                   <Input
                     type="number"
                     value={form.monto}
-                    onChange={e => setForm(p => ({ ...p, monto: e.target.value, monto_pagado: e.target.value }))}
+                    onChange={e => setForm(p => ({ ...p, monto: e.target.value }))}
                     placeholder={MONTO_SEGURO_DEFAULT.toString()}
                   />
                 </div>
