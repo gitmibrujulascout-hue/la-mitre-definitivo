@@ -1,0 +1,49 @@
+{
+  "name": "ConfigAfiliacion",
+  "type": "object",
+  "properties": {
+    "anio": {
+      "type": "number",
+      "description": "A\u00f1o de la configuraci\u00f3n de afiliaci\u00f3n"
+    },
+    "monto_general": {
+      "type": "number",
+      "description": "Monto del seguro para beneficiarios (menores)"
+    },
+    "monto_acompanante": {
+      "type": "number",
+      "description": "Monto del seguro para adultos / voluntarios / educadores (acompa\u00f1antes)"
+    },
+    "fecha_limite_primera_vez": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha l\u00edmite hasta la cual la primera afiliaci\u00f3n est\u00e1 bonificada (no abona). Pasada esta fecha, la primera afiliaci\u00f3n debe pagar igual."
+    },
+    "observaciones": {
+      "type": "string",
+      "description": "Notas adicionales"
+    }
+  },
+  "required": [
+    "anio",
+    "monto_general"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

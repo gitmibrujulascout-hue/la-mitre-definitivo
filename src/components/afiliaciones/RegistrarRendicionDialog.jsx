@@ -49,7 +49,7 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
   const [fechaDeposito, setFechaDeposito] = useState(() =>
     new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
   );
-  const [montoDepositado, setMontoDepositado] = useState(() => totalExigidoSA.toString());
+  const [montoDepositado, setMontoDepositado] = useState('');
   const [comprobante, setComprobante] = useState('');
   const [file, setFile] = useState(null);
 
@@ -123,8 +123,9 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
             </div>
             <div>
               <Label className="text-xs">Monto depositado a SA *</Label>
-              <Input type="number" value={montoDepositado} onChange={e => setMontoDepositado(e.target.value)} placeholder="Total que SA exige" />
-              <p className="text-xs text-muted-foreground mt-1">SA exige: {formatMoney(totalExigidoSA)}</p>
+              <Input type="number" value={montoDepositado} onChange={e => setMontoDepositado(e.target.value)} placeholder="Ingresá el monto real depositado" />
+              <p className="text-xs text-muted-foreground mt-1">SA exige: {formatMoney(totalExigidoSA)} · Recaudado disponible: {formatMoney(recaudadoEstaRendicion)}</p>
+              <p className="text-xs text-amber-600 mt-0.5">⚠ Ingresá el monto que realmente depositaste, no el que SA exige.</p>
             </div>
             <div>
               <Label className="text-xs">N° comprobante (opcional)</Label>

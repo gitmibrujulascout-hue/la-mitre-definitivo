@@ -17,6 +17,8 @@ import RegistrarRendicionDialog from '@/components/afiliaciones/RegistrarRendici
 import RendicionesList from '@/components/afiliaciones/RendicionesList';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import ConfigAfiliacionPanel from '@/components/afiliaciones/ConfigAfiliacionPanel';
+import { getMontoSeguro, esPrimeraVezBonificado } from '@/lib/afiliacionUtils';
 
 // ——— Dialog para editar tipo de afiliación del beneficiario ———
 function EditarTipoAfiliacionDialog({ open, onClose, beneficiario }) {
@@ -104,7 +106,7 @@ const AÑOS = [2024, 2025, 2026, 2027, 2028];
 const MONTO_SEGURO_DEFAULT = 42000;
 
 // ——— Formulario individual ———
-function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, anio }) {
+function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, anio, config }) {
   const [form, setForm] = useState({
     beneficiario_id: '',
     monto: MONTO_SEGURO_DEFAULT.toString(),
@@ -126,23 +128,27 @@ function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, 
 
   const beneficiarioSel = beneficiarios.find(b => b.id === form.beneficiario_id);
   const esPrimeraVez = beneficiarioSel && !beneficiarioSel.fecha_primer_afiliacion;
+  const bonificado = esPrimeraVez && esPrimeraVezBonificado(beneficiarioSel, config, form.fecha_pago);
+  const montoSeguroBen = bonificado ? 0 : getMontoSeguro(beneficiarioSel, config);
   const yaAfiliado = afiliacionesExistentes.some(a => a.beneficiario_id === form.beneficiario_id && Number(a.anio) === Number(anio));
 
   const handleBeneficiarioChange = (v) => {
     const ben = beneficiarios.find(b => b.id === v);
     const primera = ben && !ben.fecha_primer_afiliacion;
+    const bonif = primera && esPrimeraVezBonificado(ben, config, form.fecha_pago);
+    const monto = bonif ? 0 : getMontoSeguro(ben, config);
     setForm(p => ({
       ...p,
       beneficiario_id: v,
-      monto: primera ? '0' : MONTO_SEGURO_DEFAULT.toString(),
-      monto_pagado: primera ? '0' : MONTO_SEGURO_DEFAULT.toString(),
+      monto: monto.toString(),
+      monto_pagado: monto.toString(),
     }));
   };
 
   const handleSave = () => {
     if (!form.beneficiario_id) return;
-    const montoAfiliacion = esPrimeraVez ? 0 : parseFloat(form.monto) || 0;
-    const montoPagado = esPrimeraVez ? 0 : parseFloat(form.monto_pagado) || 0;
+    const montoAfiliacion = bonificado ? 0 : parseFloat(form.monto) || 0;
+    const montoPagado = bonificado ? 0 : parseFloat(form.monto_pagado) || 0;
     createMutation.mutate({
       ...form,
       anio: Number(anio),
@@ -175,10 +181,15 @@ function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, 
           </div>
 
           {beneficiarioSel && (
-            <div className={cn('p-3 rounded-lg text-sm', esPrimeraVez ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-blue-50 border border-blue-200 text-blue-800')}>
-              {esPrimeraVez
-                ? '⭐ Primera afiliación — No abona seguro'
-                : `Ya afiliado desde ${beneficiarioSel.fecha_primer_afiliacion} — Debe abonar seguro`}
+            <div className={cn('p-3 rounded-lg text-sm',
+              esPrimeraVez && bonificado ? 'bg-amber-50 border border-amber-200 text-amber-800' :
+              esPrimeraVez && !bonificado ? 'bg-red-50 border border-red-200 text-red-700' :
+              'bg-blue-50 border border-blue-200 text-blue-800')}>
+              {esPrimeraVez && bonificado
+                ? '⭐ Primera afiliación — No abona seguro (dentro de fecha límite)'
+                : esPrimeraVez && !bonificado
+                  ? '⚠ Primera afiliación pero fecha límite vencida — Debe abonar seguro'
+                  : `Ya afiliado desde ${beneficiarioSel.fecha_primer_afiliacion} — Debe abonar seguro`}
             </div>
           )}
 
@@ -188,7 +199,7 @@ function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, 
             </div>
           )}
 
-          {!esPrimeraVez && beneficiarioSel && (
+          {!bonificado && beneficiarioSel && (
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -232,7 +243,7 @@ function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, 
             </>
           )}
 
-          {esPrimeraVez && beneficiarioSel && (
+          {esPrimeraVez && bonificado && beneficiarioSel && (
             <div>
               <Label>Fecha de registro</Label>
               <Input type="date" value={form.fecha_pago} onChange={e => setForm(p => ({ ...p, fecha_pago: e.target.value }))} />
@@ -256,11 +267,11 @@ function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, 
 }
 
 // ——— Afiliación masiva ———
-function AfiliacionMasivaDialog({ open, onClose, beneficiarios, afiliacionesExistentes, anio }) {
+function AfiliacionMasivaDialog({ open, onClose, beneficiarios, afiliacionesExistentes, anio, config }) {
   const queryClient = useQueryClient();
 
   // Separar quienes deben pagar y quienes no (primera vez)
-  const [montoGlobal, setMontoGlobal] = useState(MONTO_SEGURO_DEFAULT.toString());
+  const [montoGlobal, setMontoGlobal] = useState((config?.monto_general || MONTO_SEGURO_DEFAULT).toString());
   const [fechaPago, setFechaPago] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
   const [formaPago, setFormaPago] = useState('Efectivo');
 
@@ -276,8 +287,10 @@ function AfiliacionMasivaDialog({ open, onClose, beneficiarios, afiliacionesExis
     [beneficiarios, yaAfiliadosIds]
   );
 
-  const primeraVez = pendientes.filter(b => !b.fecha_primer_afiliacion);
-  const debenPagar = pendientes.filter(b => !!b.fecha_primer_afiliacion);
+  const primeraVezTodos = pendientes.filter(b => !b.fecha_primer_afiliacion);
+  const primeraVez = primeraVezTodos.filter(b => esPrimeraVezBonificado(b, config, fechaPago));
+  const primeraVezPagan = primeraVezTodos.filter(b => !esPrimeraVezBonificado(b, config, fechaPago));
+  const debenPagar = [...pendientes.filter(b => !!b.fecha_primer_afiliacion), ...primeraVezPagan];
 
   // Selección de los que deben pagar
   const [seleccionados, setSeleccionados] = useState(() => new Set(debenPagar.map(b => b.id)));
@@ -296,7 +309,11 @@ function AfiliacionMasivaDialog({ open, onClose, beneficiarios, afiliacionesExis
     else setSelPrimeraVez(new Set(primeraVez.map(b => b.id)));
   };
 
-  const getMonto = (id) => montos[id] !== undefined ? montos[id] : montoGlobal;
+  const getMonto = (id) => {
+    if (montos[id] !== undefined) return montos[id];
+    const ben = pendientes.find(b => b.id === id);
+    return getMontoSeguro(ben, config);
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
@@ -312,7 +329,7 @@ function AfiliacionMasivaDialog({ open, onClose, beneficiarios, afiliacionesExis
   const handleSave = () => {
     const registros = [];
 
-    // Los que deben pagar
+    // Los que deben pagar (renovaciones + primera vez vencida)
     debenPagar.filter(b => seleccionados.has(b.id)).forEach(b => {
       const m = parseFloat(getMonto(b.id)) || 0;
       registros.push({
@@ -321,11 +338,11 @@ function AfiliacionMasivaDialog({ open, onClose, beneficiarios, afiliacionesExis
         beneficiario_dni: b.dni || '',
         rama: b.rama || '',
         anio: Number(anio),
-        monto: parseFloat(montoGlobal) || 0,
+        monto: getMontoSeguro(b, config),
         monto_pagado: m,
         fecha_pago: fechaPago,
         forma_pago: formaPago,
-        es_primera_vez: false,
+        es_primera_vez: !b.fecha_primer_afiliacion,
       });
     });
 
@@ -362,12 +379,12 @@ function AfiliacionMasivaDialog({ open, onClose, beneficiarios, afiliacionesExis
           {/* Config global */}
           <div className="grid grid-cols-3 gap-3 p-4 rounded-lg border bg-muted/30">
             <div>
-              <Label className="text-xs">Monto seguro (default)</Label>
+              <Label className="text-xs">Monto general (default)</Label>
               <Input
                 type="number"
                 value={montoGlobal}
                 onChange={e => setMontoGlobal(e.target.value)}
-                placeholder={MONTO_SEGURO_DEFAULT.toString()}
+                placeholder={(config?.monto_general || MONTO_SEGURO_DEFAULT).toString()}
               />
             </div>
             <div>
@@ -554,6 +571,12 @@ export default function Afiliaciones() {
     queryKey: ['rendiciones-afiliacion'],
     queryFn: () => base44.entities.RendicionAfiliacion.list('-fecha', 50),
   });
+
+  const { data: configsAfiliacion = [] } = useQuery({
+    queryKey: ['config-afiliacion'],
+    queryFn: () => base44.entities.ConfigAfiliacion.list('-anio', 50),
+  });
+  const configAnio = configsAfiliacion.find(c => Number(c.anio) === Number(anio));
   const totalDepositadoSA = useMemo(
     () => rendicionesAfiliacion.filter(r => Number(r.anio) === Number(anio)).reduce((s, r) => s + (r.monto_depositado || 0), 0),
     [rendicionesAfiliacion, anio]
@@ -582,61 +605,68 @@ export default function Afiliaciones() {
   }, [afiliacionesAnio]);
 
   const filas = useMemo(() => {
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos Aires' });
     return beneficiarios
       .filter(b => !busqueda || b.nombre?.toLowerCase().includes(busqueda.toLowerCase()) || b.dni?.includes(busqueda))
-      .map(b => ({
-        beneficiario: b,
-        afiliacion: mapAfiliados[b.id] || null,
-        esPrimeraVez: !b.fecha_primer_afiliacion || mapAfiliados[b.id]?.es_primera_vez === true,
-        inactivo: b.activo === false,
-      }))
+      .map(b => {
+        const primera = !b.fecha_primer_afiliacion || mapAfiliados[b.id]?.es_primera_vez === true;
+        const bonif = primera && esPrimeraVezBonificado(b, configAnio, hoy);
+        return {
+          beneficiario: b,
+          afiliacion: mapAfiliados[b.id] || null,
+          esPrimeraVez: primera,
+          bonificado: bonif,
+          inactivo: b.activo === false,
+        };
+      })
       .filter(f => {
-        if (filtroVista === 'pagan') return !f.esPrimeraVez;
-        if (filtroVista === 'no_pagan') return f.esPrimeraVez;
+        if (filtroVista === 'pagan') return !f.bonificado;
+        if (filtroVista === 'no_pagan') return f.bonificado;
         if (filtroVista === 'pendientes') return !f.afiliacion;
         return true;
       })
       .sort((a, b) => {
-        // Inactivos al final
         const aInac = a.inactivo ? 1 : 0;
         const bInac = b.inactivo ? 1 : 0;
         if (aInac !== bInac) return aInac - bInac;
         const prioridad = (f) => {
-          const { afiliacion, esPrimeraVez } = f;
-          if (!afiliacion) return esPrimeraVez ? 2 : 0; // 0 = deuda total, 2 = bonificado
-          if (afiliacion.es_primera_vez) return 2;
+          const { afiliacion, bonificado } = f;
+          if (!afiliacion) return bonificado ? 2 : 0;
+          if (afiliacion.es_primera_vez && (afiliacion.monto || 0) === 0) return 2;
           const saldo = (afiliacion.monto || 0) - (afiliacion.monto_pagado || afiliacion.monto || 0);
-          return saldo > 0 ? 1 : 2; // 1 = parcial, 2 = cancelado
+          return saldo > 0 ? 1 : 2;
         };
         const pa = prioridad(a);
         const pb = prioridad(b);
         if (pa !== pb) return pa - pb;
         return a.beneficiario.nombre?.localeCompare(b.beneficiario.nombre);
       });
-  }, [beneficiarios, mapAfiliados, busqueda, filtroVista]);
+  }, [beneficiarios, mapAfiliados, busqueda, filtroVista, configAnio]);
 
   const totalAfiliados = afiliacionesAnio.length;
   const totalSinAfiliar = beneficiariosActivos.length - totalAfiliados;
   const totalRecaudado = afiliacionesAnio.filter(a => !a.es_primera_vez).reduce((s, a) => s + (a.monto_pagado || a.monto || 0), 0);
-  const countNoPagan = beneficiariosActivos.filter(b => !b.fecha_primer_afiliacion).length;
+  const hoyStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos Aires' });
+  const countNoPagan = beneficiariosActivos.filter(b => !b.fecha_primer_afiliacion && esPrimeraVezBonificado(b, configAnio, hoyStr)).length;
   const countPagan = beneficiariosActivos.length - countNoPagan;
 
   // Monto adeudado: sin afiliar que deben pagar + pagos parciales
   const montoAdeudado = useMemo(() => {
     let total = 0;
     beneficiariosActivos.forEach(b => {
-      if (!b.fecha_primer_afiliacion) return; // primera vez, no pagan
+      const primera = !b.fecha_primer_afiliacion;
+      const bonificado = primera && esPrimeraVezBonificado(b, configAnio, hoyStr);
+      if (bonificado) return; // primera vez bonificada hoy, no adeuda
       const afil = mapAfiliados[b.id];
+      const montoSeguro = getMontoSeguro(b, configAnio);
       if (!afil) {
-        // Sin afiliar: deben el monto completo (usamos el default)
-        total += MONTO_SEGURO_DEFAULT;
-      } else if (!afil.es_primera_vez) {
-        // Pago parcial
-        total += Math.max(0, (afil.monto || 0) - (afil.monto_pagado || afil.monto || 0));
+        total += montoSeguro;
+      } else {
+        total += Math.max(0, (afil.monto || montoSeguro) - (afil.monto_pagado || afil.monto || 0));
       }
     });
     return total;
-  }, [beneficiariosActivos, mapAfiliados]);
+  }, [beneficiariosActivos, mapAfiliados, configAnio, hoyStr]);
 
   const totalExigidoSA = useMemo(
     () => afiliacionesAnio.filter(a => !a.es_primera_vez).reduce((s, a) => s + (a.monto || 0), 0),
@@ -663,6 +693,8 @@ export default function Afiliaciones() {
           <Plus className="w-4 h-4 mr-2" />Registrar
         </Button>
       </PageHeader>
+
+      <ConfigAfiliacionPanel anio={Number(anio)} />
 
       {/* Resumen */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
@@ -791,7 +823,7 @@ export default function Afiliaciones() {
               <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
             ) : filas.length === 0 ? (
               <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No hay beneficiarios</TableCell></TableRow>
-            ) : filas.map(({ beneficiario: b, afiliacion, esPrimeraVez, inactivo }) => {
+            ) : filas.map(({ beneficiario: b, afiliacion, esPrimeraVez, bonificado, inactivo }) => {
               const saldoPendiente = afiliacion && !afiliacion.es_primera_vez
                 ? (afiliacion.monto || 0) - (afiliacion.monto_pagado || afiliacion.monto || 0)
                 : 0;
@@ -815,8 +847,10 @@ export default function Afiliaciones() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
-                      {esPrimeraVez ? (
-                        <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">⭐ Primera vez</Badge>
+                      {esPrimeraVez && bonificado ? (
+                        <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">⭐ 1ª bonificada</Badge>
+                      ) : esPrimeraVez && !bonificado ? (
+                        <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs">⭐ 1ª vencida</Badge>
                       ) : (
                         <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs">Renovación</Badge>
                       )}
@@ -831,7 +865,7 @@ export default function Afiliaciones() {
                   </TableCell>
                   <TableCell>
                     {afiliacion ? (
-                      afiliacion.es_primera_vez ? (
+                      afiliacion.es_primera_vez && (afiliacion.monto || 0) === 0 ? (
                         <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">✓ Sin costo</Badge>
                       ) : saldoPendiente > 0 ? (
                         <Badge className="bg-orange-100 text-orange-700 border-orange-300 border text-xs">
@@ -848,11 +882,15 @@ export default function Afiliaciones() {
                   </TableCell>
                   <TableCell className="text-sm">
                     {afiliacion
-                      ? afiliacion.es_primera_vez ? <span className="text-amber-600 text-xs">No abona</span> : formatMoney(afiliacion.monto)
-                      : esPrimeraVez ? <span className="text-xs text-muted-foreground">No abona</span> : '—'}
+                      ? afiliacion.es_primera_vez && (afiliacion.monto || 0) === 0
+                        ? <span className="text-amber-600 text-xs">No abona</span>
+                        : formatMoney(afiliacion.monto)
+                      : bonificado
+                        ? <span className="text-xs text-muted-foreground">No abona</span>
+                        : <span className="text-xs text-muted-foreground">{formatMoney(getMontoSeguro(b, configAnio))}</span>}
                   </TableCell>
                   <TableCell className="font-semibold">
-                    {afiliacion && !afiliacion.es_primera_vez
+                    {afiliacion && !(afiliacion.es_primera_vez && (afiliacion.monto || 0) === 0)
                       ? <>
                           <span className={saldoPendiente > 0 ? 'text-orange-600' : 'text-green-600'}>
                             {formatMoney(afiliacion.monto_pagado || afiliacion.monto)}
@@ -890,6 +928,7 @@ export default function Afiliaciones() {
           beneficiarios={beneficiarios}
           afiliacionesExistentes={afiliacionesAnio}
           anio={anio}
+          config={configAnio}
         />
       )}
 
@@ -900,6 +939,7 @@ export default function Afiliaciones() {
           beneficiarios={beneficiarios}
           afiliacionesExistentes={afiliaciones}
           anio={anio}
+          config={configAnio}
         />
       )}
 
