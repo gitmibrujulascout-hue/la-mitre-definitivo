@@ -9,6 +9,7 @@ import StatsCard from '@/components/shared/StatsCard';
 import CalendarioDashboard from '@/components/dashboard/CalendarioDashboard';
 import { RAMA_CONFIG, RAMAS, formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
+import { useFondos } from '@/lib/cajaUtils';
 
 export default function Dashboard() {
   const { data: beneficiarios = [] } = useQuery({
@@ -16,34 +17,14 @@ export default function Dashboard() {
     queryFn: () => base44.entities.Beneficiario.list()
   });
 
-  const { data: pagos = [] } = useQuery({
-    queryKey: ['pagos'],
-    queryFn: () => base44.entities.Pago.list('-fecha_pago', 5000)
-  });
-
-  const { data: gastos = [] } = useQuery({
-    queryKey: ['gastos'],
-    queryFn: () => base44.entities.Gasto.list('-fecha', 5000)
-  });
-
-  const { data: movimientosExtra = [] } = useQuery({
-    queryKey: ['movimientos_banco'],
-    queryFn: () => base44.entities.MovimientoBanco.list('-fecha', 2000),
-  });
-
   const { data: actividades = [] } = useQuery({
     queryKey: ['actividades'],
     queryFn: () => base44.entities.ActividadEconomica.list('-fecha', 100),
   });
 
-  const { data: campamentos = [] } = useQuery({
-    queryKey: ['campamentos'],
-    queryFn: () => base44.entities.Campamento.list(),
-  });
-
-  const privateCampIds = useMemo(() => new Set(
-    campamentos.filter(c => c.es_privado).map(c => c.id)
-  ), [campamentos]);
+  // Fondos calculados con lógica centralizada (compartida con Caja y Reporte)
+  const { caja, banco, pagos, gastos, campamentos } = useFondos();
+  const fondos = { caja, banco };
 
   const navigate = useNavigate();
 
@@ -54,41 +35,6 @@ export default function Dashboard() {
     acc[r] = activos.filter((b) => b.rama === r).length;
     return acc;
   }, {});
-
-  // Helper: destino de un pago/gasto
-  const destinoPago = (p) => {
-    if (p.destino === 'Banco') return 'Banco';
-    if (p.destino === 'Caja') return 'Caja';
-    if (p.forma_pago === 'Transferencia') return 'Banco';
-    return 'Caja';
-  };
-  const destinoGasto = (g) => {
-    if (g.destino === 'Banco') return 'Banco';
-    if (g.destino === 'Caja') return 'Caja';
-    if (g.forma_pago === 'Transferencia') return 'Banco';
-    return 'Caja';
-  };
-
-  const fondos = useMemo(() => {
-    const calcular = (cuenta) => {
-      const ingresosPagos = pagos
-        .filter(p => destinoPago(p) === cuenta)
-        .filter(p => !(p.tipo_pago === 'Campamento' && privateCampIds.has(p.campamento_id)))
-        .reduce((s, p) => s + (p.monto || 0), 0);
-      const egresosGastos = gastos
-        .filter(g => destinoGasto(g) === cuenta)
-        .filter(g => !privateCampIds.has(g.campamento_id))
-        .reduce((s, g) => s + (g.monto || 0), 0);
-      // Solo movimientos manuales (igual que Caja)
-      const movs = movimientosExtra.filter(m => (m.cuenta || 'Caja') === cuenta && m.origen === 'Manual');
-      const ingresosExtra = movs.filter(m => m.tipo === 'Ingreso').reduce((s, m) => s + (m.monto || 0), 0);
-      const egresosExtra = movs.filter(m => m.tipo === 'Egreso').reduce((s, m) => s + (m.monto || 0), 0);
-      const ingresos = ingresosPagos + ingresosExtra;
-      const egresos = egresosGastos + egresosExtra;
-      return { ingresos, egresos, saldo: ingresos - egresos };
-    };
-    return { caja: calcular('Caja'), banco: calcular('Banco') };
-  }, [pagos, gastos, movimientosExtra, privateCampIds]);
 
   return (
     <div>

@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import ImportMovimientosBancoDialog from '@/components/caja/ImportMovimientosBancoDialog';
 import CajaChicaPanel from '@/components/caja/CajaChicaPanel';
 import ReporteCajaDialog from '@/components/caja/ReporteCajaDialog';
+import { useFondos, buildMovimientos } from '@/lib/cajaUtils';
 
 function MovimientoManualDialog({ open, onClose, cuentaDestino }) {
   const [form, setForm] = useState({
@@ -107,21 +108,6 @@ export default function Caja() {
   const [mostrarTodos, setMostrarTodos] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: pagos = [] } = useQuery({
-    queryKey: ['pagos'],
-    queryFn: () => base44.entities.Pago.list('-fecha_pago', 500),
-  });
-
-  const { data: gastos = [] } = useQuery({
-    queryKey: ['gastos'],
-    queryFn: () => base44.entities.Gasto.list('-fecha', 200),
-  });
-
-  const { data: movimientosExtra = [] } = useQuery({
-    queryKey: ['movimientos_banco'],
-    queryFn: () => base44.entities.MovimientoBanco.list('-fecha', 200),
-  });
-
   const { data: creditosTodos = [] } = useQuery({
     queryKey: ['creditos-todos'],
     queryFn: () => base44.entities.CreditoBeneficiario.list(),
@@ -132,83 +118,24 @@ export default function Caja() {
     [creditosTodos]
   );
 
-  const { data: campamentos = [] } = useQuery({
-    queryKey: ['campamentos'],
-    queryFn: () => base44.entities.Campamento.list(),
-  });
-
-  const privateCampIds = useMemo(() => new Set(
-    campamentos.filter(c => c.es_privado).map(c => c.id)
-  ), [campamentos]);
+  // Datos centralizados desde cajaUtils
+  const { pagos, gastos, movimientosExtra, privateCampIds } = useFondos();
 
   const deleteMov = useMutation({
     mutationFn: refId => base44.entities.MovimientoBanco.delete(refId),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] }); toast.success('Eliminado'); }
   });
 
-  // Helper: destino efectivo de un gasto
-  const destinoGasto = (g) => {
-    if (g.destino === 'Banco') return 'Banco';
-    if (g.destino === 'Caja') return 'Caja';
-    if (g.forma_pago === 'Transferencia') return 'Banco';
-    return 'Caja';
-  };
+  const anioFiltro = mostrarTodos ? null : anio;
 
-  // Helper: destino efectivo de un pago
-  // - Subsidios del grupo: no mueven dinero real
-  // - Crédito actividad: el dinero ya entró a caja cuando se rindió la actividad
-  // - Afiliación: el dinero se trackea por separado vía rendición (MovimientoBanco origen Afiliación)
-  const destinoPago = (p) => {
-    if (p.forma_pago === 'Subsidio del grupo' || p.destino === 'Grupo') return null;
-    if (p.forma_pago === 'Crédito actividad') return null;
-    if (p.tipo_pago === 'Afiliación') return null;
-    if (p.destino === 'Banco') return 'Banco';
-    if (p.destino === 'Caja') return 'Caja';
-    if (p.forma_pago === 'Transferencia') return 'Banco';
-    return 'Caja';
-  };
-
-  const filtrarPorAnio = (fecha) => mostrarTodos || (fecha || '').startsWith(anio);
-
-  const buildMovimientos = (cuentaFiltro) => {
-    const ingresoPagos = pagos
-      .filter(p => filtrarPorAnio(p.fecha_pago) && destinoPago(p) === cuentaFiltro)
-      .filter(p => !(p.tipo_pago === 'Campamento' && privateCampIds.has(p.campamento_id)))
-      .map(p => ({
-        id: `pago-${p.id}`, refId: p.id, fecha: p.fecha_pago, tipo: 'Ingreso',
-        concepto: p.tipo_pago === 'Campamento'
-          ? `Campamento: ${p.campamento_nombre || ''} — ${p.beneficiario_nombre}`
-          : p.tipo_pago === 'Afiliación'
-            ? `Afiliación/Seguro — ${p.beneficiario_nombre}`
-            : `Cuota ${(p.meses || [p.mes]).filter(Boolean).join(', ')} — ${p.beneficiario_nombre}`,
-        monto: p.monto, origen: 'Pago cuota', forma_pago: p.forma_pago,
-      }));
-
-    const egresoGastos = gastos
-      .filter(g => filtrarPorAnio(g.fecha) && destinoGasto(g) === cuentaFiltro)
-      .filter(g => !privateCampIds.has(g.campamento_id))
-      .map(g => ({
-        id: `gasto-${g.id}`, refId: g.id, fecha: g.fecha, tipo: 'Egreso',
-        concepto: `${g.descripcion}${g.proveedor ? ` (${g.proveedor})` : ''}`,
-        monto: g.monto, origen: 'Gasto', categoria: g.categoria, forma_pago: g.forma_pago,
-      }));
-
-    const extras = movimientosExtra
-      .filter(m => (m.cuenta || 'Caja') === cuentaFiltro && filtrarPorAnio(m.fecha) && (m.origen === 'Manual' || m.origen === 'Crédito' || m.origen === 'Afiliación'))
-      .map(m => ({ ...m, id: `extra-${m.id}`, refId: m.id, esManual: m.origen === 'Manual' }));
-
-    return [...ingresoPagos, ...egresoGastos, ...extras]
-      .sort((a, b) => {
-        const diff = (a.fecha || '').localeCompare(b.fecha || '');
-        if (diff !== 0) return diff;
-        if (a.tipo === 'Ingreso' && b.tipo !== 'Ingreso') return -1;
-        if (a.tipo !== 'Ingreso' && b.tipo === 'Ingreso') return 1;
-        return 0;
-      });
-  };
-
-  const movimientosCaja = useMemo(() => buildMovimientos('Caja'), [pagos, gastos, movimientosExtra, anio, mostrarTodos, privateCampIds]);
-  const movimientosBanco = useMemo(() => buildMovimientos('Banco'), [pagos, gastos, movimientosExtra, anio, mostrarTodos, privateCampIds]);
+  const movimientosCaja = useMemo(
+    () => buildMovimientos({ pagos, gastos, movimientosExtra, privateCampIds, cuenta: 'Caja', anio: anioFiltro }),
+    [pagos, gastos, movimientosExtra, anioFiltro, privateCampIds]
+  );
+  const movimientosBanco = useMemo(
+    () => buildMovimientos({ pagos, gastos, movimientosExtra, privateCampIds, cuenta: 'Banco', anio: anioFiltro }),
+    [pagos, gastos, movimientosExtra, anioFiltro, privateCampIds]
+  );
 
   const movimientos = tab === 'caja' ? movimientosCaja : movimientosBanco;
 
