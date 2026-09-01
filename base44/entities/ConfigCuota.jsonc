@@ -32,6 +32,15 @@
       "type": "number",
       "description": "Monto de la cuota por transferencia"
     },
+    "es_bonificado_credito": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si este mes divide la cuota en pago + cr\u00e9dito (ej: Julio). El cr\u00e9dito se genera autom\u00e1ticamente al pagar el mes, estando al d\u00eda con los meses anteriores."
+    },
+    "monto_credito": {
+      "type": "number",
+      "description": "Monto que se acredita como cr\u00e9dito a cada beneficiario (si es_bonificado_credito es true)"
+    },
     "observaciones": {
       "type": "string",
       "description": "Notas adicionales (ej: aumento aplicado)"

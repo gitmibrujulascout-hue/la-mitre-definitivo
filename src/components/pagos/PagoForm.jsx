@@ -7,50 +7,52 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, getCreditoJulioBeneficiario, marzoEsBonificado, estaAlDia, calcularMesesQueGeneranDeuda, JULIO_LABEL_CREDITO, calcularMontoPorMes, calcularEsperadoPorMes } from '@/lib/ramaUtils';
+import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, marzoEsBonificado, estaAlDia, calcularMesesQueGeneranDeuda, getMesesBonificadosCredito, getCreditoMesBeneficiario, getLabelCreditoMes, getCuotaBaseMes, calcularMontoPorMes, calcularEsperadoPorMes } from '@/lib/ramaUtils';
 import { registrarPagos } from '@/lib/registros';
 import { toast } from 'sonner';
 import { Tent, CreditCard, Users, Wallet, AlertCircle, CheckCircle2 } from 'lucide-react';
 
-// Procesa el crédito de Julio: si el pago incluye Julio y el beneficiario está al día,
-// crea un crédito de $12.500 en su cuenta corriente (si no existe ya).
-async function procesarCreditoJulio(pagos, beneficiario, pagosExistentes, afiliaciones, anio, todosCreditos, todosBeneficiarios) {
-  // Verificar si alguno de los pagos incluye Julio como cuota
-  const incluyeJulio = pagos.some(p =>
-    p.tipo_pago === 'Cuota' && (p.meses?.includes('Julio') || p.mes === 'Julio')
-  );
-  if (!incluyeJulio || !beneficiario) return;
-
+// Procesa créditos para meses bonificados: si el pago incluye un mes configurado
+// como bonificado y el beneficiario está al día, crea el crédito correspondiente.
+async function procesarCreditosMesesBonificados(pagos, beneficiario, pagosExistentes, afiliaciones, anio, todosCreditos, todosBeneficiarios, configCuotas) {
+  if (!beneficiario) return;
   const anioNum = parseInt(anio);
-  const labelJulio = `${JULIO_LABEL_CREDITO} ${anioNum}`;
+  const mesesBonificados = getMesesBonificadosCredito(anioNum, configCuotas);
+  if (mesesBonificados.length === 0) return;
 
-  // Verificar si ya existe un crédito de Julio para este beneficiario
-  const yaTieneCredito = todosCreditos.some(
-    c => c.beneficiario_id === beneficiario.id && c.observaciones === labelJulio
-  );
-  if (yaTieneCredito) return;
+  for (const mesBon of mesesBonificados) {
+    const incluyeMes = pagos.some(p =>
+      p.tipo_pago === 'Cuota' && (p.meses?.includes(mesBon) || p.mes === mesBon)
+    );
+    if (!incluyeMes) continue;
 
-  // Verificar si el beneficiario está al día (todos los meses excepto Julio)
-  const mesesDeuda = calcularMesesQueGeneranDeuda(beneficiario, anioNum, afiliaciones);
-  // Incluir los pagos recién creados (pueden poner al beneficiario al día, ej: Junio+Julio juntos)
-  const pagosCuotasAnio = [
-    ...pagosExistentes.filter(
-      p => p.beneficiario_id === beneficiario.id && Number(p.anio) === anioNum && p.tipo_pago !== 'Campamento'
-    ),
-    ...pagos.filter(p => p.tipo_pago === 'Cuota' && p.beneficiario_id === beneficiario.id),
-  ];
-  if (!estaAlDia(beneficiario, pagosCuotasAnio, mesesDeuda)) return;
+    const label = getLabelCreditoMes(mesBon, anioNum);
+    const yaTieneCredito = todosCreditos.some(
+      c => c.beneficiario_id === beneficiario.id && c.observaciones === label
+    );
+    if (yaTieneCredito) continue;
 
-  // Crear el crédito de Julio
-  const montoCredito = getCreditoJulioBeneficiario(beneficiario, todosBeneficiarios);
-  await base44.entities.CreditoBeneficiario.create({
-    beneficiario_id: beneficiario.id,
-    beneficiario_nombre: beneficiario.nombre,
-    monto_original: montoCredito,
-    monto_disponible: montoCredito,
-    fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
-    observaciones: labelJulio,
-  });
+    const mesesDeuda = calcularMesesQueGeneranDeuda(beneficiario, anioNum, afiliaciones);
+    const pagosCuotasAnio = [
+      ...pagosExistentes.filter(
+        p => p.beneficiario_id === beneficiario.id && Number(p.anio) === anioNum && p.tipo_pago !== 'Campamento'
+      ),
+      ...pagos.filter(p => p.tipo_pago === 'Cuota' && p.beneficiario_id === beneficiario.id),
+    ];
+    if (!estaAlDia(beneficiario, pagosCuotasAnio, mesesDeuda, mesesBonificados)) continue;
+
+    const cuotaBase = getCuotaBaseMes(mesBon, anioNum, configCuotas);
+    const montoCredito = getCreditoMesBeneficiario(mesBon, anioNum, beneficiario, todosBeneficiarios, cuotaBase, configCuotas);
+    await base44.entities.CreditoBeneficiario.create({
+      beneficiario_id: beneficiario.id,
+      beneficiario_nombre: beneficiario.nombre,
+      actividad_nombre: label,
+      monto_original: montoCredito,
+      monto_disponible: montoCredito,
+      fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
+      observaciones: label,
+    });
+  }
 }
 
 export default function PagoForm({ open, onClose, beneficiarios, preselectedBenId = null }) {
@@ -96,6 +98,11 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     queryFn: () => base44.entities.CreditoBeneficiario.list(),
   });
 
+  const { data: configCuotas = [] } = useQuery({
+    queryKey: ['config_cuotas'],
+    queryFn: () => base44.entities.ConfigCuota.list(),
+  });
+
   const creditosDisponibles = useMemo(() =>
     creditosBen.filter(c => (c.monto_disponible || 0) > 0),
     [creditosBen]
@@ -107,7 +114,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     mutationFn: async (pagos) => {
       const pagosCreados = await registrarPagos(pagos);
       // Procesar crédito de Julio para beneficiarios al día
-      await procesarCreditoJulio(pagos, selectedBen, pagosExistentes, afiliaciones, anio, todosCreditos, beneficiarios);
+      await procesarCreditosMesesBonificados(pagos, selectedBen, pagosExistentes, afiliaciones, anio, todosCreditos, beneficiarios, configCuotas);
       return pagosCreados;
     },
     onSuccess: (_, pagos) => {
@@ -132,7 +139,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
         });
       }
       // Procesar crédito de Julio también en pagos con crédito actividad
-      await procesarCreditoJulio(pagos, selectedBen, pagosExistentes, afiliaciones, anio, todosCreditos, beneficiarios);
+      await procesarCreditosMesesBonificados(pagos, selectedBen, pagosExistentes, afiliaciones, anio, todosCreditos, beneficiarios, configCuotas);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pagos'] });

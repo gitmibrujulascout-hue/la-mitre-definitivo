@@ -17,7 +17,6 @@ import RegistrarRendicionDialog from '@/components/afiliaciones/RegistrarRendici
 import RendicionesList from '@/components/afiliaciones/RendicionesList';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import ConfigAfiliacionPanel from '@/components/afiliaciones/ConfigAfiliacionPanel';
 import { getMontoSeguro, esPrimeraVezBonificado } from '@/lib/afiliacionUtils';
 
 // ——— Dialog para editar tipo de afiliación del beneficiario ———
@@ -693,8 +692,6 @@ export default function Afiliaciones() {
           <Plus className="w-4 h-4 mr-2" />Registrar
         </Button>
       </PageHeader>
-
-      <ConfigAfiliacionPanel anio={Number(anio)} />
 
       {/* Resumen */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">

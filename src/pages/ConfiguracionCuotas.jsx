@@ -6,18 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import PageHeader from '@/components/shared/PageHeader';
-import { MESES, MESES_SIN_CUOTA, formatMoney, esBeneficiarioConCuota, estaAlDia, calcularMesesQueGeneranDeuda, getCuotaBeneficiario, getCuotaBaseMes, getCreditoJulioBeneficiario, JULIO_MONTO_CREDITO, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
-import { DollarSign, Save, Plus, Trash2, Gift, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
+import ConfigAfiliacionPanel from '@/components/afiliaciones/ConfigAfiliacionPanel';
+import { MESES, MESES_SIN_CUOTA, formatMoney, esBeneficiarioConCuota, calcularMesesQueGeneranDeuda, getCuotaBaseMes, getMesesBonificadosCredito, getCreditoMesBeneficiario, getLabelCreditoMes, getMontoCreditoMes } from '@/lib/ramaUtils';
+import { DollarSign, Save, Trash2, Gift, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function ConfiguracionCuotas() {
   const [anioFiltro, setAnioFiltro] = useState(new Date().getFullYear());
   const [editValues, setEditValues] = useState({});
   const queryClient = useQueryClient();
 
-  const { data: configCuotas = [], isLoading } = useQuery({
+  const { data: configCuotas = [] } = useQuery({
     queryKey: ['config_cuotas'],
     queryFn: () => base44.entities.ConfigCuota.list(),
   });
@@ -61,13 +63,15 @@ export default function ConfiguracionCuotas() {
   };
 
   const saveMut = useMutation({
-    mutationFn: async ({ mes, montoEfectivo, montoTransferencia }) => {
+    mutationFn: async ({ mes, montoEfectivo, montoTransferencia, esBonificado, montoCredito }) => {
       const existing = getConfig(mes);
       const data = {
         mes,
         anio: Number(anioFiltro),
         monto_efectivo: parseFloat(montoEfectivo) || 0,
         monto_transferencia: parseFloat(montoTransferencia) || 0,
+        es_bonificado_credito: esBonificado,
+        monto_credito: esBonificado ? (parseFloat(montoCredito) || 0) : 0,
       };
       if (existing) {
         return base44.entities.ConfigCuota.update(existing.id, data);
@@ -77,18 +81,20 @@ export default function ConfiguracionCuotas() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config_cuotas'] });
       queryClient.invalidateQueries({ queryKey: ['pagos'] });
-      toast.success('Cuota guardada');
+      toast.success('Configuración guardada');
     },
   });
 
   const handleSave = (mes) => {
     const montoEfectivo = getEditValue(mes, 'monto_efectivo');
     const montoTransferencia = getEditValue(mes, 'monto_transferencia');
+    const esBonificado = getEditValue(mes, 'es_bonificado_credito') === true;
+    const montoCredito = getEditValue(mes, 'monto_credito');
     if (!montoEfectivo) {
       toast.error('El monto en efectivo es obligatorio');
       return;
     }
-    saveMut.mutate({ mes, montoEfectivo, montoTransferencia });
+    saveMut.mutate({ mes, montoEfectivo, montoTransferencia, esBonificado, montoCredito });
   };
 
   const deleteMut = useMutation({
@@ -99,80 +105,68 @@ export default function ConfiguracionCuotas() {
     },
   });
 
-  // === Generar créditos de Julio ===
-  const [generandoCreditos, setGenerandoCreditos] = useState(false);
+  // === Generación de créditos para meses bonificados ===
+  const mesesBonificados = useMemo(() =>
+    getMesesBonificadosCredito(Number(anioFiltro), configCuotas),
+    [configCuotas, anioFiltro]
+  );
 
-  const beneficiariosAlDiaJulio = useMemo(() => {
-    const anio = Number(anioFiltro);
-    return beneficiarios.filter(b => {
-      if (b.activo === false) return false;
-      if (!esBeneficiarioConCuota(b)) return false;
-      const pagosBen = pagos.filter(p => p.beneficiario_id === b.id && Number(p.anio) === anio && p.tipo_pago !== 'Campamento');
-      const mesesCubiertos = new Set(pagosBen.flatMap(p => p.meses || (p.mes ? [p.mes] : [])));
-      // Debe tener pagado Julio (el crédito surge de esa cuota)
-      if (!mesesCubiertos.has('Julio')) return false;
-      // Debe estar al día hasta Junio (sin contar meses sin cuota)
-      const mesesDeuda = calcularMesesQueGeneranDeuda(b, anio, afiliaciones).filter(m => m !== 'Julio');
-      const mesesHastaJunio = mesesDeuda.filter(m => MESES.indexOf(m) < MESES.indexOf('Julio'));
-      return mesesHastaJunio.every(m => mesesCubiertos.has(m));
+  const creditosData = useMemo(() => {
+    return mesesBonificados.map(mes => {
+      const label = getLabelCreditoMes(mes, anioFiltro);
+      const yaGenerados = creditos.filter(c => c.observaciones === label);
+      const yaTienenIds = new Set(yaGenerados.map(c => c.beneficiario_id));
+
+      const elegibles = beneficiarios.filter(b => {
+        if (b.activo === false) return false;
+        if (!esBeneficiarioConCuota(b)) return false;
+        const pagosBen = pagos.filter(p => p.beneficiario_id === b.id && Number(p.anio) === Number(anioFiltro) && p.tipo_pago !== 'Campamento');
+        const mesesCubiertos = new Set(pagosBen.flatMap(p => p.meses || (p.mes ? [p.mes] : [])));
+        if (!mesesCubiertos.has(mes)) return false;
+        const mesesDeuda = calcularMesesQueGeneranDeuda(b, Number(anioFiltro), afiliaciones).filter(m => m !== mes);
+        const mesesHastaMes = mesesDeuda.filter(m => MESES.indexOf(m) < MESES.indexOf(mes));
+        return mesesHastaMes.every(m => mesesCubiertos.has(m));
+      });
+
+      const pendientes = elegibles.filter(b => !yaTienenIds.has(b.id));
+      return { mes, label, yaGenerados, pendientes, totalElegibles: elegibles.length };
     });
-  }, [beneficiarios, pagos, afiliaciones, anioFiltro]);
-
-  const creditosJulioExistentes = useMemo(() => {
-    const label = `${JULIO_LABEL_CREDITO} ${anioFiltro}`;
-    return creditos.filter(c => c.observaciones === label);
-  }, [creditos, anioFiltro]);
-
-  const pendientesCreditosJulio = useMemo(() => {
-    const yaTienen = new Set(creditosJulioExistentes.map(c => c.beneficiario_id));
-    return beneficiariosAlDiaJulio.filter(b => !yaTienen.has(b.id));
-  }, [beneficiariosAlDiaJulio, creditosJulioExistentes]);
+  }, [mesesBonificados, beneficiarios, pagos, afiliaciones, creditos, anioFiltro]);
 
   const generarCreditosMut = useMutation({
-    mutationFn: async () => {
-      if (pendientesCreditosJulio.length === 0) {
-        throw new Error('No hay beneficiarios pendientes de generar crédito');
-      }
-      const label = `${JULIO_LABEL_CREDITO} ${anioFiltro}`;
-      const activos = beneficiarios.filter(b => b.activo !== false);
-      const baseJulio = getCuotaBaseMes('Julio', Number(anioFiltro), configCuotas);
-
-      const records = pendientesCreditosJulio.map(b => ({
+    mutationFn: async ({ mes }) => {
+      const data = creditosData.find(d => d.mes === mes);
+      if (!data || data.pendientes.length === 0) throw new Error('No hay beneficiarios pendientes');
+      const cuotaBase = getCuotaBaseMes(mes, Number(anioFiltro), configCuotas);
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos Aires' });
+      const records = data.pendientes.map(b => ({
         beneficiario_id: b.id,
         beneficiario_nombre: b.nombre,
-        actividad_nombre: label,
-        monto_original: getCreditoJulioBeneficiario(b, activos, baseJulio),
-        monto_disponible: getCreditoJulioBeneficiario(b, activos, baseJulio),
-        fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
-        observaciones: label,
+        actividad_nombre: data.label,
+        monto_original: getCreditoMesBeneficiario(mes, Number(anioFiltro), b, beneficiarios, cuotaBase, configCuotas),
+        monto_disponible: getCreditoMesBeneficiario(mes, Number(anioFiltro), b, beneficiarios, cuotaBase, configCuotas),
+        fecha: today,
+        observaciones: data.label,
       }));
-
-      const result = await base44.entities.CreditoBeneficiario.bulkCreate(records);
+      await base44.entities.CreditoBeneficiario.bulkCreate(records);
       const totalMonto = records.reduce((s, r) => s + r.monto_original, 0);
-
-      // Egreso en Caja: la plata pasa a la "caja de créditos" (reservada)
       await base44.entities.MovimientoBanco.create({
-        fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
+        fecha: today,
         tipo: 'Egreso',
-        concepto: `Reserva — Créditos Julio ${anioFiltro}`,
+        concepto: `Reserva — ${data.label}`,
         monto: totalMonto,
         cuenta: 'Caja',
         origen: 'Crédito',
-        observaciones: `${records.length} créditos generados para beneficiarios al día`,
+        observaciones: `${records.length} créditos generados`,
       });
-
-      return { count: records.length, result };
+      return { count: records.length, mes };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['creditos'] });
       queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
-      toast.success(`${data.count} créditos de Julio generados`);
-      setGenerandoCreditos(false);
+      toast.success(`${data.count} créditos de ${data.mes} generados`);
     },
-    onError: (err) => {
-      toast.error(err.message || 'Error al generar créditos');
-      setGenerandoCreditos(false);
-    },
+    onError: (err) => toast.error(err.message || 'Error al generar créditos'),
   });
 
   const anios = useMemo(() => {
@@ -183,7 +177,7 @@ export default function ConfiguracionCuotas() {
 
   return (
     <div>
-      <PageHeader title="Configuración de Cuotas" description="Definí los valores de cuota por mes y año">
+      <PageHeader title="Configuración" description="Valores de cuotas, meses con crédito y afiliaciones por año">
         <Select value={String(anioFiltro)} onValueChange={v => setAnioFiltro(Number(v))}>
           <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -192,36 +186,45 @@ export default function ConfiguracionCuotas() {
         </Select>
       </PageHeader>
 
-      {/* Generar créditos de Julio */}
-      <Card className="p-5 mb-6 border-cyan-200 bg-cyan-50/40">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <Gift className="w-5 h-5 text-cyan-600 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-sm text-cyan-900">Créditos de Julio {anioFiltro}</h3>
-              <p className="text-xs text-cyan-700 mt-0.5">
-                Beneficiarios al día hasta Junio: <strong>{beneficiariosAlDiaJulio.length}</strong>
-                {' · '}Créditos ya generados: <strong>{creditosJulioExistentes.length}</strong>
-                {pendientesCreditosJulio.length > 0 && (
-                  <>{' · '}Pendientes: <strong className="text-cyan-900">{pendientesCreditosJulio.length}</strong></>
-                )}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Cada beneficiario al día paga la cuota completa de Julio y recibe {formatMoney(JULIO_MONTO_CREDITO)} como crédito en su cuenta.
-              </p>
-            </div>
-          </div>
-          <Button
-            onClick={() => { setGenerandoCreditos(true); generarCreditosMut.mutate(); }}
-            disabled={generandoCreditos || generarCreditosMut.isPending || beneficiariosAlDiaJulio.length === 0 || pendientesCreditosJulio.length === 0}
-            className="bg-cyan-600 hover:bg-cyan-700 text-white"
-          >
-            {pendientesCreditosJulio.length === 0 && beneficiariosAlDiaJulio.length > 0
-              ? <><CheckCircle2 className="w-4 h-4 mr-2" />Créditos generados</>
-              : <><Gift className="w-4 h-4 mr-2" />Generar créditos{pendientesCreditosJulio.length > 0 ? ` (${pendientesCreditosJulio.length})` : ''}</>}
-          </Button>
+      {/* Configuración de afiliaciones */}
+      <ConfigAfiliacionPanel anio={Number(anioFiltro)} />
+
+      {/* Generación de créditos para meses bonificados */}
+      {creditosData.length > 0 && (
+        <div className="space-y-3 mb-6">
+          {creditosData.map(({ mes, label, yaGenerados, pendientes, totalElegibles }) => {
+            const montoCred = getMontoCreditoMes(mes, Number(anioFiltro), configCuotas);
+            return (
+              <Card key={mes} className="p-5 border-cyan-200 bg-cyan-50/40">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <Gift className="w-5 h-5 text-cyan-600 mt-0.5" />
+                    <div>
+                      <h3 className="font-semibold text-sm text-cyan-900">Créditos de {mes} {anioFiltro}</h3>
+                      <p className="text-xs text-cyan-700 mt-0.5">
+                        Elegibles (al día + mes pagado): <strong>{totalElegibles}</strong>
+                        {' · '}Ya generados: <strong>{yaGenerados.length}</strong>
+                        {pendientes.length > 0 && <> {' · '}Pendientes: <strong className="text-cyan-900">{pendientes.length}</strong></>}
+                        {' · '}Monto c/u: <strong>{formatMoney(montoCred)}</strong>
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => generarCreditosMut.mutate({ mes })}
+                    disabled={generarCreditosMut.isPending || pendientes.length === 0}
+                    className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                  >
+                    {pendientes.length === 0 && totalElegibles > 0
+                      ? <><CheckCircle2 className="w-4 h-4 mr-2" />Generados</>
+                      : <><Gift className="w-4 h-4 mr-2" />Generar{pendientes.length > 0 ? ` (${pendientes.length})` : ''}</>}
+                  </Button>
+                </div>
+              </Card>
+            );
+          })}
         </div>
-      </Card>
+      )}
 
       {/* Tabla de cuotas por mes */}
       <Card className="overflow-hidden">
@@ -230,7 +233,7 @@ export default function ConfiguracionCuotas() {
             <DollarSign className="w-4 h-4" />Valores de cuota — {anioFiltro}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Definí el valor de cada mes. Los meses sin configurar usan el valor por defecto ($25.000 efectivo).
+            Definí el valor de cada mes. Marcá "Mes con crédito" para los meses que dividen la cuota en pago + crédito.
           </p>
         </div>
 
@@ -238,13 +241,13 @@ export default function ConfiguracionCuotas() {
           {MESES.map(mes => {
             const config = getConfig(mes);
             const sinCuota = MESES_SIN_CUOTA.includes(mes);
-            const esJulio = mes === 'Julio';
+            const esBonificado = getEditValue(mes, 'es_bonificado_credito') === true;
             return (
               <div key={mes} className="flex items-center gap-3 p-3 hover:bg-muted/20">
                 <div className="w-28">
                   <p className="font-medium text-sm">{mes}</p>
                   {sinCuota && <Badge variant="secondary" className="text-xs mt-0.5">Sin cuota</Badge>}
-                  {esJulio && <Badge className="bg-cyan-100 text-cyan-700 border-cyan-300 border text-xs mt-0.5">Crédito {formatMoney(JULIO_MONTO_CREDITO)}</Badge>}
+                  {esBonificado && !sinCuota && <Badge className="bg-cyan-100 text-cyan-700 border-cyan-300 border text-xs mt-0.5">Con crédito</Badge>}
                 </div>
 
                 {sinCuota ? (
@@ -271,6 +274,25 @@ export default function ConfiguracionCuotas() {
                         className="w-32 h-8 text-sm"
                       />
                     </div>
+                    <label className="flex items-center gap-1.5 cursor-pointer ml-2">
+                      <Checkbox
+                        checked={esBonificado}
+                        onCheckedChange={(v) => setEditValue(mes, 'es_bonificado_credito', v === true)}
+                      />
+                      <span className="text-xs text-muted-foreground">Mes con crédito</span>
+                    </label>
+                    {esBonificado && (
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-xs text-cyan-600">Crédito $</Label>
+                        <Input
+                          type="number"
+                          value={getEditValue(mes, 'monto_credito')}
+                          onChange={e => setEditValue(mes, 'monto_credito', e.target.value)}
+                          placeholder="12500"
+                          className="w-28 h-8 text-sm"
+                        />
+                      </div>
+                    )}
                     <Button size="sm" variant="outline" onClick={() => handleSave(mes)} disabled={saveMut.isPending}>
                       <Save className="w-3 h-3 mr-1" />{config ? 'Actualizar' : 'Guardar'}
                     </Button>
@@ -278,11 +300,6 @@ export default function ConfiguracionCuotas() {
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteMut.mutate(config.id)}>
                         <Trash2 className="w-3 h-3 text-muted-foreground" />
                       </Button>
-                    )}
-                    {config && (
-                      <Badge variant="outline" className="text-xs ml-1">
-                        Actual: {formatMoney(config.monto_efectivo)}
-                      </Badge>
                     )}
                   </div>
                 )}
@@ -298,7 +315,7 @@ export default function ConfiguracionCuotas() {
           <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
           <div className="text-xs text-amber-800 space-y-1">
             <p><strong>Valores históricos:</strong> Cada mes mantiene su valor definido. Si en Agosto hay un aumento, solo cambiás el valor de Agosto en adelante. Los pagos de meses anteriores que se hagan tarde se cobran al valor original del mes.</p>
-            <p><strong>Crédito de Julio:</strong> Los beneficiarios al día con cuotas hasta Junio pagan la cuota completa de Julio y reciben {formatMoney(JULIO_MONTO_CREDITO)} como crédito en su cuenta (usá el botón de arriba para generar los créditos).</p>
+            <p><strong>Mes con crédito:</strong> Marcá los meses donde la cuota se divide en pago + crédito (como Julio). El crédito se genera automáticamente al registrar el pago del mes (si el beneficiario está al día), o con el botón de arriba para generar en lote.</p>
           </div>
         </div>
       </Card>

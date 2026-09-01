@@ -73,13 +73,53 @@ export function getCreditoJulioBeneficiario(b, todosBeneficiarios = [], cuotaBas
   return Math.round(cuotaEfectiva * 0.5);
 }
 
-// Verifica si el beneficiario tiene todos los meses (excluyendo Julio) pagados
-export function estaAlDia(b, pagosCuotasAnio, mesesQueGeneranDeuda) {
+// === Meses bonificados con crédito (configurable, antes hardcodeado para Julio) ===
+
+// Devuelve los meses configurados como bonificados con crédito para un año
+export function getMesesBonificadosCredito(anio, configCuotas = []) {
+  if (!anio) return ['Julio'];
+  const tieneConfigAnio = configCuotas.some(c => Number(c.anio) === Number(anio));
+  if (!tieneConfigAnio) return ['Julio']; // fallback histórico
+  return configCuotas
+    .filter(c => Number(c.anio) === Number(anio) && c.es_bonificado_credito === true)
+    .map(c => c.mes);
+}
+
+// Devuelve true si el mes está configurado como bonificado con crédito
+export function esMesBonificadoCredito(mes, anio, configCuotas = []) {
+  return getMesesBonificadosCredito(anio, configCuotas).includes(mes);
+}
+
+// Devuelve el monto de crédito para un mes bonificado
+export function getMontoCreditoMes(mes, anio, configCuotas = []) {
+  if (anio && configCuotas.length > 0) {
+    const config = configCuotas.find(c => c.mes === mes && Number(c.anio) === Number(anio) && c.es_bonificado_credito === true);
+    if (config && config.monto_credito != null) return config.monto_credito;
+  }
+  if (mes === 'Julio') return JULIO_MONTO_CREDITO; // fallback histórico
+  return 0;
+}
+
+// Devuelve el label de crédito para un mes
+export function getLabelCreditoMes(mes, anio) {
+  return `Crédito ${mes} ${anio}`;
+}
+
+// Generalized: crédito para un mes bonificado (antes getCreditoJulioBeneficiario)
+export function getCreditoMesBeneficiario(mes, anio, b, todosBeneficiarios = [], cuotaBase, configCuotas = []) {
+  const creditoBase = getMontoCreditoMes(mes, anio, configCuotas);
+  const cuotaEfectiva = getCuotaBeneficiario(b, todosBeneficiarios, cuotaBase);
+  if (cuotaEfectiva >= cuotaBase) return creditoBase;
+  return Math.round(cuotaEfectiva * 0.5);
+}
+
+// Verifica si el beneficiario tiene todos los meses pagados (excluyendo los bonificados)
+export function estaAlDia(b, pagosCuotasAnio, mesesQueGeneranDeuda, mesesBonificados = []) {
   const mesesCubiertos = new Set(
     pagosCuotasAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []))
   );
   return mesesQueGeneranDeuda
-    .filter(m => m !== 'Julio')
+    .filter(m => !mesesBonificados.includes(m))
     .every(m => mesesCubiertos.has(m));
 }
 
