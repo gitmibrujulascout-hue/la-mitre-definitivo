@@ -72,7 +72,7 @@ export function useFondos({ anio = null, filtrarPrivados = true } = {}) {
     return { caja: calcular('Caja'), banco: calcular('Banco') };
   }, [pagos, gastos, movimientosExtra, privateCampIds, anio, filtrarPrivados]);
 
-  return { ...fondos, pagos, gastos, movimientosExtra, privateCampIds };
+  return { ...fondos, pagos, gastos, movimientosExtra, privateCampIds, campamentos };
 }
 
 /**
