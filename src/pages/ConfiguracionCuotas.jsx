@@ -63,16 +63,18 @@ export default function ConfiguracionCuotas() {
   };
 
   const saveMut = useMutation({
-    mutationFn: async ({ mes, montoEfectivo, montoTransferencia, esBonificado }) => {
+    mutationFn: async ({ mes, montoEfectivo, montoTransferencia, esBonificado, porcentajeCredito }) => {
       const existing = getConfig(mes);
       const montoEfecNum = parseFloat(montoEfectivo) || 0;
+      const pctNum = parseFloat(porcentajeCredito) || 50;
       const data = {
         mes,
         anio: Number(anioFiltro),
         monto_efectivo: montoEfecNum,
         monto_transferencia: parseFloat(montoTransferencia) || 0,
         es_bonificado_credito: esBonificado,
-        monto_credito: esBonificado ? Math.round(montoEfecNum * 0.5) : 0,
+        porcentaje_credito: esBonificado ? pctNum : 0,
+        monto_credito: esBonificado ? Math.round(montoEfecNum * pctNum / 100) : 0,
       };
       if (existing) {
         return base44.entities.ConfigCuota.update(existing.id, data);
@@ -90,11 +92,12 @@ export default function ConfiguracionCuotas() {
     const montoEfectivo = getEditValue(mes, 'monto_efectivo');
     const montoTransferencia = getEditValue(mes, 'monto_transferencia');
     const esBonificado = getEditValue(mes, 'es_bonificado_credito') === true;
+    const porcentajeCredito = getEditValue(mes, 'porcentaje_credito');
     if (!montoEfectivo) {
       toast.error('El monto en efectivo es obligatorio');
       return;
     }
-    saveMut.mutate({ mes, montoEfectivo, montoTransferencia, esBonificado });
+    saveMut.mutate({ mes, montoEfectivo, montoTransferencia, esBonificado, porcentajeCredito });
   };
 
   const deleteMut = useMutation({
@@ -282,9 +285,21 @@ export default function ConfiguracionCuotas() {
                       <span className="text-xs text-muted-foreground">Mes con crédito</span>
                     </label>
                     {esBonificado && (
-                      <Badge className="bg-cyan-100 text-cyan-700 border-cyan-300 border text-xs">
-                        Crédito: {formatMoney(Math.round((parseFloat(getEditValue(mes, 'monto_efectivo')) || 0) * 0.5))}
-                      </Badge>
+                      <>
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-xs text-cyan-600">Crédito %</Label>
+                          <Input
+                            type="number"
+                            value={getEditValue(mes, 'porcentaje_credito') || 50}
+                            onChange={e => setEditValue(mes, 'porcentaje_credito', e.target.value)}
+                            placeholder="50"
+                            className="w-20 h-8 text-sm"
+                          />
+                        </div>
+                        <Badge className="bg-cyan-100 text-cyan-700 border-cyan-300 border text-xs">
+                          = {formatMoney(Math.round((parseFloat(getEditValue(mes, 'monto_efectivo')) || 0) * (parseFloat(getEditValue(mes, 'porcentaje_credito')) || 50) / 100))}
+                        </Badge>
+                      </>
                     )}
                     <Button size="sm" variant="outline" onClick={() => handleSave(mes)} disabled={saveMut.isPending}>
                       <Save className="w-3 h-3 mr-1" />{config ? 'Actualizar' : 'Guardar'}
@@ -308,7 +323,7 @@ export default function ConfiguracionCuotas() {
           <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
           <div className="text-xs text-amber-800 space-y-1">
             <p><strong>Valores históricos:</strong> Cada mes mantiene su valor definido. Si en Agosto hay un aumento, solo cambiás el valor de Agosto en adelante. Los pagos de meses anteriores que se hagan tarde se cobran al valor original del mes.</p>
-            <p><strong>Mes con crédito:</strong> Marcá los meses donde la cuota se divide en pago + crédito (como Julio). El crédito es siempre <strong>50% del valor en efectivo</strong> de ese mes (con descuento de hermanos aplicado), sin importar el medio de pago usado. Se genera automáticamente al registrar el pago del mes (si el beneficiario está al día), o con el botón de arriba para generar en lote.</p>
+            <p><strong>Mes con crédito:</strong> Marcá los meses donde la cuota se divide en pago + crédito (como Julio). El crédito es un <strong>porcentaje configurable del valor en efectivo</strong> de ese mes (default 50%, con descuento de hermanos aplicado), sin importar el medio de pago usado. Se genera automáticamente al registrar el pago del mes (si el beneficiario está al día), o con el botón de arriba para generar en lote.</p>
           </div>
         </div>
       </Card>

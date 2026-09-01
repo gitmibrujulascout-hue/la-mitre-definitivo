@@ -91,14 +91,26 @@ export function esMesBonificadoCredito(mes, anio, configCuotas = []) {
 }
 
 // Devuelve el monto base de crédito para un mes bonificado (sin descuento de hermanos).
-// Siempre es 50% del valor en EFECTIVO de ese mes, sin importar el medio de pago.
+// Es porcentaje_credito % del valor en EFECTIVO de ese mes, sin importar el medio de pago.
 export function getMontoCreditoMes(mes, anio, configCuotas = []) {
   if (anio && configCuotas.length > 0) {
     const config = configCuotas.find(c => c.mes === mes && Number(c.anio) === Number(anio) && c.es_bonificado_credito === true);
-    if (config && config.monto_efectivo != null) return Math.round(config.monto_efectivo * 0.5);
+    if (config && config.monto_efectivo != null) {
+      const pct = (config.porcentaje_credito != null ? config.porcentaje_credito : 50) / 100;
+      return Math.round(config.monto_efectivo * pct);
+    }
   }
   if (mes === 'Julio') return Math.round(CUOTA_EFECTIVO * 0.5); // fallback histórico
   return 0;
+}
+
+// Devuelve el porcentaje de crédito configurado para un mes bonificado (default 50).
+export function getPorcentajeCreditoMes(mes, anio, configCuotas = []) {
+  if (anio && configCuotas.length > 0) {
+    const config = configCuotas.find(c => c.mes === mes && Number(c.anio) === Number(anio) && c.es_bonificado_credito === true);
+    if (config && config.porcentaje_credito != null) return config.porcentaje_credito;
+  }
+  return 50;
 }
 
 // Devuelve el label de crédito para un mes
@@ -106,11 +118,12 @@ export function getLabelCreditoMes(mes, anio) {
   return `Crédito ${mes} ${anio}`;
 }
 
-// Crédito para un mes bonificado: siempre 50% del valor en EFECTIVO de ese mes,
+// Crédito para un mes bonificado: porcentaje_credito % del valor en EFECTIVO de ese mes,
 // con descuento de hermanos aplicado. No depende del medio de pago usado.
 export function getCreditoMesBeneficiario(mes, anio, b, todosBeneficiarios = [], cuotaBase, configCuotas = []) {
   const cuotaEfectiva = getCuotaBeneficiario(b, todosBeneficiarios, cuotaBase);
-  return Math.round(cuotaEfectiva * 0.5);
+  const pct = getPorcentajeCreditoMes(mes, anio, configCuotas) / 100;
+  return Math.round(cuotaEfectiva * pct);
 }
 
 // Verifica si el beneficiario tiene todos los meses pagados (excluyendo los bonificados)
