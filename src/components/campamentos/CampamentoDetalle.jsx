@@ -35,7 +35,12 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
     [campamento, beneficiarios]
   );
   const adultos = useMemo(() =>
-    (campamento.adultos_ids || []).map(getBen).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    (campamento.adultos_ids || []).map(getBen).filter(Boolean).sort((a, b) => {
+      const ra = a.rama_educador || '';
+      const rb = b.rama_educador || '';
+      if (ra !== rb) return ra.localeCompare(rb, 'es');
+      return a.nombre.localeCompare(b.nombre, 'es');
+    }),
     [campamento, beneficiarios]
   );
 
