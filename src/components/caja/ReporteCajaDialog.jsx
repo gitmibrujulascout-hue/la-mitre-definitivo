@@ -11,8 +11,11 @@ import { Printer, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 
+// Sincronizado con la lógica de Caja.jsx
 const destinoPago = (p) => {
   if (p.forma_pago === 'Subsidio del grupo' || p.destino === 'Grupo') return null;
+  if (p.forma_pago === 'Crédito actividad') return null;
+  if (p.tipo_pago === 'Afiliación') return null;
   if (p.destino === 'Banco') return 'Banco';
   if (p.destino === 'Caja') return 'Caja';
   if (p.forma_pago === 'Transferencia') return 'Banco';
@@ -37,21 +40,30 @@ export default function ReporteCajaDialog({ open, onClose, cuentaInicial = 'Caja
   const { data: pagos = [] } = useQuery({ queryKey: ['pagos'], queryFn: () => base44.entities.Pago.list('-fecha_pago', 5000) });
   const { data: gastos = [] } = useQuery({ queryKey: ['gastos'], queryFn: () => base44.entities.Gasto.list('-fecha', 5000) });
   const { data: movimientosExtra = [] } = useQuery({ queryKey: ['movimientos_banco'], queryFn: () => base44.entities.MovimientoBanco.list('-fecha', 2000) });
+  const { data: campamentos = [] } = useQuery({ queryKey: ['campamentos'], queryFn: () => base44.entities.Campamento.list() });
+
+  const privateCampIds = useMemo(() => new Set(
+    campamentos.filter(c => c.es_privado).map(c => c.id)
+  ), [campamentos]);
 
   // Todos los movimientos de la cuenta (sin filtro de fecha), ordenados cronológicamente
   const todosMovimientos = useMemo(() => {
     const ingresoPagos = pagos
       .filter(p => destinoPago(p) === cuenta)
+      .filter(p => !(p.tipo_pago === 'Campamento' && privateCampIds.has(p.campamento_id)))
       .map(p => ({
         fecha: p.fecha_pago || '', tipo: 'Ingreso',
         concepto: p.tipo_pago === 'Campamento'
           ? `Campamento: ${p.campamento_nombre || ''} — ${p.beneficiario_nombre}`
-          : `Cuota ${(p.meses || [p.mes]).filter(Boolean).join(', ')} — ${p.beneficiario_nombre}`,
+          : p.tipo_pago === 'Afiliación'
+            ? `Afiliación/Seguro — ${p.beneficiario_nombre}`
+            : `Cuota ${(p.meses || [p.mes]).filter(Boolean).join(', ')} — ${p.beneficiario_nombre}`,
         monto: p.monto || 0, origen: 'Pago',
       }));
 
     const egresoGastos = gastos
       .filter(g => destinoGasto(g) === cuenta)
+      .filter(g => !privateCampIds.has(g.campamento_id))
       .map(g => ({
         fecha: g.fecha || '', tipo: 'Egreso',
         concepto: `${g.descripcion}${g.proveedor ? ` (${g.proveedor})` : ''}`,
@@ -59,10 +71,10 @@ export default function ReporteCajaDialog({ open, onClose, cuentaInicial = 'Caja
       }));
 
     const extras = movimientosExtra
-      .filter(m => (m.cuenta || 'Caja') === cuenta && m.origen === 'Manual')
+      .filter(m => (m.cuenta || 'Caja') === cuenta && (m.origen === 'Manual' || m.origen === 'Crédito' || m.origen === 'Afiliación'))
       .map(m => ({
         fecha: m.fecha || '', tipo: m.tipo,
-        concepto: m.concepto, monto: m.monto || 0, origen: 'Manual',
+        concepto: m.concepto, monto: m.monto || 0, origen: m.origen === 'Manual' ? 'Manual' : m.origen,
       }));
 
     return [...ingresoPagos, ...egresoGastos, ...extras].sort((a, b) => {
@@ -72,7 +84,7 @@ export default function ReporteCajaDialog({ open, onClose, cuentaInicial = 'Caja
       if (a.tipo !== 'Ingreso' && b.tipo === 'Ingreso') return 1;
       return 0;
     });
-  }, [pagos, gastos, movimientosExtra, cuenta]);
+  }, [pagos, gastos, movimientosExtra, cuenta, privateCampIds]);
 
   // Saldo anterior al rango (suma de todo lo anterior a "desde")
   const saldoAnterior = useMemo(() => {
