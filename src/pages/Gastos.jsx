@@ -79,6 +79,7 @@ export default function Gastos() {
               <TableHead>Proveedor / Comercio</TableHead>
               <TableHead>N° Ticket / Factura</TableHead>
               <TableHead>Categoría</TableHead>
+              <TableHead className="hidden md:table-cell">Relación</TableHead>
               <TableHead>Monto</TableHead>
               <TableHead className="hidden sm:table-cell">Fecha</TableHead>
               <TableHead>Detalle</TableHead>
@@ -88,15 +89,24 @@ export default function Gastos() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No hay gastos que coincidan con los filtros</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No hay gastos que coincidan con los filtros</TableCell></TableRow>
             ) : (
               filtered.map(g => (
                 <TableRow key={g.id}>
                   <TableCell className="font-medium">{g.proveedor || <span className="text-muted-foreground italic">Sin proveedor</span>}</TableCell>
                   <TableCell className="text-muted-foreground">{g.numero_factura || '—'}</TableCell>
                   <TableCell><Badge variant="secondary">{g.categoria || '—'}</Badge></TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {g.actividad_nombre ? (
+                      <Badge className="bg-purple-100 text-purple-700 border-purple-300 border text-xs">Actividad: {g.actividad_nombre}</Badge>
+                    ) : g.campamento_nombre ? (
+                      <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs">Campamento: {g.campamento_nombre}</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs">Gasto normal</Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="font-semibold text-red-500">{formatMoney(g.monto)}</TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground">{g.fecha}</TableCell>
                   <TableCell>

@@ -32,6 +32,7 @@ export default function CuentaCorriente() {
   const [showPagoForm, setShowPagoForm] = useState(false);
   const [pagoPreselected, setPagoPreselected] = useState(null);
   const [viewMode, setViewMode] = useState('lista'); // 'lista' | 'resumen' | 'grilla'
+  const [sortBy, setSortBy] = useState('rama'); // 'rama' | 'deuda' | 'nombre'
 
   const { data: beneficiarios = [] } = useQuery({
     queryKey: ['beneficiarios'],
@@ -165,6 +166,14 @@ export default function CuentaCorriente() {
     return matchSearch && matchDni && matchRama && matchEstado && matchAfiliacion && matchActivo;
   });
 
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === 'deuda') return a.saldo - b.saldo; // mayor deuda (más negativo) primero
+    if (sortBy === 'nombre') return (a.nombre || '').localeCompare(b.nombre || '', 'es');
+    const ra = TODOS_LOS_ROLES.indexOf(a.rama) === -1 ? 99 : TODOS_LOS_ROLES.indexOf(a.rama);
+    const rb = TODOS_LOS_ROLES.indexOf(b.rama) === -1 ? 99 : TODOS_LOS_ROLES.indexOf(b.rama);
+    return ra !== rb ? ra - rb : (a.nombre || '').localeCompare(b.nombre || '', 'es');
+  });
+
   const alDiaCount = filtered.filter(c => c.alDia).length;
   const conDeudaCount = filtered.filter(c => !c.alDia && !c.becado).length;
 
@@ -240,6 +249,14 @@ export default function CuentaCorriente() {
               <SelectItem value="todos">Todos</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="rama">Ordenar por rama</SelectItem>
+              <SelectItem value="deuda">Mayor deuda primero</SelectItem>
+              <SelectItem value="nombre">Por nombre</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={anio.toString()} onValueChange={v => setAnio(parseInt(v))}>
             <SelectTrigger className="w-full sm:w-28"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -272,7 +289,7 @@ export default function CuentaCorriente() {
             {filtered.length === 0 ? (
               <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No hay beneficiarios</TableCell></TableRow>
             ) : (
-              filtered.map(c => (
+              sorted.map(c => (
                 <TableRow 
                   key={c.id} 
                   className="cursor-pointer hover:bg-muted/30"

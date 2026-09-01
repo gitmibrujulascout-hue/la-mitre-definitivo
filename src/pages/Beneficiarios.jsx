@@ -44,6 +44,8 @@ export default function Beneficiarios() {
   const [showRevisionSalud, setShowRevisionSalud] = useState(false);
   const [showPanueloMasivo, setShowPanueloMasivo] = useState(false);
   const [showEditarMasivo, setShowEditarMasivo] = useState(false);
+  const [showInactivos, setShowInactivos] = useState(false);
+  const [filterBecado, setFilterBecado] = useState('todos');
   const queryClient = useQueryClient();
 
   const { data: beneficiarios = [], isLoading } = useQuery({
@@ -93,7 +95,9 @@ export default function Beneficiarios() {
       const matchRama = filterRama === 'todas' || b.rama === filterRama;
       const matchTipo = filterTipo === 'todos' || b.tipo === filterTipo || (!b.tipo && filterTipo === 'Beneficiario');
       const matchFuncion = filterFuncion === 'todas' || b.funcion === filterFuncion;
-      return matchSearch && matchDni && matchRama && matchTipo && matchFuncion;
+      const matchActivo = showInactivos || b.activo !== false;
+      const matchBecado = filterBecado === 'todos' || (filterBecado === 'becados' && b.becado) || (filterBecado === 'noBecados' && !b.becado);
+      return matchSearch && matchDni && matchRama && matchTipo && matchFuncion && matchActivo && matchBecado;
     })
     .sort((a, b) => {
       const ra = ORDEN_RAMAS.indexOf(a.rama) === -1 ? 99 : ORDEN_RAMAS.indexOf(a.rama);
@@ -286,6 +290,17 @@ export default function Beneficiarios() {
               {funciones.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={filterBecado} onValueChange={setFilterBecado}>
+            <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Becados y no</SelectItem>
+              <SelectItem value="becados">Solo becados</SelectItem>
+              <SelectItem value="noBecados">Solo no becados</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant={showInactivos ? 'default' : 'outline'} size="sm" onClick={() => setShowInactivos(v => !v)} className="whitespace-nowrap">
+            {showInactivos ? 'Ocultar inactivos' : 'Ver inactivos'}
+          </Button>
         </div>
       </Card>
 
