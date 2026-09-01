@@ -62,7 +62,7 @@ export default function ConfigAfiliacionPanel({ anio }) {
     },
   });
 
-  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos Aires' });
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   const limiteVencido = valFecha && hoy > valFecha;
 
   return (
