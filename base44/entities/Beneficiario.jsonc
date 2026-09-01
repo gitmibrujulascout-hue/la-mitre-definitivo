@@ -97,6 +97,15 @@
       "default": "Beneficiario",
       "description": "Tipo: Beneficiario (menor, abona cuota) o Voluntario (adulto, no abona)"
     },
+    "tipo_afiliacion": {
+      "type": "string",
+      "enum": [
+        "General",
+        "Acompa\u00f1ante"
+      ],
+      "default": "General",
+      "description": "Tipo de afiliaci\u00f3n que abona: General (monto_general) o Acompa\u00f1ante (monto_acompanante). Se asigna manualmente por persona."
+    },
     "becado": {
       "type": "boolean",
       "default": false,

@@ -12,6 +12,9 @@ const FALLBACK_GENERAL = 42000;
 const FALLBACK_ACOMPANANTE = 25000;
 
 export function getMontoSeguro(b, config) {
+  if (b?.tipo_afiliacion === 'Acompañante') {
+    return config?.monto_acompanante != null ? config.monto_acompanante : FALLBACK_ACOMPANANTE;
+  }
   return config?.monto_general || FALLBACK_GENERAL;
 }
 

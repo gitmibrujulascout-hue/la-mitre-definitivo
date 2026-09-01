@@ -10,10 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, CheckCircle2, XCircle, Search, DollarSign, ShieldCheck, Users, AlertCircle, Pencil, Landmark } from 'lucide-react';
+import { Plus, CheckCircle2, XCircle, Search, DollarSign, ShieldCheck, Users, AlertCircle, Pencil, Landmark, UserCog } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
 import RegistrarRendicionDialog from '@/components/afiliaciones/RegistrarRendicionDialog';
+import AsignarTipoAfiliacionDialog from '@/components/afiliaciones/AsignarTipoAfiliacionDialog';
 import RendicionesList from '@/components/afiliaciones/RendicionesList';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -554,6 +555,7 @@ export default function Afiliaciones() {
   const [filtroVista, setFiltroVista] = useState('todos'); // 'todos' | 'pagan' | 'no_pagan' | 'pendientes'
   const [editandoTipo, setEditandoTipo] = useState(null); // beneficiario a editar
   const [showRendicion, setShowRendicion] = useState(false);
+  const [showTipoAfiliacion, setShowTipoAfiliacion] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: beneficiarios = [] } = useQuery({
@@ -687,6 +689,9 @@ export default function Afiliaciones() {
         </Button>
         <Button variant="outline" onClick={() => setShowRendicion(true)}>
           <Landmark className="w-4 h-4 mr-2" />Rendir a Scout Arg.
+        </Button>
+        <Button variant="outline" onClick={() => setShowTipoAfiliacion(true)}>
+          <UserCog className="w-4 h-4 mr-2" />Tipo afiliación
         </Button>
         <Button onClick={() => setShowForm(true)}>
           <Plus className="w-4 h-4 mr-2" />Registrar
@@ -954,6 +959,14 @@ export default function Afiliaciones() {
           onClose={() => setShowRendicion(false)}
           afiliaciones={afiliaciones}
           anio={anio}
+        />
+      )}
+
+      {showTipoAfiliacion && (
+        <AsignarTipoAfiliacionDialog
+          open
+          onClose={() => setShowTipoAfiliacion(false)}
+          beneficiarios={beneficiarios}
         />
       )}
     </div>
