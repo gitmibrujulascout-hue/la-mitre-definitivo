@@ -17,6 +17,7 @@ const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 
 export default function CampamentoDetalle({ campamento, beneficiarios, pagos, gastos, onBack, onEdit }) {
   const [showPresupuesto, setShowPresupuesto] = useState(false);
+  const [incluirAdultosRama, setIncluirAdultosRama] = useState(false);
   const getBen = (id) => beneficiarios.find(b => b.id === id);
 
   const menoresCount = useMemo(() =>
@@ -62,7 +63,20 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
     return [...ordenadas, ...otras];
   }, [ninos]);
 
-  const resumenRamas = ninosPorRama.map(([rama, lista]) => [rama, lista.length]);
+  const resumenRamas = useMemo(() => {
+    const base = ninosPorRama.map(([rama, lista]) => [rama, lista.length]);
+    if (!incluirAdultosRama) return base;
+    // Sumar adultos a su rama_educador para headcount de cocina
+    const map = Object.fromEntries(base);
+    adultos.forEach(a => {
+      const r = a.rama_educador || 'Sin rama';
+      map[r] = (map[r] || 0) + 1;
+    });
+    // Mantener orden canónico
+    const resultado = ORDEN_RAMAS.filter(r => map[r] != null).map(r => [r, map[r]]);
+    Object.entries(map).forEach(([r, c]) => { if (!ORDEN_RAMAS.includes(r)) resultado.push([r, c]); });
+    return resultado;
+  }, [ninosPorRama, adultos, incluirAdultosRama]);
   const total = ninos.length + adultos.length;
 
   // Personas con alertas dietarias/médicas relevantes
@@ -257,7 +271,7 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
              </CardTitle>
             {/* Resumen por rama */}
             {resumenRamas.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-1">
+              <div className="flex flex-wrap gap-1.5 mt-1 items-center">
                 {resumenRamas.map(([rama, cant]) => {
                   const config = RAMA_CONFIG[rama];
                   return (
@@ -266,6 +280,13 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
                     </span>
                   );
                 })}
+                <button
+                  onClick={() => setIncluirAdultosRama(v => !v)}
+                  className={cn('px-2 py-0.5 rounded-full text-xs font-medium border transition-colors',
+                    incluirAdultosRama ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border hover:bg-muted/70')}
+                >
+                  {incluirAdultosRama ? '✓ Contar adultos por rama' : 'Contar adultos por rama'}
+                </button>
               </div>
             )}
           </CardHeader>

@@ -399,6 +399,7 @@ export default function CampamentoPublico() {
   const [showModificar, setShowModificar] = useState(false);
   const [showGasto, setShowGasto] = useState(false);
   const [fichaBen, setFichaBen] = useState(null);
+  const [soloPendientes, setSoloPendientes] = useState(false);
 
   const { data: accesos = [], isLoading: loadingAcceso } = useQuery({
     queryKey: ['acceso_pub', codigo],
@@ -444,7 +445,12 @@ export default function CampamentoPublico() {
     [campamento, beneficiarios]
   );
   const adultos = useMemo(
-    () => (campamento?.adultos_ids || []).map(getBen).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    () => (campamento?.adultos_ids || []).map(getBen).filter(Boolean).sort((a, b) => {
+      const ra = a.rama_educador || '';
+      const rb = b.rama_educador || '';
+      if (ra !== rb) return ra.localeCompare(rb, 'es');
+      return a.nombre.localeCompare(b.nombre, 'es');
+    }),
     [campamento, beneficiarios]
   );
 
@@ -481,6 +487,13 @@ export default function CampamentoPublico() {
     if (esAdulto && campamento?.adultos_pagan) return campamento.costo_adultos || campamento.costo_por_persona;
     return campamento?.costo_por_persona;
   };
+
+  const ninosPorRamaFiltrada = useMemo(() => {
+    if (!soloPendientes) return ninosPorRama;
+    return ninosPorRama
+      .map(([rama, lista]) => [rama, lista.filter(b => costo(b) - pagadoPor(b.id) > 0)])
+      .filter(([, l]) => l.length > 0);
+  }, [ninosPorRama, soloPendientes]);
 
   const handlePrint = () => {
     if (!campamento) return;
@@ -652,16 +665,23 @@ export default function CampamentoPublico() {
         {/* Listado beneficiarios */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="w-4 h-4" />Beneficiarios ({ninos.length})
+            <CardTitle className="text-base flex items-center gap-2 justify-between">
+              <span className="flex items-center gap-2"><Users className="w-4 h-4" />Beneficiarios ({ninos.length})</span>
+              <Button
+                variant={soloPendientes ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSoloPendientes(v => !v)}
+              >
+                {soloPendientes ? 'Mostrar todos' : 'Solo con deuda'}
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             {ninos.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">Sin beneficiarios asignados</p>
-            ) : ninosPorRama.map(([rama, lista]) => (
+            ) : ninosPorRamaFiltrada.map(([rama, lista]) => (
               <div key={rama} className="mb-4 last:mb-0">
-                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1 px-1">{rama}</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1 px-1">{rama} ({lista.length})</p>
                 {lista.map((b, i) => {
                   const pagado = pagadoPor(b.id);
                   const costoB = costo(b);

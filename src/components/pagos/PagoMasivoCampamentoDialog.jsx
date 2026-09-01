@@ -88,8 +88,16 @@ export default function PagoMasivoCampamentoDialog({ open, onClose, beneficiario
     }
   };
 
-  const costoPorPersona = campamentoSeleccionado?.costo_por_persona || 0;
-  const totalGeneral = bensSeleccionados.length * costoPorPersona;
+  const costoBen = (ben) => {
+    if (!ben) return campamentoSeleccionado?.costo_por_persona || 0;
+    const costoInd = campamentoSeleccionado?.costos_individuales?.[ben.id];
+    if (costoInd != null) return costoInd;
+    return campamentoSeleccionado?.costo_por_persona || 0;
+  };
+  const totalGeneral = bensSeleccionados.reduce((s, id) => {
+    const ben = beneficiarios.find(b => b.id === id);
+    return s + costoBen(ben);
+  }, 0);
   const destino = formaPago === 'Transferencia' ? 'Banco' : 'Caja';
 
   const canSave = campamentoId && formaPago && bensSeleccionados.length > 0;
@@ -107,7 +115,7 @@ export default function PagoMasivoCampamentoDialog({ open, onClose, beneficiario
         anio: new Date(campamentoSeleccionado?.fecha_inicio || fechaPago).getFullYear(),
         forma_pago: formaPago,
         destino,
-        monto: costoPorPersona,
+        monto: costoBen(ben),
         fecha_pago: fechaPago,
       };
     });
@@ -221,8 +229,7 @@ export default function PagoMasivoCampamentoDialog({ open, onClose, beneficiario
             <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-sm space-y-1">
               <p className="font-semibold text-green-800 mb-2">Resumen del registro masivo</p>
               <div className="flex justify-between text-green-700">
-                <span>{bensSeleccionados.length} beneficiario(s) × {formatMoney(costoPorPersona)}</span>
-                <span>c/u</span>
+                <span>{bensSeleccionados.length} beneficiario(s) (montos individuales)</span>
               </div>
               <div className="flex justify-between font-bold text-green-800 border-t border-green-200 pt-1 mt-1">
                 <span>Total a registrar</span>
