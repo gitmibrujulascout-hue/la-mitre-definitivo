@@ -12,11 +12,7 @@ const FALLBACK_GENERAL = 42000;
 const FALLBACK_ACOMPANANTE = 25000;
 
 export function getMontoSeguro(b, config) {
-  if (!config) return esAcompanante(b) ? FALLBACK_ACOMPANANTE : FALLBACK_GENERAL;
-  if (esAcompanante(b)) {
-    return config.monto_acompanante != null ? config.monto_acompanante : (config.monto_general || FALLBACK_ACOMPANANTE);
-  }
-  return config.monto_general || FALLBACK_GENERAL;
+  return config?.monto_general || FALLBACK_GENERAL;
 }
 
 /**
@@ -29,7 +25,7 @@ export function esPrimeraVezBonificado(b, config, fechaPago) {
   if (!b) return false;
   if (b.fecha_primer_afiliacion) return false; // ya afiliado antes → renovación
   if (!config?.fecha_limite_primera_vez) return true; // sin límite → bonificado
-  const fecha = fechaPago || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos Aires' });
+  const fecha = fechaPago || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   return fecha <= config.fecha_limite_primera_vez;
 }
 

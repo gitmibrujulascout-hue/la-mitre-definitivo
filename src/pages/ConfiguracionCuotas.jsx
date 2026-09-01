@@ -64,27 +64,55 @@ export default function ConfiguracionCuotas() {
 
   const saveMut = useMutation({
     mutationFn: async ({ mes, montoEfectivo, montoTransferencia, esBonificado, porcentajeCredito }) => {
-      const existing = getConfig(mes);
       const montoEfecNum = parseFloat(montoEfectivo) || 0;
+      const montoTransNum = parseFloat(montoTransferencia) || 0;
       const pctNum = parseFloat(porcentajeCredito) || 50;
+      // Guardar mes actual
+      const existing = getConfig(mes);
       const data = {
         mes,
         anio: Number(anioFiltro),
         monto_efectivo: montoEfecNum,
-        monto_transferencia: parseFloat(montoTransferencia) || 0,
+        monto_transferencia: montoTransNum,
         es_bonificado_credito: esBonificado,
         porcentaje_credito: esBonificado ? pctNum : 0,
         monto_credito: esBonificado ? Math.round(montoEfecNum * pctNum / 100) : 0,
       };
+      // Propagar a meses siguientes (no sin-cuota)
+      const mesIdx = MESES.indexOf(mes);
+      const siguientes = MESES.filter((m, i) => i > mesIdx && !MESES_SIN_CUOTA.includes(m));
+      const ops = [];
       if (existing) {
-        return base44.entities.ConfigCuota.update(existing.id, data);
+        ops.push(base44.entities.ConfigCuota.update(existing.id, data));
+      } else {
+        ops.push(base44.entities.ConfigCuota.create(data));
       }
-      return base44.entities.ConfigCuota.create(data);
+      siguientes.forEach(m => {
+        const ex = getConfig(m);
+        const exBonif = ex?.es_bonificado_credito || false;
+        const exPct = ex?.porcentaje_credito || 50;
+        const mData = {
+          mes: m,
+          anio: Number(anioFiltro),
+          monto_efectivo: montoEfecNum,
+          monto_transferencia: montoTransNum,
+          es_bonificado_credito: exBonif,
+          porcentaje_credito: exBonif ? exPct : 0,
+          monto_credito: exBonif ? Math.round(montoEfecNum * exPct / 100) : 0,
+        };
+        if (ex) {
+          ops.push(base44.entities.ConfigCuota.update(ex.id, mData));
+        } else {
+          ops.push(base44.entities.ConfigCuota.create(mData));
+        }
+      });
+      await Promise.all(ops);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config_cuotas'] });
       queryClient.invalidateQueries({ queryKey: ['pagos'] });
-      toast.success('Configuración guardada');
+      setEditValues({});
+      toast.success('Configuración guardada y propagada a meses siguientes');
     },
   });
 
@@ -322,7 +350,7 @@ export default function ConfiguracionCuotas() {
         <div className="flex items-start gap-2">
           <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
           <div className="text-xs text-amber-800 space-y-1">
-            <p><strong>Valores históricos:</strong> Cada mes mantiene su valor definido. Si en Agosto hay un aumento, solo cambiás el valor de Agosto en adelante. Los pagos de meses anteriores que se hagan tarde se cobran al valor original del mes.</p>
+            <p><strong>Valores históricos:</strong> Al guardar un mes, los valores se propagan automáticamente a todos los meses siguientes. Si en Agosto hay un aumento, solo cambiás Agosto y se actualiza desde ahí en adelante. Los pagos de meses anteriores que se hagan tarde se cobran al valor original del mes.</p>
             <p><strong>Mes con crédito:</strong> Marcá los meses donde la cuota se divide en pago + crédito (como Julio). El crédito es un <strong>porcentaje configurable del valor en efectivo</strong> de ese mes (default 50%, con descuento de hermanos aplicado), sin importar el medio de pago usado. Se genera automáticamente al registrar el pago del mes (si el beneficiario está al día), o con el botón de arriba para generar en lote.</p>
           </div>
         </div>

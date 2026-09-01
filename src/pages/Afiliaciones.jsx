@@ -604,7 +604,7 @@ export default function Afiliaciones() {
   }, [afiliacionesAnio]);
 
   const filas = useMemo(() => {
-    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos Aires' });
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
     return beneficiarios
       .filter(b => !busqueda || b.nombre?.toLowerCase().includes(busqueda.toLowerCase()) || b.dni?.includes(busqueda))
       .map(b => {
@@ -645,7 +645,7 @@ export default function Afiliaciones() {
   const totalAfiliados = afiliacionesAnio.length;
   const totalSinAfiliar = beneficiariosActivos.length - totalAfiliados;
   const totalRecaudado = afiliacionesAnio.filter(a => !a.es_primera_vez).reduce((s, a) => s + (a.monto_pagado || a.monto || 0), 0);
-  const hoyStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos Aires' });
+  const hoyStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   const countNoPagan = beneficiariosActivos.filter(b => !b.fecha_primer_afiliacion && esPrimeraVezBonificado(b, configAnio, hoyStr)).length;
   const countPagan = beneficiariosActivos.length - countNoPagan;
 
