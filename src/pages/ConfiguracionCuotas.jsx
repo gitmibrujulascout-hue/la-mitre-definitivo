@@ -63,15 +63,16 @@ export default function ConfiguracionCuotas() {
   };
 
   const saveMut = useMutation({
-    mutationFn: async ({ mes, montoEfectivo, montoTransferencia, esBonificado, montoCredito }) => {
+    mutationFn: async ({ mes, montoEfectivo, montoTransferencia, esBonificado }) => {
       const existing = getConfig(mes);
+      const montoEfecNum = parseFloat(montoEfectivo) || 0;
       const data = {
         mes,
         anio: Number(anioFiltro),
-        monto_efectivo: parseFloat(montoEfectivo) || 0,
+        monto_efectivo: montoEfecNum,
         monto_transferencia: parseFloat(montoTransferencia) || 0,
         es_bonificado_credito: esBonificado,
-        monto_credito: esBonificado ? (parseFloat(montoCredito) || 0) : 0,
+        monto_credito: esBonificado ? Math.round(montoEfecNum * 0.5) : 0,
       };
       if (existing) {
         return base44.entities.ConfigCuota.update(existing.id, data);
@@ -89,12 +90,11 @@ export default function ConfiguracionCuotas() {
     const montoEfectivo = getEditValue(mes, 'monto_efectivo');
     const montoTransferencia = getEditValue(mes, 'monto_transferencia');
     const esBonificado = getEditValue(mes, 'es_bonificado_credito') === true;
-    const montoCredito = getEditValue(mes, 'monto_credito');
     if (!montoEfectivo) {
       toast.error('El monto en efectivo es obligatorio');
       return;
     }
-    saveMut.mutate({ mes, montoEfectivo, montoTransferencia, esBonificado, montoCredito });
+    saveMut.mutate({ mes, montoEfectivo, montoTransferencia, esBonificado });
   };
 
   const deleteMut = useMutation({
@@ -138,7 +138,7 @@ export default function ConfiguracionCuotas() {
       const data = creditosData.find(d => d.mes === mes);
       if (!data || data.pendientes.length === 0) throw new Error('No hay beneficiarios pendientes');
       const cuotaBase = getCuotaBaseMes(mes, Number(anioFiltro), configCuotas);
-      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos Aires' });
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
       const records = data.pendientes.map(b => ({
         beneficiario_id: b.id,
         beneficiario_nombre: b.nombre,
@@ -282,16 +282,9 @@ export default function ConfiguracionCuotas() {
                       <span className="text-xs text-muted-foreground">Mes con crédito</span>
                     </label>
                     {esBonificado && (
-                      <div className="flex items-center gap-1.5">
-                        <Label className="text-xs text-cyan-600">Crédito $</Label>
-                        <Input
-                          type="number"
-                          value={getEditValue(mes, 'monto_credito')}
-                          onChange={e => setEditValue(mes, 'monto_credito', e.target.value)}
-                          placeholder="12500"
-                          className="w-28 h-8 text-sm"
-                        />
-                      </div>
+                      <Badge className="bg-cyan-100 text-cyan-700 border-cyan-300 border text-xs">
+                        Crédito: {formatMoney(Math.round((parseFloat(getEditValue(mes, 'monto_efectivo')) || 0) * 0.5))}
+                      </Badge>
                     )}
                     <Button size="sm" variant="outline" onClick={() => handleSave(mes)} disabled={saveMut.isPending}>
                       <Save className="w-3 h-3 mr-1" />{config ? 'Actualizar' : 'Guardar'}
@@ -315,7 +308,7 @@ export default function ConfiguracionCuotas() {
           <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
           <div className="text-xs text-amber-800 space-y-1">
             <p><strong>Valores históricos:</strong> Cada mes mantiene su valor definido. Si en Agosto hay un aumento, solo cambiás el valor de Agosto en adelante. Los pagos de meses anteriores que se hagan tarde se cobran al valor original del mes.</p>
-            <p><strong>Mes con crédito:</strong> Marcá los meses donde la cuota se divide en pago + crédito (como Julio). El crédito se genera automáticamente al registrar el pago del mes (si el beneficiario está al día), o con el botón de arriba para generar en lote.</p>
+            <p><strong>Mes con crédito:</strong> Marcá los meses donde la cuota se divide en pago + crédito (como Julio). El crédito es siempre <strong>50% del valor en efectivo</strong> de ese mes (con descuento de hermanos aplicado), sin importar el medio de pago usado. Se genera automáticamente al registrar el pago del mes (si el beneficiario está al día), o con el botón de arriba para generar en lote.</p>
           </div>
         </div>
       </Card>

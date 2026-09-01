@@ -90,13 +90,14 @@ export function esMesBonificadoCredito(mes, anio, configCuotas = []) {
   return getMesesBonificadosCredito(anio, configCuotas).includes(mes);
 }
 
-// Devuelve el monto de crédito para un mes bonificado
+// Devuelve el monto base de crédito para un mes bonificado (sin descuento de hermanos).
+// Siempre es 50% del valor en EFECTIVO de ese mes, sin importar el medio de pago.
 export function getMontoCreditoMes(mes, anio, configCuotas = []) {
   if (anio && configCuotas.length > 0) {
     const config = configCuotas.find(c => c.mes === mes && Number(c.anio) === Number(anio) && c.es_bonificado_credito === true);
-    if (config && config.monto_credito != null) return config.monto_credito;
+    if (config && config.monto_efectivo != null) return Math.round(config.monto_efectivo * 0.5);
   }
-  if (mes === 'Julio') return JULIO_MONTO_CREDITO; // fallback histórico
+  if (mes === 'Julio') return Math.round(CUOTA_EFECTIVO * 0.5); // fallback histórico
   return 0;
 }
 
@@ -105,11 +106,10 @@ export function getLabelCreditoMes(mes, anio) {
   return `Crédito ${mes} ${anio}`;
 }
 
-// Generalized: crédito para un mes bonificado (antes getCreditoJulioBeneficiario)
+// Crédito para un mes bonificado: siempre 50% del valor en EFECTIVO de ese mes,
+// con descuento de hermanos aplicado. No depende del medio de pago usado.
 export function getCreditoMesBeneficiario(mes, anio, b, todosBeneficiarios = [], cuotaBase, configCuotas = []) {
-  const creditoBase = getMontoCreditoMes(mes, anio, configCuotas);
   const cuotaEfectiva = getCuotaBeneficiario(b, todosBeneficiarios, cuotaBase);
-  if (cuotaEfectiva >= cuotaBase) return creditoBase;
   return Math.round(cuotaEfectiva * 0.5);
 }
 
