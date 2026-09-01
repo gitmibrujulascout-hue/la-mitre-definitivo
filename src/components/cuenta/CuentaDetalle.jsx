@@ -397,8 +397,11 @@ function TransferirCreditoDialog({ credito, origenId, grupoFamiliar, todosLosBen
         observaciones: `Transferido desde ${credito.beneficiario_nombre}`,
       });
       // Descontar del crédito origen (re-fetch para evitar estado stale)
+      // Reducir AMBOS monto_original y monto_disponible para que la transferencia
+      // no inflote el total acreditado ni cuente como "uso" del que transfiere.
       const credFresh = await base44.entities.CreditoBeneficiario.get(credito.id);
       await base44.entities.CreditoBeneficiario.update(credito.id, {
+        monto_original: Math.max(0, credFresh.monto_original - montoNum),
         monto_disponible: Math.max(0, credFresh.monto_disponible - montoNum),
       });
       // Invalidar créditos del destinatario también

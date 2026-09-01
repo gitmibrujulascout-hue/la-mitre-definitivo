@@ -185,7 +185,7 @@ export default function Caja() {
       .map(g => ({
         id: `gasto-${g.id}`, refId: g.id, fecha: g.fecha, tipo: 'Egreso',
         concepto: `${g.descripcion}${g.proveedor ? ` (${g.proveedor})` : ''}`,
-        monto: g.monto, origen: 'Gasto', categoria: g.categoria,
+        monto: g.monto, origen: 'Gasto', categoria: g.categoria, forma_pago: g.forma_pago,
       }));
 
     const extras = movimientosExtra
@@ -319,6 +319,7 @@ export default function Caja() {
               <TableHead>Fecha</TableHead>
               <TableHead>Concepto</TableHead>
               <TableHead>Origen</TableHead>
+              <TableHead className="hidden md:table-cell">Forma</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Monto</TableHead>
               <TableHead>Saldo acum.</TableHead>
@@ -327,7 +328,7 @@ export default function Caja() {
           </TableHeader>
           <TableBody>
             {movimientosConSaldo.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No hay movimientos</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No hay movimientos</TableCell></TableRow>
             ) : (
               movimientosConSaldo.map((m, i) => (
                 <TableRow key={`${m.id}-${i}`}>
@@ -337,6 +338,13 @@ export default function Caja() {
                     <Badge variant="outline" className="text-xs whitespace-nowrap">
                       {m.esManual ? 'Manual' : m.origen || '—'}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {m.forma_pago ? (
+                      <Badge variant="outline" className="text-xs whitespace-nowrap">{m.forma_pago}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge className={m.tipo === 'Ingreso'

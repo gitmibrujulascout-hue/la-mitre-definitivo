@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -15,9 +15,17 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
   const [items, setItems] = useState([]);
   const [beneficiarioId, setBeneficiarioId] = useState('');
   const [fecha, setFecha] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
+  const [formaPago, setFormaPago] = useState('Efectivo');
   const queryClient = useQueryClient();
 
   const ben = beneficiarios.find(b => b.id === beneficiarioId);
+
+  const { data: creditosBen = [] } = useQuery({
+    queryKey: ['creditos-venta', beneficiarioId],
+    queryFn: () => base44.entities.CreditoBeneficiario.filter({ beneficiario_id: beneficiarioId }),
+    enabled: !!beneficiarioId,
+  });
+  const creditoDisponible = creditosBen.filter(c => (c.monto_disponible || 0) > 0).reduce((s, c) => s + (c.monto_disponible || 0), 0);
 
   useEffect(() => {
     if (!open) return;
@@ -67,20 +75,23 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
           precio_unitario: precio,
           monto_total: cant * precio,
           fecha,
-          forma_pago: 'Efectivo',
-          destino: prod.caja_exclusiva ? 'Caja exclusiva' : 'Caja',
+          forma_pago: formaPago,
+          destino: prod.caja_exclusiva ? 'Caja exclusiva' : (formaPago === 'Transferencia' ? 'Banco' : 'Caja'),
+          observaciones: formaPago === 'Crédito actividad' ? 'Crédito aplicado' : undefined,
         });
 
-        // Registrar el ingreso de dinero en la caja correspondiente
-        await base44.entities.MovimientoBanco.create({
-          fecha,
-          tipo: 'Ingreso',
-          concepto: `Venta tienda - ${prod.nombre}${ben?.nombre ? ` (${ben.nombre})` : ''}`,
-          monto: cant * precio,
-          cuenta: prod.caja_exclusiva ? 'Caja exclusiva' : 'Caja',
-          origen: 'Manual',
-          referencia_id: venta.id,
-        });
+        // Registrar el ingreso de dinero en la caja correspondiente (no aplica para crédito actividad)
+        if (formaPago !== 'Crédito actividad') {
+          await base44.entities.MovimientoBanco.create({
+            fecha,
+            tipo: 'Ingreso',
+            concepto: `Venta tienda - ${prod.nombre}${ben?.nombre ? ` (${ben.nombre})` : ''}`,
+            monto: cant * precio,
+            cuenta: prod.caja_exclusiva ? 'Caja exclusiva' : (formaPago === 'Transferencia' ? 'Banco' : 'Caja'),
+            origen: 'Manual',
+            referencia_id: venta.id,
+          });
+        }
 
         // Decrement stock
         if (prod.tiene_talles && it.talle) {
@@ -93,6 +104,21 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
             stock: Math.max(0, (prod.stock || 0) - cant),
           });
         }
+
+        // Si es pago con crédito, descontar del crédito del beneficiario (FIFO)
+        if (formaPago === 'Crédito actividad') {
+          let montoRestar = cant * precio;
+          const creditosDisp = creditosBen.filter(c => (c.monto_disponible || 0) > 0)
+            .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+          for (const cr of creditosDisp) {
+            if (montoRestar <= 0) break;
+            const descuento = Math.min(cr.monto_disponible, montoRestar);
+            await base44.entities.CreditoBeneficiario.update(cr.id, {
+              monto_disponible: Math.max(0, cr.monto_disponible - descuento),
+            });
+            montoRestar -= descuento;
+          }
+        }
       }
     },
     onSuccess: () => {
@@ -100,7 +126,10 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
       queryClient.invalidateQueries({ queryKey: ['ventas_tienda'] });
       queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
       queryClient.invalidateQueries({ queryKey: ['movimientos_caja_exclusiva'] });
-      toast.success(`${items.length} venta(s) registrada(s) en efectivo`);
+      queryClient.invalidateQueries({ queryKey: ['creditos-venta', beneficiarioId] });
+      queryClient.invalidateQueries({ queryKey: ['creditos-todos'] });
+      queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario', beneficiarioId] });
+      toast.success(`${items.length} venta(s) registrada(s)`);
       onClose();
     },
     onError: (err) => toast.error('Error: ' + err.message),
@@ -117,7 +146,7 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
       : getStockDisponiblePorTalle(prod, preEncargos)._sin_talle ?? 0;
     if ((parseInt(it.cantidad) || 0) > Math.max(0, disp)) return false;
     return true;
-  });
+  }) && (formaPago !== 'Crédito actividad' || totalGeneral <= creditoDisponible);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -216,9 +245,25 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
             </Button>
           </div>
 
+          <div>
+            <Label>Forma de pago</Label>
+            <Select value={formaPago} onValueChange={setFormaPago}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Efectivo">Efectivo → Caja</SelectItem>
+                <SelectItem value="Transferencia">Transferencia → Banco</SelectItem>
+                <SelectItem value="Crédito actividad" disabled={creditoDisponible <= 0}>
+                  Crédito actividad {creditoDisponible > 0 ? `(${formatMoney(creditoDisponible)} disp.)` : '(sin crédito)'}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="p-3 bg-muted/50 rounded-lg">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Total (efectivo)</span>
+              <span className="text-sm text-muted-foreground">
+                Total {formaPago === 'Crédito actividad' ? '(crédito)' : formaPago === 'Transferencia' ? '(transferencia)' : '(efectivo)'}
+              </span>
               <span className="text-xl font-bold">{formatMoney(totalGeneral)}</span>
             </div>
           </div>

@@ -33,7 +33,18 @@
     },
     "imagen_url": {
       "type": "string",
-      "description": "URL de la imagen del producto"
+      "description": "URL de la imagen principal del producto (compatibilidad)"
+    },
+    "imagenes_url": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Lista de URLs de im\u00e1genes del producto (m\u00faltiples \u00e1ngulos)"
+    },
+    "tabla_talles_url": {
+      "type": "string",
+      "description": "URL de la imagen con la gu\u00eda/tabla de talles para que las familias elijan"
     },
     "visible_familias": {
       "type": "boolean",
