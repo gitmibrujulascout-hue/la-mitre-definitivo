@@ -32,9 +32,13 @@ async function procesarCreditoJulio(pagos, beneficiario, pagosExistentes, afilia
 
   // Verificar si el beneficiario está al día (todos los meses excepto Julio)
   const mesesDeuda = calcularMesesQueGeneranDeuda(beneficiario, anioNum, afiliaciones);
-  const pagosCuotasAnio = pagosExistentes.filter(
-    p => p.beneficiario_id === beneficiario.id && Number(p.anio) === anioNum && p.tipo_pago !== 'Campamento'
-  );
+  // Incluir los pagos recién creados (pueden poner al beneficiario al día, ej: Junio+Julio juntos)
+  const pagosCuotasAnio = [
+    ...pagosExistentes.filter(
+      p => p.beneficiario_id === beneficiario.id && Number(p.anio) === anioNum && p.tipo_pago !== 'Campamento'
+    ),
+    ...pagos.filter(p => p.tipo_pago === 'Cuota' && p.beneficiario_id === beneficiario.id),
+  ];
   if (!estaAlDia(beneficiario, pagosCuotasAnio, mesesDeuda)) return;
 
   // Crear el crédito de Julio
@@ -127,6 +131,8 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
           monto_disponible: Math.max(0, credFresh.monto_disponible - montoCredito),
         });
       }
+      // Procesar crédito de Julio también en pagos con crédito actividad
+      await procesarCreditoJulio(pagos, selectedBen, pagosExistentes, afiliaciones, anio, todosCreditos, beneficiarios);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pagos'] });
