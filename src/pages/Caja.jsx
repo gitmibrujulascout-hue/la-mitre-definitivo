@@ -154,9 +154,14 @@ export default function Caja() {
     return 'Caja';
   };
 
-  // Helper: destino efectivo de un pago (los subsidios del grupo no mueven dinero real)
+  // Helper: destino efectivo de un pago
+  // - Subsidios del grupo: no mueven dinero real
+  // - Crédito actividad: el dinero ya entró a caja cuando se rindió la actividad
+  // - Afiliación: el dinero se trackea por separado vía rendición (MovimientoBanco origen Afiliación)
   const destinoPago = (p) => {
     if (p.forma_pago === 'Subsidio del grupo' || p.destino === 'Grupo') return null;
+    if (p.forma_pago === 'Crédito actividad') return null;
+    if (p.tipo_pago === 'Afiliación') return null;
     if (p.destino === 'Banco') return 'Banco';
     if (p.destino === 'Caja') return 'Caja';
     if (p.forma_pago === 'Transferencia') return 'Banco';
