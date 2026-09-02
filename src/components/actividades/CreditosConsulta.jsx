@@ -30,8 +30,13 @@ export default function CreditosConsulta({ beneficiarios }) {
   });
 
   const { data: ventasTiendaCredito = [] } = useQuery({
-    queryKey: ['ventas-tienda-credito'],
+    queryKey: ['ventas-tienda-credito-rep'],
     queryFn: () => base44.entities.VentaTienda.filter({ forma_pago: 'Crédito actividad' }, '-fecha', 500),
+  });
+
+  const { data: preEncargosCredito = [] } = useQuery({
+    queryKey: ['pre-encargos-credito-rep'],
+    queryFn: () => base44.entities.PreEncargoTienda.filter({ forma_pago: 'Crédito actividad' }, '-fecha', 500),
   });
 
   // Mapa beneficiario_id -> rama
@@ -68,7 +73,15 @@ export default function CreditosConsulta({ beneficiarios }) {
   const totalDisponible = creditosFiltrados.reduce((s, c) => s + (c.monto_disponible || 0), 0);
   const totalUsadoLibros = totalOriginal - totalDisponible;
 
-  // Usado real desde Pagos + VentasTienda con crédito (consistente con ReporteCreditos)
+  // Pre-encargos pagados con crédito (seña), aún no entregados.
+  // Una vez entregados, el crédito se captura en la VentaTienda → se excluyen para no duplicar.
+  const preEncargosActivos = useMemo(() => {
+    return preEncargosCredito.filter(e =>
+      !['Cancelado', 'Entregado'].includes(e.estado) && (e.monto_pagado || 0) > 0
+    );
+  }, [preEncargosCredito]);
+
+  // Usado real desde Pagos + VentasTienda + Pre-encargos con crédito (consistente con ReporteCreditos)
   const usadoRealPorBen = useMemo(() => {
     const map = {};
     pagosCredito.forEach(p => {
@@ -79,8 +92,12 @@ export default function CreditosConsulta({ beneficiarios }) {
       if (!v.beneficiario_id) return;
       map[v.beneficiario_id] = (map[v.beneficiario_id] || 0) + (v.monto_total || 0);
     });
+    preEncargosActivos.forEach(e => {
+      if (!e.beneficiario_id) return;
+      map[e.beneficiario_id] = (map[e.beneficiario_id] || 0) + (e.monto_pagado || 0);
+    });
     return map;
-  }, [pagosCredito, ventasTiendaCredito]);
+  }, [pagosCredito, ventasTiendaCredito, preEncargosActivos]);
 
   const totalUsadoReal = useMemo(() => {
     const benIds = new Set(creditosFiltrados.map(c => c.beneficiario_id).filter(Boolean));
@@ -365,6 +382,28 @@ export default function CreditosConsulta({ beneficiarios }) {
                         <TableRow>
                           <TableCell colSpan={5} className="bg-muted/30 p-3">
                             <div className="space-y-2">
+                              {preEncargosActivos.filter(e => e.beneficiario_id === ben.beneficiario_id).length > 0 && (
+                                <div className="border rounded-lg p-2.5 bg-green-50/50">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <ShoppingCart className="w-3.5 h-3.5 text-green-600" />
+                                    <span className="text-sm font-medium">Pre-encargos pagados con crédito (seña)</span>
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    {preEncargosActivos
+                                      .filter(e => e.beneficiario_id === ben.beneficiario_id)
+                                      .map(e => (
+                                        <div key={e.id} className="flex items-center gap-2 text-sm py-1 border-t border-border/60">
+                                          <ShoppingCart className="w-3.5 h-3.5 flex-shrink-0 text-green-600" />
+                                          <div className="flex-1">
+                                            <span className="font-medium">{e.producto_nombre}{e.cantidad > 1 ? ` (x${e.cantidad})` : ''}</span>
+                                            <span className="text-xs text-muted-foreground ml-2">{e.fecha_pago || e.fecha}</span>
+                                          </div>
+                                          <span className="font-medium text-orange-600">−{formatMoney(e.monto_pagado)}</span>
+                                        </div>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
                               {ben.creditos.map(c => {
                                 const usado = (c.monto_original || 0) - (c.monto_disponible || 0);
                                 const usos = getUsos(c);
