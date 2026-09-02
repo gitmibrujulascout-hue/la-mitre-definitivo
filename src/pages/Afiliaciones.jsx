@@ -645,7 +645,8 @@ export default function Afiliaciones() {
   }, [beneficiarios, mapAfiliados, busqueda, filtroVista, configAnio]);
 
   const totalAfiliados = afiliacionesAnio.length;
-  const totalSinAfiliar = beneficiariosActivos.length - totalAfiliados;
+  // Sin afiliar: solo beneficiarios ACTIVOS sin registro de afiliación (excluye afiliaciones de inactivos)
+  const totalSinAfiliar = beneficiariosActivos.filter(b => !mapAfiliados[b.id]).length;
   const totalRecaudado = afiliacionesAnio.filter(a => !a.es_primera_vez).reduce((s, a) => s + (a.monto_pagado || a.monto || 0), 0);
   const hoyStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   const countNoPagan = beneficiariosActivos.filter(b => !b.fecha_primer_afiliacion && esPrimeraVezBonificado(b, configAnio, hoyStr)).length;
@@ -663,6 +664,8 @@ export default function Afiliaciones() {
       if (!afil) {
         total += montoSeguro;
       } else {
+        // monto=0 o es_primera_vez = sin costo (no abona), no genera deuda
+        if (afil.es_primera_vez || (afil.monto || 0) === 0) return;
         total += Math.max(0, (afil.monto || montoSeguro) - (afil.monto_pagado || afil.monto || 0));
       }
     });

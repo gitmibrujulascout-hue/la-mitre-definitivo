@@ -35,16 +35,25 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
     [afiliaciones, anio]
   );
 
-  // Ya ingresado en rendiciones anteriores este año
-  const yaIngresado = useMemo(
-    () => rendiciones
-      .filter(r => Number(r.anio) === Number(anio))
-      .reduce((s, r) => s + (r.monto_recaudado || 0), 0),
+  // Ya ingresado y ya depositado en rendiciones anteriores este año
+  const rendicionesAnio = useMemo(
+    () => rendiciones.filter(r => Number(r.anio) === Number(anio)),
     [rendiciones, anio]
+  );
+  const yaIngresado = useMemo(
+    () => rendicionesAnio.reduce((s, r) => s + (r.monto_recaudado || 0), 0),
+    [rendicionesAnio]
+  );
+  const yaDepositado = useMemo(
+    () => rendicionesAnio.reduce((s, r) => s + (r.monto_depositado || 0), 0),
+    [rendicionesAnio]
   );
 
   // Nuevo efectivo a ingresar en esta rendición (lo recaudado desde la última rendición)
   const recaudadoEstaRendicion = Math.max(0, totalRecaudadoAcumulado - yaIngresado);
+
+  // Excedente acumulado de rendiciones anteriores (recaudado > depositado)
+  const excedenteAnterior = Math.max(0, yaIngresado - yaDepositado);
 
   const [fechaDeposito, setFechaDeposito] = useState(() =>
     new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
@@ -54,7 +63,8 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
   const [file, setFile] = useState(null);
 
   const depositadoNum = parseFloat(montoDepositado) || 0;
-  const faltante = Math.max(0, depositadoNum - recaudadoEstaRendicion);
+  // De caja común = depositado - recaudado nuevo - excedente acumulado (si hay)
+  const faltante = Math.max(0, depositadoNum - recaudadoEstaRendicion - excedenteAnterior);
 
   const rendirMutation = useMutation({
     mutationFn: async () => {
@@ -124,7 +134,10 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
             <div>
               <Label className="text-xs">Monto depositado a SA *</Label>
               <Input type="number" value={montoDepositado} onChange={e => setMontoDepositado(e.target.value)} placeholder="Ingresá el monto real depositado" />
-              <p className="text-xs text-muted-foreground mt-1">SA exige: {formatMoney(totalExigidoSA)} · Recaudado disponible: {formatMoney(recaudadoEstaRendicion)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                SA exige: {formatMoney(totalExigidoSA)} · Recaudado disponible: {formatMoney(recaudadoEstaRendicion)}
+                {excedenteAnterior > 0 && <span className="text-green-600"> · Excedente anterior: {formatMoney(excedenteAnterior)}</span>}
+              </p>
               <p className="text-xs text-amber-600 mt-0.5">⚠ Ingresá el monto que realmente depositaste, no el que SA exige.</p>
             </div>
             <div>
@@ -156,6 +169,7 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
 
           <p className="text-xs text-muted-foreground">
             Recaudado en efectivo: {formatMoney(totalRecaudadoAcumulado)} · Ya ingresado en rendiciones anteriores: {formatMoney(yaIngresado)}
+            {excedenteAnterior > 0 && <span className="text-green-600"> · Excedente sin usar: {formatMoney(excedenteAnterior)}</span>}
           </p>
         </div>
 
