@@ -139,18 +139,28 @@ export default function Caja() {
 
   const movimientos = tab === 'caja' ? movimientosCaja : movimientosBanco;
 
-  // Saldo acumulado por fila (orden cronológico asc, ingresos primero en mismo día)
+  // Saldo inicial: arrastre de períodos anteriores al año filtrado
+  const saldoInicial = useMemo(() => {
+    if (!anioFiltro) return 0;
+    const cuenta = tab === 'caja' ? 'Caja' : 'Banco';
+    const todos = buildMovimientos({ pagos, gastos, movimientosExtra, privateCampIds, cuenta, anio: null });
+    return todos
+      .filter(m => (m.fecha || '') < anioFiltro)
+      .reduce((s, m) => s + (m.tipo === 'Ingreso' ? (m.monto || 0) : -(m.monto || 0)), 0);
+  }, [pagos, gastos, movimientosExtra, privateCampIds, anioFiltro, tab]);
+
+  // Saldo acumulado por fila (arranca desde el saldo inicial, no desde 0)
   const movimientosConSaldo = useMemo(() => {
-    let acum = 0;
+    let acum = saldoInicial;
     return movimientos.map(m => {
       acum += m.tipo === 'Ingreso' ? (m.monto || 0) : -(m.monto || 0);
       return { ...m, saldoAcumulado: acum };
     });
-  }, [movimientos]);
+  }, [movimientos, saldoInicial]);
 
   const totalIngresos = movimientos.filter(m => m.tipo === 'Ingreso').reduce((s, m) => s + (m.monto || 0), 0);
   const totalEgresos = movimientos.filter(m => m.tipo === 'Egreso').reduce((s, m) => s + (m.monto || 0), 0);
-  const saldo = totalIngresos - totalEgresos;
+  const saldo = saldoInicial + totalIngresos - totalEgresos;
 
   return (
     <div>
@@ -221,6 +231,9 @@ export default function Caja() {
               <div>
                 <p className="text-xs text-muted-foreground">Saldo {tab === 'caja' ? 'Caja' : 'Banco'}</p>
                 <p className={cn('text-lg font-bold', saldo >= 0 ? 'text-green-600' : 'text-red-500')}>{formatMoney(saldo)}</p>
+                {saldoInicial !== 0 && (
+                  <p className="text-[10px] text-muted-foreground">incluye arrastre {formatMoney(saldoInicial)}</p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -259,9 +272,22 @@ export default function Caja() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {movimientosConSaldo.length === 0 ? (
+            {movimientosConSaldo.length === 0 && saldoInicial === 0 ? (
               <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No hay movimientos</TableCell></TableRow>
             ) : (
+              <>
+              {saldoInicial !== 0 && (
+                <TableRow className="bg-yellow-50 font-semibold">
+                  <TableCell className="text-xs text-muted-foreground">Anterior a {anioFiltro}</TableCell>
+                  <TableCell colSpan={4} className="text-sm font-semibold text-muted-foreground italic">Saldo inicial del período</TableCell>
+                  <TableCell className="text-right font-bold text-blue-700">{formatMoney(saldoInicial)}</TableCell>
+                  <TableCell className="text-right font-bold text-blue-700">{formatMoney(saldoInicial)}</TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              )}
+              {movimientosConSaldo.length === 0 ? (
+                <TableRow><TableCell colSpan={8} className="text-center py-4 text-muted-foreground">Sin movimientos en {anioFiltro}</TableCell></TableRow>
+              ) : (
               movimientosConSaldo.map((m, i) => (
                 <TableRow key={`${m.id}-${i}`}>
                   <TableCell className="text-muted-foreground text-sm whitespace-nowrap">{m.fecha || '—'}</TableCell>
@@ -302,6 +328,8 @@ export default function Caja() {
                   </TableCell>
                 </TableRow>
               ))
+              )}
+              </>
             )}
           </TableBody>
         </Table>
