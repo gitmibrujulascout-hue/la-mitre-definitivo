@@ -84,6 +84,7 @@ export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose,
         }
         queryClient.invalidateQueries({ queryKey: ['creditos-todos'] });
         queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario', encargo.beneficiario_id] });
+        queryClient.invalidateQueries({ queryKey: ['pre-encargos-credito-rep'] });
       }
 
       const nuevoPagado = yaPagado + montoNum;

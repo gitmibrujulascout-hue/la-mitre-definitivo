@@ -9,7 +9,7 @@ import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 
 export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
-  const [formaPago, setFormaPago] = useState('Efectivo');
+  const [formaPago, setFormaPago] = useState(encargo?.forma_pago || 'Efectivo');
   const defaultDestino = producto?.caja_exclusiva ? 'Caja exclusiva' : 'Caja';
   const [destino, setDestino] = useState(defaultDestino);
   const queryClient = useQueryClient();
@@ -64,6 +64,8 @@ export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
       queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
       queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
       queryClient.invalidateQueries({ queryKey: ['ventas_tienda'] });
+      queryClient.invalidateQueries({ queryKey: ['ventas-tienda-credito-rep'] });
+      queryClient.invalidateQueries({ queryKey: ['pre-encargos-credito-rep'] });
       queryClient.invalidateQueries({ queryKey: ['productos_tienda'] });
       queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
       queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
@@ -89,6 +91,24 @@ export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
             <p className="text-muted-foreground">Para: {encargo.beneficiario_nombre}</p>
             <p className="text-muted-foreground">{encargo.cantidad}u{encargo.talle ? ` · Talle ${encargo.talle}` : ''}</p>
             <p className="font-semibold text-green-600">{formatMoney(encargo.monto_total)}</p>
+            {(encargo.monto_pagado || 0) > 0 && (
+              <div className="mt-2 pt-2 border-t border-border/50 space-y-0.5">
+                <p className="text-muted-foreground">
+                  Ya pagado: <span className="font-medium text-green-700">{formatMoney(encargo.monto_pagado)}</span>
+                  {' '}con <span className="font-medium">{encargo.forma_pago || '—'}</span>
+                </p>
+                {encargo.monto_pagado < encargo.monto_total && (
+                  <p className="text-muted-foreground">
+                    Saldo a cobrar al entregar: <span className="font-medium text-amber-700">{formatMoney((encargo.monto_total || 0) - (encargo.monto_pagado || 0))}</span>
+                  </p>
+                )}
+                {encargo.forma_pago === 'Crédito actividad' && (
+                  <p className="text-xs text-primary">
+                    ⚠️ La seña se pagó con crédito. La venta debe registrar la misma forma de pago para no duplicar ingresos.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
           <div>
             <Label className="mb-1.5 block">Forma de pago</Label>

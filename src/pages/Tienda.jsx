@@ -168,6 +168,7 @@ export default function Tienda() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
       queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
+      queryClient.invalidateQueries({ queryKey: ['pre-encargos-credito-rep'] });
       queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
       queryClient.invalidateQueries({ queryKey: ['movimientos_caja_exclusiva'] });
       toast.success('Pago registrado');
@@ -575,13 +576,24 @@ export default function Tienda() {
                             if (pagado === 0) {
                               return <span className="text-xs text-muted-foreground">Sin pago</span>;
                             }
-                            if (saldo === 0) {
-                              return <Badge className="bg-green-100 text-green-700 border border-green-300 text-xs w-fit">Pagado</Badge>;
-                            }
                             return (
                               <>
-                                <Badge className="bg-blue-100 text-blue-700 border border-blue-300 text-xs w-fit">Seña {formatMoney(pagado)}</Badge>
-                                <span className="text-xs text-muted-foreground">Saldo {formatMoney(saldo)}</span>
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  {saldo === 0
+                                    ? <Badge className="bg-green-100 text-green-700 border border-green-300 text-xs w-fit">Pagado</Badge>
+                                    : <Badge className="bg-blue-100 text-blue-700 border border-blue-300 text-xs w-fit">Seña {formatMoney(pagado)}</Badge>
+                                  }
+                                  {e.forma_pago === 'Crédito actividad' && (
+                                    <Badge className="bg-primary/10 text-primary border border-primary/30 text-[10px] w-fit">Crédito</Badge>
+                                  )}
+                                  {e.forma_pago === 'Transferencia' && (
+                                    <Badge className="bg-blue-50 text-blue-600 border border-blue-200 text-[10px] w-fit">Transf.</Badge>
+                                  )}
+                                  {e.forma_pago === 'Efectivo' && (
+                                    <Badge variant="outline" className="text-[10px] w-fit">Efect.</Badge>
+                                  )}
+                                </div>
+                                {saldo > 0 && <span className="text-xs text-muted-foreground">Saldo {formatMoney(saldo)}</span>}
                               </>
                             );
                           })()}

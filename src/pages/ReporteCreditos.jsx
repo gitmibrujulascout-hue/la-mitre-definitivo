@@ -69,9 +69,10 @@ export default function ReporteCreditos() {
   }, [ventasTiendaCredito, anio, desde, hasta]);
 
   // Pre-encargos de tienda pagados (seña) con crédito de actividad (aún no entregados)
+  // Una vez entregados, el crédito se captura en la VentaTienda → se excluyen para no duplicar
   const preEncargosUsados = useMemo(() => {
     return preEncargosCredito
-      .filter(e => e.estado !== 'Cancelado' && (e.monto_pagado || 0) > 0)
+      .filter(e => !['Cancelado', 'Entregado'].includes(e.estado) && (e.monto_pagado || 0) > 0)
       .filter(e => {
         const year = e.fecha_pago ? e.fecha_pago.substring(0, 4) : (e.fecha ? e.fecha.substring(0, 4) : '');
         if (year !== anio) return false;
