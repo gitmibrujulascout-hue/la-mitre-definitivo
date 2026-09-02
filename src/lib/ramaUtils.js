@@ -183,10 +183,12 @@ export function calcularIntervalosActivos(b, anio, afiliaciones = []) {
   }
 
   let fin1 = 11;
-  if (b.activo === false && b.fecha_baja) {
+  // La fecha_baja es la fuente de verdad: corta las cuotas desde el mes siguiente.
+  // No se requiere que activo===false (puede no estar actualizado, o ser true tras reingreso).
+  if (b.fecha_baja) {
     const [y, m] = b.fecha_baja.split('T')[0].split('-').map(Number);
     if (y < anio) fin1 = -1; // dado de baja antes del año → sin período 1
-    else if (y === anio) fin1 = m - 1; // mes de baja incluido
+    else if (y === anio) fin1 = m - 1; // mes de baja incluido, cuota corta desde el mes siguiente
   }
 
   const intervalos = [];
