@@ -100,7 +100,7 @@ export function useFondos({ anio = null, filtrarPrivados = true } = {}) {
         return e.forma_pago === 'Transferencia' ? 'Banco' : 'Caja';
       };
       const señasFiltradas = preEncargos
-        .filter(e => ['Pendiente', 'Confirmado'].includes(e.estado) && (e.monto_pagado || 0) > 0)
+        .filter(e => ['Pendiente', 'Confirmado', 'Pedido a proveedor'].includes(e.estado) && (e.monto_pagado || 0) > 0)
         .filter(e => filtraAnio(e.fecha_pago))
         .filter(e => cuentaSeña(e) === cuenta);
       const ingresosSeñas = señasFiltradas
@@ -180,7 +180,7 @@ export function buildMovimientos({ pagos, gastos, ventasTienda, preEncargos, mov
     return e.forma_pago === 'Transferencia' ? 'Banco' : 'Caja';
   };
   const señasComun = (preEncargos || [])
-    .filter(e => ['Pendiente', 'Confirmado'].includes(e.estado) && (e.monto_pagado || 0) > 0)
+    .filter(e => ['Pendiente', 'Confirmado', 'Pedido a proveedor'].includes(e.estado) && (e.monto_pagado || 0) > 0)
     .filter(e => filtraAnio(e.fecha_pago))
     .filter(e => cuentaSeña(e) === cuenta);
   const ingresoSeñas = señasComun

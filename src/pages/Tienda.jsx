@@ -227,6 +227,11 @@ export default function Tienda() {
   const totalHoy = ventasHoy.reduce((s, v) => s + (v.monto_total || 0), 0);
   const hayCajaExclusiva = productos.some(p => p.caja_exclusiva);
 
+  // Total señas pendientes en pre-encargos activos (no entregados ni cancelados)
+  const totalSenias = preEncargos
+    .filter(e => ['Pendiente', 'Confirmado', 'Pedido a proveedor'].includes(e.estado))
+    .reduce((s, e) => s + (e.monto_pagado || 0), 0);
+
   // Pre-encargos ordenados: cancelados al final; ocultar si el toggle está activo
   const preEncargosOrdenados = useMemo(() => {
     const lista = ocultarCancelados ? preEncargos.filter(e => e.estado !== 'Cancelado') : preEncargos;
@@ -262,7 +267,7 @@ export default function Tienda() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
         <Card><CardContent className="pt-4 pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center"><Package className="w-5 h-5 text-blue-600" /></div>
@@ -282,12 +287,18 @@ export default function Tienda() {
           </div>
         </CardContent></Card>
         <Card><CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><ShoppingBag className="w-5 h-5 text-primary" /></div>
+              <div><p className="text-xs text-muted-foreground">Total ventas</p><p className="text-lg font-bold">{formatMoney(totalVentas)}</p></div>
+            </div>
+          </CardContent></Card>
+         <Card><CardContent className="pt-4 pb-4">
            <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><ShoppingBag className="w-5 h-5 text-primary" /></div>
-             <div><p className="text-xs text-muted-foreground">Total ventas</p><p className="text-lg font-bold">{formatMoney(totalVentas)}</p></div>
+             <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center"><DollarSign className="w-5 h-5 text-amber-600" /></div>
+             <div><p className="text-xs text-muted-foreground">Señas pendientes</p><p className="text-lg font-bold text-amber-600">{formatMoney(totalSenias)}</p></div>
            </div>
          </CardContent></Card>
-        </div>
+         </div>
 
         {/* Caja exclusiva de la tienda */}
         {hayCajaExclusiva && (

@@ -10,6 +10,7 @@ const FILTROS = [
   { key: 'activos', label: 'Activos' },
   { key: 'Pendiente', label: 'Pendientes' },
   { key: 'Confirmado', label: 'Confirmados' },
+  { key: 'Pedido a proveedor', label: 'Pedidos a prov.' },
   { key: 'Entregado', label: 'Entregados' },
   { key: 'todos', label: 'Todos' },
 ];
@@ -17,8 +18,10 @@ const FILTROS = [
 function estadoBadge(estado) {
   if (estado === 'Pendiente') return <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">Pend.</Badge>;
   if (estado === 'Confirmado') return <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs">Conf.</Badge>;
+  if (estado === 'Pedido a proveedor') return <Badge className="bg-purple-100 text-purple-700 border-purple-300 border text-xs">Pedido</Badge>;
   if (estado === 'Entregado') return <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">Entr.</Badge>;
-  return <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs">Canc.</Badge>;
+  if (estado === 'Cancelado') return <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs">Canc.</Badge>;
+  return <Badge variant="outline" className="text-xs">{estado || '—'}</Badge>;
 }
 
 export default function ListaEntregaDialog({ encargos, onClose }) {

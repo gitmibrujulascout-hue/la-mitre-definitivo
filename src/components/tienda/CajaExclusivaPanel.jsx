@@ -49,7 +49,7 @@ export default function CajaExclusivaPanel() {
 
   // Ingresos por señas de pre-encargos no entregados (productos con caja exclusiva)
   const ingresosSeñas = preEncargos
-    .filter(e => ['Pendiente', 'Confirmado'].includes(e.estado) && (e.monto_pagado || 0) > 0)
+    .filter(e => ['Pendiente', 'Confirmado', 'Pedido a proveedor'].includes(e.estado) && (e.monto_pagado || 0) > 0)
     .filter(e => productosCajaExclusiva.has(e.producto_id))
     .reduce((s, e) => s + (e.monto_pagado || 0), 0);
 
@@ -71,7 +71,7 @@ export default function CajaExclusivaPanel() {
         .filter(v => v.destino === 'Caja exclusiva')
         .map(v => ({ fecha: v.fecha, tipo: 'Ingreso', concepto: `Venta — ${v.producto_nombre}`, monto: v.monto_total })),
       ...preEncargos
-        .filter(e => ['Pendiente', 'Confirmado'].includes(e.estado) && (e.monto_pagado || 0) > 0 && productosCajaExclusiva.has(e.producto_id))
+        .filter(e => ['Pendiente', 'Confirmado', 'Pedido a proveedor'].includes(e.estado) && (e.monto_pagado || 0) > 0 && productosCajaExclusiva.has(e.producto_id))
         .map(e => ({ fecha: e.fecha_pago || e.fecha, tipo: 'Ingreso', concepto: `Seña — ${e.producto_nombre}`, monto: e.monto_pagado })),
       ...movsManuales
         .filter(m => m.tipo === 'Egreso')
