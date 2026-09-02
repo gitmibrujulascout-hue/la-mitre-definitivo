@@ -19,20 +19,25 @@ const TIPOS = [
   { value: 'cantidad_precio', label: 'Cant × $', desc: 'Cantidad × precio unitario' },
 ];
 
-const DIVISION = [
+const CALCULAR_SOBRE = [
+  { value: 'total', label: 'Todos', desc: 'Ben. + adultos' },
+  { value: 'beneficiarios', label: 'Sólo ben.', desc: 'Sólo beneficiarios' },
+];
+
+const QUIEN_PAGA = [
   { value: 'todos', label: 'Todos', desc: 'Ben. + adultos' },
   { value: 'beneficiarios', label: 'Sólo ben.', desc: 'Sólo beneficiarios' },
 ];
 
 const DEFAULT_ITEMS = [
-  { id: 'comida', label: 'Comida', icon: Utensils, tipoDefault: 'por_persona_dia', dividirDefault: 'todos' },
-  { id: 'transporte', label: 'Transporte', icon: Bus, tipoDefault: 'fijo', dividirDefault: 'todos' },
-  { id: 'flete', label: 'Flete / Traslado', icon: Truck, tipoDefault: 'fijo', dividirDefault: 'todos' },
-  { id: 'alojamiento', label: 'Alojamiento / Lugar', icon: MapPin, tipoDefault: 'fijo', dividirDefault: 'todos' },
-  { id: 'materiales', label: 'Materiales', icon: Package, tipoDefault: 'fijo', dividirDefault: 'beneficiarios' },
-  { id: 'medicamentos', label: 'Medicamentos', icon: Pill, tipoDefault: 'fijo', dividirDefault: 'beneficiarios' },
-  { id: 'extras', label: 'Extras', icon: Plus, tipoDefault: 'fijo', dividirDefault: 'todos' },
-  { id: 'imprevistos', label: 'Reserva imprevistos', icon: AlertTriangle, tipoDefault: 'fijo', dividirDefault: 'todos' },
+  { id: 'comida', label: 'Comida', icon: Utensils, tipoDefault: 'por_persona_dia', calcularSobreDefault: 'total', quienPagaDefault: 'beneficiarios' },
+  { id: 'transporte', label: 'Transporte', icon: Bus, tipoDefault: 'fijo', calcularSobreDefault: 'total', quienPagaDefault: 'beneficiarios' },
+  { id: 'flete', label: 'Flete / Traslado', icon: Truck, tipoDefault: 'fijo', calcularSobreDefault: 'total', quienPagaDefault: 'beneficiarios' },
+  { id: 'alojamiento', label: 'Alojamiento / Lugar', icon: MapPin, tipoDefault: 'fijo', calcularSobreDefault: 'total', quienPagaDefault: 'beneficiarios' },
+  { id: 'materiales', label: 'Materiales', icon: Package, tipoDefault: 'fijo', calcularSobreDefault: 'beneficiarios', quienPagaDefault: 'beneficiarios' },
+  { id: 'medicamentos', label: 'Medicamentos', icon: Pill, tipoDefault: 'fijo', calcularSobreDefault: 'beneficiarios', quienPagaDefault: 'beneficiarios' },
+  { id: 'extras', label: 'Extras', icon: Plus, tipoDefault: 'fijo', calcularSobreDefault: 'total', quienPagaDefault: 'beneficiarios' },
+  { id: 'imprevistos', label: 'Reserva imprevistos', icon: AlertTriangle, tipoDefault: 'fijo', calcularSobreDefault: 'total', quienPagaDefault: 'beneficiarios' },
 ];
 
 // Detect format: new (items values are objects) vs old (items values are numbers)
@@ -42,46 +47,66 @@ function isNewFormat(items) {
   return vals.length > 0 && typeof vals[0] === 'object';
 }
 
-// Migrate old format → new format
+// Migrate old format → new format (calcular_sobre + quien_paga)
 function migratePresupuesto(saved, camp) {
   const result = {
     cantidad_beneficiarios: saved.cantidad_beneficiarios ?? (camp?.beneficiarios_ids?.length ?? 0),
     cantidad_adultos: saved.cantidad_adultos ?? (camp?.adultos_ids?.length ?? 0),
     dias_manual: saved.dias_manual ?? null,
-    adultos_pagan_override: saved.adultos_pagan_override ?? null,
     items: {},
   };
+
+  const adultosPagan = saved.adultos_pagan_override ?? camp?.adultos_pagan ?? false;
 
   // Already new format → use directly, fill defaults for missing items
   if (isNewFormat(saved.items)) {
     for (const def of DEFAULT_ITEMS) {
       const existing = saved.items[def.id];
+      // Migrate old dividir_entre → calcular_sobre + quien_paga
+      let calcularSobre, quienPaga;
+      if (existing?.calcular_sobre) {
+        calcularSobre = existing.calcular_sobre;
+      } else if (existing?.dividir_entre) {
+        calcularSobre = existing.dividir_entre === 'todos' ? 'total' : 'beneficiarios';
+      } else {
+        calcularSobre = def.calcularSobreDefault;
+      }
+      if (existing?.quien_paga) {
+        quienPaga = existing.quien_paga;
+      } else if (existing?.dividir_entre) {
+        quienPaga = existing.dividir_entre === 'todos' ? (adultosPagan ? 'todos' : 'beneficiarios') : 'beneficiarios';
+      } else {
+        quienPaga = def.quienPagaDefault;
+      }
       result.items[def.id] = {
         tipo: existing?.tipo || def.tipoDefault,
         monto: existing?.monto ?? '',
         cantidad: existing?.cantidad ?? '',
         precio_unitario: existing?.precio_unitario ?? '',
-        dividir_entre: existing?.dividir_entre || def.dividirDefault,
+        calcular_sobre: calcularSobre,
+        quien_paga: quienPaga,
       };
     }
     return result;
   }
 
-  // Old format migration
+  // Old format migration (items values are numbers, splits is a separate object)
   const oldItems = saved.items || {};
   const oldSplits = saved.splits || {};
   const oldComida = saved.comida_por_persona_dia;
 
   for (const def of DEFAULT_ITEMS) {
     const oldSplit = oldSplits[def.id];
-    const dividir = oldSplit != null ? (oldSplit ? 'todos' : 'beneficiarios') : def.dividirDefault;
+    const dividir = oldSplit != null ? (oldSplit ? 'todos' : 'beneficiarios') : 'total';
+    const calcularSobre = dividir === 'todos' ? 'total' : 'beneficiarios';
+    const quienPaga = dividir === 'todos' ? (adultosPagan ? 'todos' : 'beneficiarios') : 'beneficiarios';
 
     if (def.id === 'comida' && oldComida) {
-      result.items[def.id] = { tipo: 'por_persona_dia', monto: oldComida, dividir_entre: dividir };
+      result.items[def.id] = { tipo: 'por_persona_dia', monto: oldComida, calcular_sobre: calcularSobre, quien_paga: quienPaga };
     } else if (oldItems[def.id] != null && oldItems[def.id] !== '') {
-      result.items[def.id] = { tipo: 'fijo', monto: String(oldItems[def.id]), dividir_entre: dividir };
+      result.items[def.id] = { tipo: 'fijo', monto: String(oldItems[def.id]), calcular_sobre: calcularSobre, quien_paga: quienPaga };
     } else {
-      result.items[def.id] = { tipo: def.tipoDefault, monto: '', dividir_entre: def.dividirDefault };
+      result.items[def.id] = { tipo: def.tipoDefault, monto: '', calcular_sobre: def.calcularSobreDefault, quien_paga: def.quienPagaDefault };
     }
   }
 
@@ -108,8 +133,6 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
   const cantAdultos = parseInt(estado.cantidad_adultos) || 0;
   const totalPersonas = cantBen + cantAdultos;
 
-  const adultosPagan = estado.adultos_pagan_override ?? campamento?.adultos_pagan ?? false;
-
   const diasAuto = useMemo(() => {
     if (!campamento?.fecha_inicio || !campamento?.fecha_fin) return 0;
     const ini = new Date(campamento.fecha_inicio + 'T12:00:00');
@@ -123,10 +146,10 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
   const itemCalculations = useMemo(() => {
     const result = {};
     for (const def of DEFAULT_ITEMS) {
-      const item = estado.items[def.id] || { tipo: def.tipoDefault, monto: '', dividir_entre: def.dividirDefault };
+      const item = estado.items[def.id] || { tipo: def.tipoDefault, monto: '', calcular_sobre: def.calcularSobreDefault, quien_paga: def.quienPagaDefault };
       const tipo = item.tipo || 'fijo';
-      const dividir = item.dividir_entre || 'todos';
-      const personasDivisor = dividir === 'todos' ? totalPersonas : cantBen;
+      const calcularSobre = item.calcular_sobre || def.calcularSobreDefault || 'total';
+      const personasDivisor = calcularSobre === 'total' ? totalPersonas : cantBen;
 
       let total = 0;
       let detalle = '';
@@ -149,58 +172,64 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
         if (cant && precio) detalle = `${cant} × ${formatMoney(precio)}`;
       }
 
-      result[def.id] = { total, detalle, tipo, dividir, personasDivisor };
+      result[def.id] = { total, detalle, tipo, calcularSobre: personasDivisor === totalPersonas ? 'total' : 'beneficiarios', personasDivisor };
     }
     return result;
   }, [estado, totalPersonas, cantBen, dias]);
 
   const costoTotalEstimado = Object.values(itemCalculations).reduce((s, c) => s + c.total, 0);
 
-  // Breakdown: split items into "todos" and "sólo beneficiarios" groups
+  // Breakdown: group items by who pays
   const breakdown = useMemo(() => {
-    let gastosTodos = 0;        // items divididos entre todos
-    let gastosSoloBen = 0;       // items divididos sólo entre beneficiarios
+    let paganSoloBen = 0;   // items que sólo pagan beneficiarios
+    let paganTodos = 0;     // items que pagan todos (ben + adultos)
+    let subsidiable = 0;    // de los items solo-ben, la porción calculada sobre total (ben absorbe adultos)
 
     for (const def of DEFAULT_ITEMS) {
       const calc = itemCalculations[def.id];
-      if (calc.dividir === 'todos') gastosTodos += calc.total;
-      else gastosSoloBen += calc.total;
+      const itemState = estado.items[def.id] || {};
+      const quienPaga = itemState.quien_paga || def.quienPagaDefault || 'beneficiarios';
+      const calcularSobre = itemState.calcular_sobre || def.calcularSobreDefault || 'total';
+
+      if (quienPaga === 'todos') {
+        paganTodos += calc.total;
+      } else {
+        paganSoloBen += calc.total;
+        if (calcularSobre === 'total' && cantAdultos > 0) {
+          subsidiable += calc.total;
+        }
+      }
     }
 
-    const divisorTodos = adultosPagan ? totalPersonas : cantBen;
+    // Costo por beneficiario: items solo-ben ÷ cantBen + items todos ÷ totalPersonas
+    const costoBen_SoloBen = cantBen > 0 ? paganSoloBen / cantBen : 0;
+    const costoBen_Todos = totalPersonas > 0 ? paganTodos / totalPersonas : 0;
+    const costoPorBeneficiario = costoBen_SoloBen + costoBen_Todos;
 
-    // Cost per beneficiary
-    // - "todos" items: if adults pay → divided by total_personas; if not → ben covers all
-    // - "sólo ben" items: always divided by beneficiarios
-    const costoBen_Todos = divisorTodos > 0 ? gastosTodos / divisorTodos : 0;
-    const costoBen_SoloBen = cantBen > 0 ? gastosSoloBen / cantBen : 0;
-    const costoPorBeneficiario = costoBen_Todos + costoBen_SoloBen;
+    // Costo por adulto: sólo items que pagan todos ÷ totalPersonas
+    const costoPorAdulto = totalPersonas > 0 ? paganTodos / totalPersonas : 0;
 
-    // Cost per adult (only if adults pay)
-    const costoPorAdulto = adultosPagan ? (divisorTodos > 0 ? gastosTodos / divisorTodos : 0) : 0;
-
-    // How much beneficiaries are subsidizing for adults (when adults don't pay)
-    const subsidioAdultos = !adultosPagan && cantBen > 0 && cantAdultos > 0
-      ? (gastosTodos / cantBen) - (totalPersonas > 0 ? gastosTodos / totalPersonas : 0)
+    // Subsidio: extra que paga cada ben. por costos sobre total que sólo ellos cubren
+    const subsidioAdultos = cantBen > 0 && totalPersonas > 0
+      ? subsidiable / cantBen - subsidiable / totalPersonas
       : 0;
 
     return {
-      gastosTodos,
-      gastosSoloBen,
-      divisorTodos,
-      costoBen_Todos,
+      paganSoloBen,
+      paganTodos,
       costoBen_SoloBen,
+      costoBen_Todos,
       costoPorBeneficiario,
       costoPorAdulto,
       subsidioAdultos,
     };
-  }, [itemCalculations, totalPersonas, cantBen, cantAdultos, adultosPagan]);
+  }, [itemCalculations, estado, totalPersonas, cantBen, cantAdultos]);
 
   // Ingresos
   const costoBenCamp = campamento?.costo_por_persona || 0;
   const costoAdultoCamp = campamento?.costo_adultos || costoBenCamp;
   const ingresoBeneficiarios = cantBen * costoBenCamp;
-  const ingresoAdultos = adultosPagan ? cantAdultos * costoAdultoCamp : 0;
+  const ingresoAdultos = (campamento?.adultos_pagan ? cantAdultos : 0) * costoAdultoCamp;
   const ingresoTotal = ingresoBeneficiarios + ingresoAdultos;
   const resultado = ingresoTotal - costoTotalEstimado;
 
@@ -219,7 +248,6 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
       cantidad_beneficiarios: estado.cantidad_beneficiarios,
       cantidad_adultos: estado.cantidad_adultos,
       dias_manual: estado.dias_manual,
-      adultos_pagan_override: estado.adultos_pagan_override,
       items: estado.items,
     });
   };
@@ -238,7 +266,6 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
       cantidad_beneficiarios: ninosCamp,
       cantidad_adultos: adultosCamp,
       dias_manual: null,
-      adultos_pagan_override: null,
     }));
     setDirty(true);
     toast.info(`Sincronizado: ${ninosCamp} ben. + ${adultosCamp} adultos`);
@@ -252,20 +279,24 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
   const handlePrint = () => {
     const rowsHtml = rows.map(r => {
       const calc = r.calc;
+      const itemState = estado.items[r.id] || {};
+      const calcularSobre = itemState.calcular_sobre || r.calcularSobreDefault || 'total';
+      const quienPaga = itemState.quien_paga || r.quienPagaDefault || 'beneficiarios';
       const detalleStr = calc.detalle ? `<br><span style="font-size:10px;color:#888">${calc.detalle}</span>` : '';
       const tipoStr = TIPOS.find(t => t.value === calc.tipo)?.label || '';
-      const divStr = calc.dividir === 'todos' ? 'Todos' : 'Sólo ben.';
-      return `<tr><td>${r.label}${detalleStr}</td><td style="text-align:center;font-size:10px">${tipoStr} / ${divStr}</td><td style="text-align:right">${formatMoney(calc.total)}</td></tr>`;
+      const sobreStr = calcularSobre === 'total' ? 'Todos' : 'Sólo ben.';
+      const paganStr = quienPaga === 'todos' ? 'Todos' : 'Sólo ben.';
+      return `<tr><td>${r.label}${detalleStr}</td><td style="text-align:center;font-size:10px">${tipoStr}</td><td style="text-align:center;font-size:10px">${sobreStr}</td><td style="text-align:center;font-size:10px">${paganStr}</td><td style="text-align:right">${formatMoney(calc.total)}</td></tr>`;
     }).join('');
 
     const bk = breakdown;
     const desgloseHtml = `
       <table style="margin-top:12px">
-        <tr><td>Gastos compartidos (todos)</td><td style="text-align:right">${formatMoney(bk.gastosTodos)}</td><td style="text-align:center;font-size:10px;color:#666">÷ ${bk.divisorTodos} = ${formatMoney(bk.costoBen_Todos)}/pers</td></tr>
-        <tr><td>Gastos sólo beneficiarios</td><td style="text-align:right">${formatMoney(bk.gastosSoloBen)}</td><td style="text-align:center;font-size:10px;color:#666">÷ ${cantBen} = ${formatMoney(bk.costoBen_SoloBen)}/ben</td></tr>
-        ${!adultosPagan && bk.subsidioAdultos > 0 ? `<tr style="color:#b45309"><td>Subsidio adultos (ben. absorben)</td><td style="text-align:right">+${formatMoney(bk.subsidioAdultos)}/ben</td><td></td></tr>` : ''}
+        <tr><td>Lo pagan sólo beneficiarios</td><td style="text-align:right">${formatMoney(bk.paganSoloBen)}</td><td style="text-align:center;font-size:10px;color:#666">÷ ${cantBen} = ${formatMoney(bk.costoBen_SoloBen)}/ben</td></tr>
+        <tr><td>Lo pagan todos</td><td style="text-align:right">${formatMoney(bk.paganTodos)}</td><td style="text-align:center;font-size:10px;color:#666">÷ ${totalPersonas} = ${formatMoney(bk.costoBen_Todos)}/pers</td></tr>
+        ${bk.subsidioAdultos > 0 ? `<tr style="color:#b45309"><td>Subsidio adultos (ben. absorben)</td><td style="text-align:right">+${formatMoney(bk.subsidioAdultos)}/ben</td><td></td></tr>` : ''}
         <tr class="total"><td>Costo por beneficiario</td><td colspan="2" style="text-align:right">${formatMoney(bk.costoPorBeneficiario)}</td></tr>
-        ${adultosPagan ? `<tr><td>Costo por adulto</td><td colspan="2" style="text-align:right">${formatMoney(bk.costoPorAdulto)}</td></tr>` : '<tr style="color:#999"><td>Adultos no pagan</td><td colspan="2" style="text-align:right">$0</td></tr>'}
+        <tr><td>Costo por adulto</td><td colspan="2" style="text-align:right">${bk.costoPorAdulto > 0 ? formatMoney(bk.costoPorAdulto) : '$0'}</td></tr>
       </table>`;
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Presupuesto ${campamento?.nombre}</title>
@@ -280,10 +311,10 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
       .resultado{margin-top:16px;padding:10px;border-radius:6px;font-size:14px;font-weight:bold;text-align:center}
     </style></head><body>
     <h1>Presupuesto — ${campamento?.nombre}</h1>
-    <div class="meta">${campamento?.ubicacion ? `📍 ${campamento.ubicacion} · ` : ''}${dias} días · ${totalPersonas} personas (${cantBen} ben. + ${cantAdultos} adult.)${adultosPagan ? ' · Adultos pagan' : ' · Adultos no pagan'}</div>
-    <table><thead><tr><th>Categoría</th><th style="text-align:center">Tipo / Div.</th><th style="text-align:right">Total</th></tr></thead>
+    <div class="meta">${campamento?.ubicacion ? `📍 ${campamento.ubicacion} · ` : ''}${dias} días · ${totalPersonas} personas (${cantBen} ben. + ${cantAdultos} adult.)</div>
+    <table><thead><tr><th>Categoría</th><th style="text-align:center">Tipo</th><th style="text-align:center">Costo sobre</th><th style="text-align:center">Lo pagan</th><th style="text-align:right">Total</th></tr></thead>
     <tbody>${rowsHtml}</tbody>
-    <tfoot><tr class="total"><td colspan="2">Costo total estimado</td><td style="text-align:right">${formatMoney(costoTotalEstimado)}</td></tr></tfoot></table>
+    <tfoot><tr class="total"><td colspan="4">Costo total estimado</td><td style="text-align:right">${formatMoney(costoTotalEstimado)}</td></tr></tfoot></table>
     ${desgloseHtml}
     <div class="resultado" style="background:${resultado >= 0 ? '#dcfce7' : '#fee2e2'};color:${resultado >= 0 ? '#16a34a' : '#dc2626'}">${resultado >= 0 ? 'SUPERÁVIT' : 'DÉFICIT'}: ${formatMoney(Math.abs(resultado))} (Ingresos ${formatMoney(ingresoTotal)} − Gastos ${formatMoney(costoTotalEstimado)})</div>
     </body></html>`;
@@ -319,7 +350,7 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
                 Sync desde campamento ({ninosCamp}+{adultosCamp})
               </Button>
             </div>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <div>
                 <Label className="text-xs">Beneficiarios</Label>
                 <Input type="number" value={estado.cantidad_beneficiarios} onChange={e => updateField('cantidad_beneficiarios', e.target.value)} className="h-8" />
@@ -332,19 +363,8 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
                 <Label className="text-xs">Días {estado.dias_manual == null && `(auto: ${diasAuto})`}</Label>
                 <Input type="number" value={estado.dias_manual ?? ''} onChange={e => updateField('dias_manual', e.target.value)} placeholder={String(diasAuto)} className="h-8" />
               </div>
-              <div className="flex items-end">
-                <label className="flex items-center gap-1.5 text-xs cursor-pointer pb-1.5">
-                  <input
-                    type="checkbox"
-                    checked={adultosPagan}
-                    onChange={e => updateField('adultos_pagan_override', e.target.checked)}
-                    className="rounded"
-                  />
-                  Adultos pagan
-                </label>
-              </div>
             </div>
-            <div className="grid grid-cols-4 gap-2 text-center text-xs">
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
               <div className="bg-white/60 rounded px-2 py-1">
                 <span className="text-muted-foreground">Total pers: </span>
                 <span className="font-bold">{totalPersonas}</span>
@@ -354,12 +374,8 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
                 <span className="font-bold">{dias}</span>
               </div>
               <div className="bg-white/60 rounded px-2 py-1">
-                <span className="text-muted-foreground">$/ben: </span>
+                <span className="text-muted-foreground">Ingreso ben: </span>
                 <span className="font-bold">{formatMoney(costoBenCamp)}</span>
-              </div>
-              <div className="bg-white/60 rounded px-2 py-1">
-                <span className="text-muted-foreground">$/adulto: </span>
-                <span className="font-bold">{formatMoney(costoAdultoCamp)}</span>
               </div>
             </div>
           </div>
@@ -369,13 +385,19 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rubros del presupuesto</p>
             {rows.map(item => {
               const calc = item.calc;
+              const itemState = estado.items[item.id] || {};
+              const calcularSobre = itemState.calcular_sobre || item.calcularSobreDefault || 'total';
+              const quienPaga = itemState.quien_paga || item.quienPagaDefault || 'beneficiarios';
               return (
                 <div key={item.id} className="rounded-lg border p-2.5 space-y-1.5">
                   <div className="flex items-center gap-2">
                     <item.icon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                     <span className="text-sm font-medium flex-1">{item.label}</span>
-                    <Badge2 className={cn('text-[10px]', calc.dividir === 'todos' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700')}>
-                      {calc.dividir === 'todos' ? `${totalPersonas} pers` : `${cantBen} ben`}
+                    <Badge2 className={cn('text-[10px]', calcularSobre === 'total' ? 'bg-slate-100 text-slate-600' : 'bg-blue-100 text-blue-700')}>
+                      {calcularSobre === 'total' ? `${totalPersonas} pers` : `${cantBen} ben`}
+                    </Badge2>
+                    <Badge2 className={cn('text-[10px]', quienPaga === 'todos' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700')}>
+                      {quienPaga === 'todos' ? 'Pagan todos' : 'Pagan ben.'}
                     </Badge2>
                     <span className="text-sm font-bold tabular-nums w-20 text-right">{formatMoney(calc.total)}</span>
                   </div>
@@ -390,43 +412,49 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
                       </Select>
                     </div>
                     <div className="col-span-3">
-                      <Label className="text-[10px] text-muted-foreground">Dividir entre</Label>
-                      <Select value={calc.dividir} onValueChange={v => updateItem(item.id, 'dividir_entre', v)}>
+                      <Label className="text-[10px] text-muted-foreground">Costo sobre</Label>
+                      <Select value={calcularSobre} onValueChange={v => updateItem(item.id, 'calcular_sobre', v)}>
                         <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {DIVISION.map(d => <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>)}
+                          {CALCULAR_SOBRE.map(d => <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-3">
+                      <Label className="text-[10px] text-muted-foreground">Lo pagan</Label>
+                      <Select value={quienPaga} onValueChange={v => updateItem(item.id, 'quien_paga', v)}>
+                        <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {QUIEN_PAGA.map(d => <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                     {calc.tipo === 'fijo' && (
-                      <div className="col-span-6">
+                      <div className="col-span-3">
                         <Label className="text-[10px] text-muted-foreground">Monto total</Label>
                         <Input type="number" value={estado.items[item.id]?.monto ?? ''} onChange={e => updateItem(item.id, 'monto', e.target.value)} placeholder="0" className="h-7 text-xs" />
                       </div>
                     )}
                     {calc.tipo === 'por_persona_dia' && (
-                      <div className="col-span-6">
+                      <div className="col-span-3">
                         <Label className="text-[10px] text-muted-foreground">$/pers/día</Label>
                         <Input type="number" value={estado.items[item.id]?.monto ?? ''} onChange={e => updateItem(item.id, 'monto', e.target.value)} placeholder="0" className="h-7 text-xs" />
                       </div>
                     )}
                     {calc.tipo === 'por_persona' && (
-                      <div className="col-span-6">
+                      <div className="col-span-3">
                         <Label className="text-[10px] text-muted-foreground">$/persona</Label>
                         <Input type="number" value={estado.items[item.id]?.monto ?? ''} onChange={e => updateItem(item.id, 'monto', e.target.value)} placeholder="0" className="h-7 text-xs" />
                       </div>
                     )}
                     {calc.tipo === 'cantidad_precio' && (
-                      <>
-                        <div className="col-span-3">
-                          <Label className="text-[10px] text-muted-foreground">Cantidad</Label>
+                      <div className="col-span-3">
+                        <Label className="text-[10px] text-muted-foreground">Cant × precio</Label>
+                        <div className="flex gap-1">
                           <Input type="number" value={estado.items[item.id]?.cantidad ?? ''} onChange={e => updateItem(item.id, 'cantidad', e.target.value)} placeholder="0" className="h-7 text-xs" />
-                        </div>
-                        <div className="col-span-3">
-                          <Label className="text-[10px] text-muted-foreground">Precio unit.</Label>
                           <Input type="number" value={estado.items[item.id]?.precio_unitario ?? ''} onChange={e => updateItem(item.id, 'precio_unitario', e.target.value)} placeholder="0" className="h-7 text-xs" />
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
                   {calc.detalle && (
@@ -443,38 +471,38 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
               <Coins className="w-3.5 h-3.5" /> Desglose de costos
             </p>
 
-            {/* Gastos compartidos */}
+            {/* Lo pagan sólo beneficiarios */}
+            <div className="rounded-lg border p-2.5 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm flex items-center gap-1.5">
+                  <Coins className="w-3.5 h-3.5 text-amber-500" />
+                  Lo pagan sólo beneficiarios
+                </span>
+                <span className="text-sm font-bold">{formatMoney(breakdown.paganSoloBen)}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground pl-5">
+                ÷ {cantBen} beneficiarios
+                {' = '}<span className="font-medium text-amber-700">{formatMoney(breakdown.costoBen_SoloBen)}</span>/ben
+              </p>
+            </div>
+
+            {/* Lo pagan todos */}
             <div className="rounded-lg border p-2.5 space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-sm flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5 text-purple-500" />
-                  Gastos compartidos (todos)
+                  Lo pagan todos (ben. + adultos)
                 </span>
-                <span className="text-sm font-bold">{formatMoney(breakdown.gastosTodos)}</span>
+                <span className="text-sm font-bold">{formatMoney(breakdown.paganTodos)}</span>
               </div>
               <p className="text-[11px] text-muted-foreground pl-5">
-                ÷ {breakdown.divisorTodos} {adultosPagan ? 'personas' : 'beneficiarios (adultos no pagan)'}
+                ÷ {totalPersonas} personas
                 {' = '}<span className="font-medium text-purple-700">{formatMoney(breakdown.costoBen_Todos)}</span>/pers
               </p>
             </div>
 
-            {/* Gastos sólo beneficiarios */}
-            <div className="rounded-lg border p-2.5 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-sm flex items-center gap-1.5">
-                  <Coins className="w-3.5 h-3.5 text-blue-500" />
-                  Gastos sólo beneficiarios
-                </span>
-                <span className="text-sm font-bold">{formatMoney(breakdown.gastosSoloBen)}</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground pl-5">
-                ÷ {cantBen} beneficiarios
-                {' = '}<span className="font-medium text-blue-700">{formatMoney(breakdown.costoBen_SoloBen)}</span>/ben
-              </p>
-            </div>
-
             {/* Subsidio adultos */}
-            {!adultosPagan && breakdown.subsidioAdultos > 0 && (
+            {breakdown.subsidioAdultos > 0 && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-amber-800 flex items-center gap-1.5">
@@ -484,7 +512,7 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
                   <span className="text-sm font-bold text-amber-700">+{formatMoney(breakdown.subsidioAdultos)}/ben</span>
                 </div>
                 <p className="text-[11px] text-amber-600 pl-5">
-                  Cada beneficiario absorbe la parte de los adultos que no pagan
+                  Costos calculados sobre el total de gente que sólo pagan beneficiarios
                 </p>
               </div>
             )}
@@ -497,11 +525,11 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
                 <p className="text-lg font-bold text-blue-700">{formatMoney(breakdown.costoPorBeneficiario)}</p>
                 <p className="text-[10px] text-muted-foreground">{cantBen} × {formatMoney(breakdown.costoPorBeneficiario)} = {formatMoney(breakdown.costoPorBeneficiario * cantBen)}</p>
               </div>
-              <div className={cn('rounded-lg border p-3 text-center', adultosPagan ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-200')}>
-                <Users className={cn('w-4 h-4 mx-auto mb-1', adultosPagan ? 'text-purple-600' : 'text-slate-400')} />
+              <div className={cn('rounded-lg border p-3 text-center', breakdown.costoPorAdulto > 0 ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-200')}>
+                <Users className={cn('w-4 h-4 mx-auto mb-1', breakdown.costoPorAdulto > 0 ? 'text-purple-600' : 'text-slate-400')} />
                 <p className="text-xs text-muted-foreground">Costo por adulto</p>
-                <p className={cn('text-lg font-bold', adultosPagan ? 'text-purple-700' : 'text-slate-400')}>{adultosPagan ? formatMoney(breakdown.costoPorAdulto) : 'No pagan'}</p>
-                {adultosPagan && <p className="text-[10px] text-muted-foreground">{cantAdultos} × {formatMoney(breakdown.costoPorAdulto)} = {formatMoney(breakdown.costoPorAdulto * cantAdultos)}</p>}
+                <p className={cn('text-lg font-bold', breakdown.costoPorAdulto > 0 ? 'text-purple-700' : 'text-slate-400')}>{breakdown.costoPorAdulto > 0 ? formatMoney(breakdown.costoPorAdulto) : '$0'}</p>
+                {breakdown.costoPorAdulto > 0 && <p className="text-[10px] text-muted-foreground">{cantAdultos} × {formatMoney(breakdown.costoPorAdulto)} = {formatMoney(breakdown.costoPorAdulto * cantAdultos)}</p>}
               </div>
             </div>
           </div>
