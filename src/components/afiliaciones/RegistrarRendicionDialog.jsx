@@ -63,9 +63,9 @@ export default function RegistrarRendicionDialog({ open, onClose, anio, totalExi
         comprobante,
         archivo_url,
       });
-      // Egreso de BANCO: el depósito a Scout Argentina se hace por transferencia bancaria
+      // Egreso de caja: el efectivo recaudado de las familias + diferencia de caja común se deposita a SA
       await base44.entities.MovimientoBanco.create({
-        fecha: fechaDeposito, tipo: 'Egreso', cuenta: 'Banco', origen: 'Afiliación',
+        fecha: fechaDeposito, tipo: 'Egreso', cuenta: 'Caja', origen: 'Afiliación',
         concepto: `Depósito Scout Argentina — afiliaciones ${anio}`,
         monto: depositadoNum, referencia_id: rendicion.id,
       });
