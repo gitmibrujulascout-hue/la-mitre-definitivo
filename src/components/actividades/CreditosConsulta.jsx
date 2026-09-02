@@ -5,13 +5,13 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Wallet, ChevronRight, ChevronDown, CreditCard, Tent, ShoppingCart, ArrowRightLeft, FileDown } from 'lucide-react';
+import { Wallet, ChevronRight, ChevronDown, CreditCard, Tent, ShoppingCart, ArrowRightLeft, FileDown, ShieldCheck } from 'lucide-react';
 import { TODOS_LOS_ROLES, formatMoney, compararPorRamaYApellido } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { jsPDF } from 'jspdf';
 
-const USAGE_ICON = { 'Cuota': CreditCard, 'Campamento': Tent, 'Tienda': ShoppingCart, 'Transferencia': ArrowRightLeft };
-const USAGE_COLOR = { 'Cuota': 'text-blue-600', 'Campamento': 'text-purple-600', 'Tienda': 'text-green-600', 'Transferencia': 'text-amber-600' };
+const USAGE_ICON = { 'Cuota': CreditCard, 'Campamento': Tent, 'Tienda': ShoppingCart, 'Transferencia': ArrowRightLeft, 'Afiliación': ShieldCheck };
+const USAGE_COLOR = { 'Cuota': 'text-blue-600', 'Campamento': 'text-purple-600', 'Tienda': 'text-green-600', 'Transferencia': 'text-amber-600', 'Afiliación': 'text-purple-700' };
 
 export default function CreditosConsulta({ beneficiarios }) {
   const [actividadSel, setActividadSel] = useState('todas');
@@ -66,7 +66,30 @@ export default function CreditosConsulta({ beneficiarios }) {
 
   const totalOriginal = creditosFiltrados.reduce((s, c) => s + (c.monto_original || 0), 0);
   const totalDisponible = creditosFiltrados.reduce((s, c) => s + (c.monto_disponible || 0), 0);
-  const totalUsado = totalOriginal - totalDisponible;
+  const totalUsadoLibros = totalOriginal - totalDisponible;
+
+  // Usado real desde Pagos + VentasTienda con crédito (consistente con ReporteCreditos)
+  const usadoRealPorBen = useMemo(() => {
+    const map = {};
+    pagosCredito.forEach(p => {
+      if (!p.beneficiario_id) return;
+      map[p.beneficiario_id] = (map[p.beneficiario_id] || 0) + (p.monto || 0);
+    });
+    ventasTiendaCredito.forEach(v => {
+      if (!v.beneficiario_id) return;
+      map[v.beneficiario_id] = (map[v.beneficiario_id] || 0) + (v.monto_total || 0);
+    });
+    return map;
+  }, [pagosCredito, ventasTiendaCredito]);
+
+  const totalUsadoReal = useMemo(() => {
+    const benIds = new Set(creditosFiltrados.map(c => c.beneficiario_id).filter(Boolean));
+    return Object.entries(usadoRealPorBen)
+      .filter(([id]) => benIds.has(id))
+      .reduce((s, [, v]) => s + v, 0);
+  }, [usadoRealPorBen, creditosFiltrados]);
+
+  const diferenciaReconciliacion = totalUsadoLibros - totalUsadoReal;
 
   // Agrupar créditos por beneficiario (una fila por persona, con totales de todas las actividades)
   const creditosPorBeneficiario = useMemo(() => {
@@ -101,10 +124,12 @@ export default function CreditosConsulta({ beneficiarios }) {
       .filter(p => p.beneficiario_id === credito.beneficiario_id && p.observaciones?.includes(actNombre))
       .forEach(p => {
         usos.push({
-          tipo: p.tipo_pago === 'Cuota' ? 'Cuota' : 'Campamento',
+          tipo: p.tipo_pago === 'Cuota' ? 'Cuota' : p.tipo_pago === 'Afiliación' ? 'Afiliación' : 'Campamento',
           descripcion: p.tipo_pago === 'Cuota'
             ? `Cuota ${p.anio} — ${(p.meses || [p.mes]).filter(Boolean).join(', ')}`
-            : `${p.campamento_nombre || 'Campamento'}`,
+            : p.tipo_pago === 'Afiliación'
+              ? `Afiliación ${p.anio}`
+              : `${p.campamento_nombre || 'Campamento'}`,
           monto: p.monto,
           fecha: p.fecha_pago,
         });
@@ -169,7 +194,7 @@ export default function CreditosConsulta({ beneficiarios }) {
     pdf.roundedRect(margin, y - 4, pageW - 2 * margin, 10, 1, 1, 'F');
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'bold');
-    const totStr = `Acreditado: ${formatMoney(totalOriginal)}    Usado: ${formatMoney(totalUsado)}    Disponible: ${formatMoney(totalDisponible)}`;
+    const totStr = `Acreditado: ${formatMoney(totalOriginal)}    Usado: ${formatMoney(totalUsadoReal)}    Disponible: ${formatMoney(totalDisponible)}`;
     pdf.text(totStr, pageW / 2, y + 2, { align: 'center' });
     y += 12;
 
@@ -267,7 +292,7 @@ export default function CreditosConsulta({ beneficiarios }) {
             </div>
             <div className="text-center">
               <p className="text-xs text-muted-foreground">Usado</p>
-              <p className="font-bold text-orange-600">{formatMoney(totalUsado)}</p>
+              <p className="font-bold text-orange-600">{formatMoney(totalUsadoReal)}</p>
             </div>
             <div className="text-center">
               <p className="text-xs text-muted-foreground">Disponible</p>
@@ -279,6 +304,17 @@ export default function CreditosConsulta({ beneficiarios }) {
           </div>
         </div>
       </Card>
+
+      {Math.abs(diferenciaReconciliacion) > 1 && (
+        <div className="mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800 flex items-start gap-2">
+          <Wallet className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>
+            Diferencia de reconciliación: <strong>{formatMoney(Math.abs(diferenciaReconciliacion))}</strong> entre el saldo de libros
+            ({formatMoney(totalUsadoLibros)}) y los pagos registrados ({formatMoney(totalUsadoReal)}).
+            Esto puede deberse a transferencias antiguas o ajustes manuales en créditos sin pago registrado.
+          </span>
+        </div>
+      )}
 
       {isLoading ? (
         <p className="text-center py-8 text-muted-foreground">Cargando...</p>
@@ -302,7 +338,7 @@ export default function CreditosConsulta({ beneficiarios }) {
               </TableHeader>
               <TableBody>
                 {creditosPorBeneficiario.map(ben => {
-                  const benUsado = ben.totalOriginal - ben.totalDisponible;
+                  const benUsado = usadoRealPorBen[ben.beneficiario_id] || 0;
                   const isExpanded = expanded[ben.key];
                   return (
                     <React.Fragment key={ben.key}>

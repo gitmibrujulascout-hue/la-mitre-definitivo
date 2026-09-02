@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Gift, Download, Filter, Coins, TrendingUp, Calendar, ShieldCheck } from 'lucide-react';
+import { Gift, Download, Filter, Coins, TrendingUp, Calendar, ShieldCheck, ShoppingCart } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
@@ -31,6 +31,11 @@ export default function ReporteCreditos() {
     queryFn: () => base44.entities.Pago.list('-fecha_pago', 2000),
   });
 
+  const { data: ventasTiendaCredito = [] } = useQuery({
+    queryKey: ['ventas-tienda-credito-rep'],
+    queryFn: () => base44.entities.VentaTienda.filter({ forma_pago: 'Crédito actividad' }, '-fecha', 500),
+  });
+
   // Solo pagos imputados con crédito de actividad (ingreso al grupo)
   const creditosUsados = useMemo(() => {
     return pagos
@@ -45,10 +50,25 @@ export default function ReporteCreditos() {
       .sort((a, b) => (b.fecha_pago || '').localeCompare(a.fecha_pago || ''));
   }, [pagos, anio, desde, hasta]);
 
-  const totalUtilizado = creditosUsados.reduce((s, p) => s + (p.monto || 0), 0);
+  // Ventas de tienda pagadas con crédito de actividad
+  const ventasTiendaUsadas = useMemo(() => {
+    return ventasTiendaCredito
+      .filter(v => {
+        const year = v.fecha ? v.fecha.substring(0, 4) : '';
+        if (year !== anio) return false;
+        if (desde && v.fecha < desde) return false;
+        if (hasta && v.fecha > hasta) return false;
+        return true;
+      })
+      .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  }, [ventasTiendaCredito, anio, desde, hasta]);
+
+  const totalUtilizado = creditosUsados.reduce((s, p) => s + (p.monto || 0), 0)
+    + ventasTiendaUsadas.reduce((s, v) => s + (v.monto_total || 0), 0);
   const totalCuota = creditosUsados.filter(p => p.tipo_pago === 'Cuota').reduce((s, p) => s + (p.monto || 0), 0);
   const totalCampamento = creditosUsados.filter(p => p.tipo_pago === 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
   const totalAfiliacion = creditosUsados.filter(p => p.tipo_pago === 'Afiliación').reduce((s, p) => s + (p.monto || 0), 0);
+  const totalTienda = ventasTiendaUsadas.reduce((s, v) => s + (v.monto_total || 0), 0);
 
   // Agrupado por mes de aplicación (fecha_pago)
   const porMes = useMemo(() => {
@@ -82,7 +102,7 @@ export default function ReporteCreditos() {
     : '—';
 
   const exportarExcel = () => {
-    const filas = creditosUsados.map(p => ({
+    const filasPago = creditosUsados.map(p => ({
       'Fecha': p.fecha_pago || '',
       'Beneficiario': p.beneficiario_nombre || '',
       'Tipo': p.tipo_pago || 'Cuota',
@@ -94,6 +114,15 @@ export default function ReporteCreditos() {
       'Origen crédito': extraerOrigen(p.observaciones),
       'Monto': p.monto || 0,
     }));
+    const filasTienda = ventasTiendaUsadas.map(v => ({
+      'Fecha': v.fecha || '',
+      'Beneficiario': v.beneficiario_nombre || v.comprador_nombre || '',
+      'Tipo': 'Tienda',
+      'Concepto': `${v.producto_nombre || ''}${v.cantidad > 1 ? ` (x${v.cantidad})` : ''}`,
+      'Origen crédito': 'Tienda — crédito actividad',
+      'Monto': v.monto_total || 0,
+    }));
+    const filas = [...filasPago, ...filasTienda];
     import('xlsx').then(({ utils, writeFile }) => {
       const wb = utils.book_new();
       const ws = utils.json_to_sheet(filas);
@@ -109,10 +138,10 @@ export default function ReporteCreditos() {
         description="Créditos de actividad imputados a cuotas/campamentos — dinero a trasladar de la caja de créditos al ingreso del grupo"
       >
         <div className="flex gap-2 items-center">
-          <Button variant="outline" onClick={() => window.print()} disabled={creditosUsados.length === 0}>
+          <Button variant="outline" onClick={() => window.print()} disabled={creditosUsados.length === 0 && ventasTiendaUsadas.length === 0}>
             <Download className="w-4 h-4 mr-2" />PDF
           </Button>
-          <Button onClick={exportarExcel} disabled={creditosUsados.length === 0}>
+          <Button onClick={exportarExcel} disabled={creditosUsados.length === 0 && ventasTiendaUsadas.length === 0}>
             <Download className="w-4 h-4 mr-2" />Excel
           </Button>
         </div>
@@ -161,14 +190,14 @@ export default function ReporteCreditos() {
       </Card>
 
       {/* Resumen */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
         <Card className="p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Coins className="w-4 h-4" />
             <span className="text-xs">Total utilizado</span>
           </div>
           <p className="text-2xl font-bold mt-1 text-primary">{formatMoney(totalUtilizado)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{creditosUsados.length} aplicaciones</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{creditosUsados.length + ventasTiendaUsadas.length} aplicaciones</p>
         </Card>
         <Card className="p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -191,6 +220,14 @@ export default function ReporteCreditos() {
           </div>
           <p className="text-2xl font-bold mt-1 text-purple-600">{formatMoney(totalAfiliacion)}</p>
           <p className="text-xs text-muted-foreground mt-0.5">recupera en caja · rinde a SA</p>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <ShoppingCart className="w-4 h-4" />
+            <span className="text-xs">En tienda</span>
+          </div>
+          <p className="text-2xl font-bold mt-1 text-green-700">{formatMoney(totalTienda)}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{ventasTiendaUsadas.length} ventas</p>
         </Card>
       </div>
 
@@ -246,7 +283,7 @@ export default function ReporteCreditos() {
         <h3 className="font-semibold text-sm p-4 pb-2">Detalle de aplicaciones</h3>
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">Cargando…</p>
-        ) : creditosUsados.length === 0 ? (
+        ) : creditosUsados.length === 0 && ventasTiendaUsadas.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
             <Gift className="w-10 h-10 mx-auto mb-2 opacity-30" />
             <p className="text-sm">No hay créditos utilizados en {anio}{desde || hasta ? ' para el rango seleccionado' : ''}.</p>
@@ -284,6 +321,25 @@ export default function ReporteCreditos() {
                       </span>
                     </td>
                     <td className="px-4 py-2 text-right font-semibold text-amber-700">{formatMoney(p.monto)}</td>
+                  </tr>
+                ))}
+                {ventasTiendaUsadas.map(v => (
+                  <tr key={`vt-${v.id}`} className="border-b last:border-0 hover:bg-muted/20">
+                    <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">{formatFecha(v.fecha)}</td>
+                    <td className="px-4 py-2 font-medium">{v.beneficiario_nombre || v.comprador_nombre || '—'}</td>
+                    <td className="px-4 py-2">
+                      <Badge variant="outline" className="text-xs text-green-700 border-green-300">
+                        <ShoppingCart className="w-3 h-3 mr-1" />
+                        {v.producto_nombre}{v.cantidad > 1 ? ` (x${v.cantidad})` : ''}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-2 text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <ShoppingCart className="w-3 h-3 text-green-600 flex-shrink-0" />
+                        <span className="truncate">Tienda — crédito actividad</span>
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-right font-semibold text-amber-700">{formatMoney(v.monto_total)}</td>
                   </tr>
                 ))}
               </tbody>
