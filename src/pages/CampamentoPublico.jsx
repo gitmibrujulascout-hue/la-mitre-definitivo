@@ -326,13 +326,17 @@ function ModificarParticipantesDialog({ open, onClose, campamento, beneficiarios
     const ramasPart = campamento.ramas_participantes || [];
     return beneficiarios
       .filter(b => b.activo !== false && b.nombre?.toLowerCase().includes(q))
+      .filter(b => {
+        const esAdulto = b.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(b.rama);
+        return tipo === 'beneficiarios' ? !esAdulto : esAdulto;
+      })
       .sort((a, b) => {
         const aInRama = ramasPart.includes(a.rama) ? 0 : 1;
         const bInRama = ramasPart.includes(b.rama) ? 0 : 1;
         if (aInRama !== bInRama) return aInRama - bInRama;
         return a.nombre.localeCompare(b.nombre, 'es');
       });
-  }, [beneficiarios, busqueda, campamento.ramas_participantes]);
+  }, [beneficiarios, busqueda, campamento.ramas_participantes, tipo]);
 
   const mut = useMutation({
     mutationFn: (data) => base44.entities.Campamento.update(campamento.id, data),
