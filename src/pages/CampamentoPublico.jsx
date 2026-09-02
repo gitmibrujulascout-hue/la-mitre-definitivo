@@ -116,6 +116,8 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
     return beneficiarios.filter(b => ids.includes(b.id)).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   }, [campamento, beneficiarios]);
 
+  const confirmadosSet = useMemo(() => new Set(campamento.confirmaciones_ids || []), [campamento]);
+
   const pagadoPor = (id) => pagos.filter(p => p.campamento_id === campamento.id && p.beneficiario_id === id).reduce((s, p) => s + p.monto, 0);
   const costo = (ben) => {
     if (!ben) return campamento.costo_por_persona;
@@ -206,7 +208,7 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
               setMonto(c - p > 0 ? String(c - p) : '');
             }}>
               <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-              <SelectContent>{listaAsistentes.map(b => <SelectItem key={b.id} value={b.id}>{b.nombre}</SelectItem>)}</SelectContent>
+              <SelectContent>{listaAsistentes.map(b => <SelectItem key={b.id} value={b.id}>{b.nombre}{confirmadosSet.has(b.id) ? ' ✓' : ''}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           {benId && (
@@ -487,6 +489,7 @@ export default function CampamentoPublico() {
     if (esAdulto && campamento?.adultos_pagan) return campamento.costo_adultos || campamento.costo_por_persona;
     return campamento?.costo_por_persona;
   };
+  const confirmadosSet = useMemo(() => new Set(campamento?.confirmaciones_ids || []), [campamento]);
 
   const ninosPorRamaFiltrada = useMemo(() => {
     if (!soloPendientes) return ninosPorRama;
@@ -690,6 +693,9 @@ export default function CampamentoPublico() {
                     <div key={b.id} className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-muted/40 text-sm border-b border-border/30 last:border-0">
                       <span className="text-muted-foreground w-5 text-xs">{i + 1}.</span>
                       <span className="flex-1 font-medium">{b.nombre}</span>
+                      {confirmadosSet.has(b.id)
+                        ? <Badge className="bg-green-100 text-green-700 text-xs">✓ Confirmó</Badge>
+                        : <Badge variant="outline" className="text-xs text-muted-foreground">Sin confirmar</Badge>}
                       {campamento.autorizacion_activa && (
                         <DescargarAutorizacionButton campamento={campamento} beneficiario={b} variant="icon" />
                       )}
@@ -728,6 +734,9 @@ export default function CampamentoPublico() {
                   <div key={b.id} className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-muted/40 text-sm border-b border-border/30 last:border-0">
                     <span className="text-muted-foreground w-5 text-xs">{i + 1}.</span>
                     <span className="flex-1 font-medium">{b.nombre}</span>
+                    {confirmadosSet.has(b.id)
+                      ? <Badge className="bg-green-100 text-green-700 text-xs">✓ Confirmó</Badge>
+                      : <Badge variant="outline" className="text-xs text-muted-foreground">Sin confirmar</Badge>}
                     {b.rama_educador && <Badge variant="outline" className="text-xs">{b.rama_educador}</Badge>}
                     <button onClick={() => setFichaBen(b)} className="text-muted-foreground hover:text-primary p-1">
                       <HeartPulse className="w-3.5 h-3.5" />

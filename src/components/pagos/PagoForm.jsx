@@ -162,7 +162,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     [beneficiarios]
   );
 
-  // Para campamentos: solo los asistentes registrados en el campamento seleccionado
+  // Para campamentos: solo asistentes con saldo pendiente (excluye los que ya pagaron completo)
   const beneficiariosParaCampamento = useMemo(() => {
     const selectedCampObj = campamentos.find(c => c.id === campamentoId);
     if (!selectedCampObj) return [];
@@ -172,15 +172,32 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
       ...(selectedCampObj.adultos_ids || []),
     ];
 
+    const costoBen = (ben) => {
+      if (!ben) return selectedCampObj.costo_por_persona;
+      const costoInd = selectedCampObj.costos_individuales?.[ben.id];
+      if (costoInd != null) return costoInd;
+      const esAdulto = ben.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(ben.rama);
+      if (esAdulto && !selectedCampObj.adultos_pagan) return 0;
+      if (esAdulto && selectedCampObj.adultos_pagan) return selectedCampObj.costo_adultos || selectedCampObj.costo_por_persona;
+      return selectedCampObj.costo_por_persona;
+    };
+
     return beneficiarios
       .filter(b => {
         if (!b.activo || !idsAsistentes.includes(b.id)) return false;
-        // Si los adultos no pagan, excluir voluntarios y educadores
         if (!selectedCampObj.adultos_pagan && (b.tipo === 'Voluntario' || ['Voluntario', 'Educador'].includes(b.rama))) return false;
+        // Excluir los que ya pagaron completo
+        const costo = costoBen(b);
+        if (costo > 0) {
+          const pagado = pagosExistentes
+            .filter(p => p.campamento_id === campamentoId && p.beneficiario_id === b.id)
+            .reduce((s, p) => s + (p.monto || 0), 0);
+          if (pagado >= costo - 0.01) return false;
+        }
         return true;
       })
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-  }, [beneficiarios, campamentos, campamentoId]);
+  }, [beneficiarios, campamentos, campamentoId, pagosExistentes]);
 
   const beneficiariosLista = tipoPago === 'Cuota' ? beneficiariosParaCuota : beneficiariosParaCampamento;
   const selectedBen = beneficiarios.find(b => b.id === beneficiarioId);

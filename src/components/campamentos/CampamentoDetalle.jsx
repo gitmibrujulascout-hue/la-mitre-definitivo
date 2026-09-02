@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Pencil, Printer, MapPin, Calendar, Users, AlertTriangle, Calculator, Tag } from 'lucide-react';
+import { ArrowLeft, Pencil, Printer, MapPin, Calendar, Users, AlertTriangle, Calculator, Tag, UserX } from 'lucide-react';
 import RamaBadge from '@/components/shared/RamaBadge';
 import { formatMoney, RAMA_CONFIG, RAMAS } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,7 @@ import BalanceCampamento from './BalanceCampamento';
 import CodigoAccesoPanel from './CodigoAccesoPanel';
 import AsistenciaPanel from './AsistenciaPanel';
 import PresupuestoCampamento from './PresupuestoCampamento';
+import RevisionAsistenciaDialog, { campamentoPasado } from './RevisionAsistenciaDialog';
 import { differenceInYears, parseISO } from 'date-fns';
 
 // Orden canónico de ramas
@@ -18,8 +19,10 @@ const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 
 export default function CampamentoDetalle({ campamento, beneficiarios, pagos, gastos, onBack, onEdit }) {
   const [showPresupuesto, setShowPresupuesto] = useState(false);
+  const [showRevision, setShowRevision] = useState(false);
   const [incluirAdultosRama, setIncluirAdultosRama] = useState(false);
   const getBen = (id) => beneficiarios.find(b => b.id === id);
+  const yaPaso = campamentoPasado(campamento);
 
   const menoresCount = useMemo(() =>
     (campamento.beneficiarios_ids || [])
@@ -220,6 +223,13 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
           <Button variant="outline" onClick={handlePrint}><Printer className="w-4 h-4 mr-2" />Exportar listado</Button>
           <Button onClick={onEdit}><Pencil className="w-4 h-4 mr-2" />Editar</Button>
         </div>
+        {yaPaso && (
+          <div className="w-full mt-2">
+            <Button variant="destructive" onClick={() => setShowRevision(true)} className="w-full sm:w-auto">
+              <UserX className="w-4 h-4 mr-2" />Revisar asistencia (post-campamento)
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Cards resumen */}
@@ -401,6 +411,16 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
           campamento={campamento}
           beneficiarios={beneficiarios}
           gastos={gastos}
+        />
+      )}
+
+      {showRevision && (
+        <RevisionAsistenciaDialog
+          open
+          onClose={() => setShowRevision(false)}
+          campamento={campamento}
+          beneficiarios={beneficiarios}
+          pagos={pagos}
         />
       )}
     </div>
