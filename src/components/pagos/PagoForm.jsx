@@ -27,10 +27,13 @@ async function procesarCreditosMesesBonificados(pagos, beneficiario, pagosExiste
     if (!incluyeMes) continue;
 
     const label = getLabelCreditoMes(mesBon, anioNum);
-    const yaTieneCredito = todosCreditos.some(
-      c => c.beneficiario_id === beneficiario.id && c.observaciones === label
+    // Re-fetch fresh credits from server to avoid duplicates from stale cache
+    const creditosFresh = await base44.entities.CreditoBeneficiario.filter(
+      { beneficiario_id: beneficiario.id, observaciones: label },
+      '-created_date',
+      10
     );
-    if (yaTieneCredito) continue;
+    if (creditosFresh.length > 0) continue;
 
     const mesesDeuda = calcularMesesQueGeneranDeuda(beneficiario, anioNum, afiliaciones);
     const pagosCuotasAnio = [

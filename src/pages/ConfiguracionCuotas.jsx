@@ -168,9 +168,18 @@ export default function ConfiguracionCuotas() {
     mutationFn: async ({ mes }) => {
       const data = creditosData.find(d => d.mes === mes);
       if (!data || data.pendientes.length === 0) throw new Error('No hay beneficiarios pendientes');
+      // Re-fetch fresh credits from server to filter out beneficiaries who already have one
+      const creditosFresh = await base44.entities.CreditoBeneficiario.filter(
+        { observaciones: data.label },
+        '-created_date',
+        500
+      );
+      const yaTienenIdsFresh = new Set(creditosFresh.map(c => c.beneficiario_id));
       const cuotaBase = getCuotaBaseMes(mes, Number(anioFiltro), configCuotas);
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
-      const records = data.pendientes.map(b => ({
+      const pendientesFresh = data.pendientes.filter(b => !yaTienenIdsFresh.has(b.id));
+      if (pendientesFresh.length === 0) throw new Error('No hay beneficiarios pendientes (ya todos generados)');
+      const records = pendientesFresh.map(b => ({
         beneficiario_id: b.id,
         beneficiario_nombre: b.nombre,
         actividad_nombre: data.label,
