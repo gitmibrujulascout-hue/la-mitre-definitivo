@@ -35,27 +35,6 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
     [afiliaciones, anio]
   );
 
-  // Rendiciones anteriores del año (ordenadas por fecha para imputar secuencialmente)
-  const rendicionesAnio = useMemo(
-    () => rendiciones
-      .filter(r => Number(r.anio) === Number(anio))
-      .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || '')),
-    [rendiciones, anio]
-  );
-
-  // Ya imputado a depósitos anteriores (el recaudado ya "usado" en rendiciones previas)
-  const yaImputado = useMemo(
-    () => rendicionesAnio.reduce((s, r) => s + (r.monto_recaudado || 0), 0),
-    [rendicionesAnio]
-  );
-  const yaDepositado = useMemo(
-    () => rendicionesAnio.reduce((s, r) => s + (r.monto_depositado || 0), 0),
-    [rendicionesAnio]
-  );
-
-  // Recaudado disponible: efectivo de familias aún no imputado a depósitos anteriores
-  const recaudadoDisponible = Math.max(0, totalRecaudadoAcumulado - yaImputado);
-
   const [fechaDeposito, setFechaDeposito] = useState(() =>
     new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
   );
@@ -63,10 +42,55 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
   const [comprobante, setComprobante] = useState('');
   const [file, setFile] = useState(null);
 
+  // Pagos de afiliaciones en efectivo con fecha, ordenados cronológicamente
+  const pagosEfectivo = useMemo(() => afiliaciones
+    .filter(a => Number(a.anio) === Number(anio) && !a.es_primera_vez)
+    .map(a => ({
+      fecha: a.fecha_pago || (a.created_date || '').slice(0, 10) || '',
+      monto: Math.max(0, (a.monto_pagado || 0) - (a.monto_pagado_credito || 0)),
+    }))
+    .filter(p => p.fecha && p.monto > 0)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha)),
+  [afiliaciones, anio]);
+
+  // Rendiciones anteriores a la fecha de depósito actual, ordenadas por fecha
+  const rendicionesPrevias = useMemo(() => rendiciones
+    .filter(r => Number(r.anio) === Number(anio) && (r.fecha || '') <= fechaDeposito)
+    .sort((a, b) => {
+      const diff = (a.fecha || '').localeCompare(b.fecha || '');
+      if (diff !== 0) return diff;
+      return (a.created_date || '').localeCompare(b.created_date || '');
+    }),
+  [rendiciones, anio, fechaDeposito]);
+
+  // Recaudado disponible hasta la fecha del depósito, respetando fechas de pago:
+  // un depósito solo se cubre con pagos recibidos ON OR BEFORE su fecha.
+  // Los pagos posteriores quedan disponibles para próximos depósitos.
+  const { recaudadoDisponible, yaImputado } = useMemo(() => {
+    let pool = 0;
+    let pagoIdx = 0;
+    let imputadoTotal = 0;
+
+    for (const r of rendicionesPrevias) {
+      while (pagoIdx < pagosEfectivo.length && pagosEfectivo[pagoIdx].fecha <= (r.fecha || '')) {
+        pool += pagosEfectivo[pagoIdx].monto;
+        pagoIdx++;
+      }
+      const imputado = Math.min(r.monto_depositado || 0, pool);
+      pool -= imputado;
+      imputadoTotal += imputado;
+    }
+
+    while (pagoIdx < pagosEfectivo.length && pagosEfectivo[pagoIdx].fecha <= fechaDeposito) {
+      pool += pagosEfectivo[pagoIdx].monto;
+      pagoIdx++;
+    }
+
+    return { recaudadoDisponible: pool, yaImputado: imputadoTotal };
+  }, [pagosEfectivo, rendicionesPrevias, fechaDeposito]);
+
   const depositadoNum = parseFloat(montoDepositado) || 0;
-  // Imputar recaudado al depósito: lo que se pueda cubrir con recaudado disponible
   const recaudadoImputado = Math.min(depositadoNum, recaudadoDisponible);
-  // De caja común = lo que el depósito no pudo cubrir con recaudado
   const faltante = Math.max(0, depositadoNum - recaudadoDisponible);
 
   const rendirMutation = useMutation({
@@ -138,7 +162,7 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
               <Label className="text-xs">Monto depositado a SA *</Label>
               <Input type="number" value={montoDepositado} onChange={e => setMontoDepositado(e.target.value)} placeholder="Ingresá el monto real depositado" />
               <p className="text-xs text-muted-foreground mt-1">
-                SA exige: {formatMoney(totalExigidoSA)} · Recaudado disponible: {formatMoney(recaudadoDisponible)}
+                SA exige: {formatMoney(totalExigidoSA)} · Disponible hasta {fechaDeposito}: {formatMoney(recaudadoDisponible)}
               </p>
               <p className="text-xs text-amber-600 mt-0.5">⚠ Ingresá el monto que realmente depositaste, no el que SA exige.</p>
             </div>

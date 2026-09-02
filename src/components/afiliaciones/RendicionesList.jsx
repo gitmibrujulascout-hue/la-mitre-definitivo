@@ -38,7 +38,8 @@ export default function RendicionesList({ anio }) {
     }
   };
 
-  // Imputar el recaudado secuencialmente a cada depósito (pool de efectivo de familias)
+  // Imputar el recaudado a cada depósito respetando fechas de pago:
+  // un depósito solo se cubre con pagos recibidos ON OR BEFORE su fecha
   const { rendicionesCalculadas, resumen } = useMemo(() => {
     const rendAnio = rendiciones
       .filter(r => Number(r.anio) === Number(anio))
@@ -48,16 +49,29 @@ export default function RendicionesList({ anio }) {
         return (a.created_date || '').localeCompare(b.created_date || '');
       });
 
-    // Total recaudado en efectivo de familias (excluye crédito y bonificados)
     const afilAnio = afiliaciones.filter(a => Number(a.anio) === Number(anio) && !a.es_primera_vez);
+    const totalExigidoSA = afilAnio.reduce((s, a) => s + (a.monto || 0), 0);
     const totalRecaudadoFamilias = afilAnio.reduce(
       (s, a) => s + Math.max(0, (a.monto_pagado || 0) - (a.monto_pagado_credito || 0)), 0
     );
-    const totalExigidoSA = afilAnio.reduce((s, a) => s + (a.monto || 0), 0);
 
-    // Pool de recaudado que se va imputando a cada depósito
-    let pool = totalRecaudadoFamilias;
+    // Pagos en efectivo con fecha, ordenados cronológicamente
+    const pagos = afilAnio
+      .map(a => ({
+        fecha: a.fecha_pago || (a.created_date || '').slice(0, 10) || '',
+        monto: Math.max(0, (a.monto_pagado || 0) - (a.monto_pagado_credito || 0)),
+      }))
+      .filter(p => p.fecha && p.monto > 0)
+      .sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+    // Imputar secuencialmente: cada depósito toma pagos con fecha <= su fecha
+    let pool = 0;
+    let pagoIdx = 0;
     const calculadas = rendAnio.map(r => {
+      while (pagoIdx < pagos.length && pagos[pagoIdx].fecha <= (r.fecha || '')) {
+        pool += pagos[pagoIdx].monto;
+        pagoIdx++;
+      }
       const depositado = r.monto_depositado || 0;
       const imputado = Math.min(depositado, pool);
       const deCajaComun = Math.max(0, depositado - pool);
