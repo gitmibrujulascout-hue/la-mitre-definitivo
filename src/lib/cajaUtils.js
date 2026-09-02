@@ -94,7 +94,11 @@ export function useFondos({ anio = null, filtrarPrivados = true } = {}) {
       // Solo se cuentan señas de encargos pendientes/confirmados.
       // Cuando se entrega, el ingreso completo se registra vía VentaTienda.
       const esCajaExclusivaSeña = (e) => productosCajaExclusiva.has(e.producto_id);
-      const cuentaSeña = (e) => esCajaExclusivaSeña(e) ? null : (e.forma_pago === 'Transferencia' ? 'Banco' : 'Caja');
+      const cuentaSeña = (e) => {
+        if (esCajaExclusivaSeña(e)) return null;
+        if (e.forma_pago === 'Crédito actividad') return null; // el dinero ya entró vía la actividad
+        return e.forma_pago === 'Transferencia' ? 'Banco' : 'Caja';
+      };
       const ingresosSeñas = preEncargos
         .filter(e => ['Pendiente', 'Confirmado'].includes(e.estado) && (e.monto_pagado || 0) > 0)
         .filter(e => filtraAnio(e.fecha_pago))
@@ -164,9 +168,11 @@ export function buildMovimientos({ pagos, gastos, ventasTienda, preEncargos, mov
     }));
 
   // Ingresos por señas de pre-encargos no entregados
-  const cuentaSeña = (e) => (productosCajaExclusiva || new Set()).has(e.producto_id)
-    ? null
-    : (e.forma_pago === 'Transferencia' ? 'Banco' : 'Caja');
+  const cuentaSeña = (e) => {
+    if ((productosCajaExclusiva || new Set()).has(e.producto_id)) return null;
+    if (e.forma_pago === 'Crédito actividad') return null;
+    return e.forma_pago === 'Transferencia' ? 'Banco' : 'Caja';
+  };
   const ingresoSeñas = (preEncargos || [])
     .filter(e => ['Pendiente', 'Confirmado'].includes(e.estado) && (e.monto_pagado || 0) > 0)
     .filter(e => filtraAnio(e.fecha_pago))

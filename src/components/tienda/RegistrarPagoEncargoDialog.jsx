@@ -1,21 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, Gift } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { base44 } from '@/api/base44Client';
 
-const FORMAS_PAGO = ['Efectivo', 'Transferencia'];
+const FORMAS_PAGO = ['Efectivo', 'Transferencia', 'Crédito actividad'];
 
 export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose, onSave }) {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(true);
   const [monto, setMonto] = useState('');
   const [formaPago, setFormaPago] = useState('Efectivo');
   const [fecha, setFecha] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
   const [saving, setSaving] = useState(false);
+
+  // Créditos disponibles del beneficiario
+  const { data: creditos = [] } = useQuery({
+    queryKey: ['creditos-beneficiario', encargo?.beneficiario_id],
+    queryFn: () => base44.entities.CreditoBeneficiario.filter({ beneficiario_id: encargo.beneficiario_id }),
+    enabled: !!encargo?.beneficiario_id,
+  });
+
+  const totalDisponible = useMemo(() =>
+    creditos.filter(c => (c.monto_disponible || 0) > 0).reduce((s, c) => s + (c.monto_disponible || 0), 0),
+    [creditos]
+  );
 
   useEffect(() => {
     if (encargo) {
@@ -31,6 +45,7 @@ export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose,
   const yaPagado = encargo.monto_pagado || 0;
   const saldo = Math.max(0, montoTotal - yaPagado);
   const montoNum = parseFloat(monto) || 0;
+  const esCredito = formaPago === 'Crédito actividad';
 
   const handleSave = async () => {
     if (montoNum <= 0) {
@@ -41,16 +56,39 @@ export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose,
       toast.error(`El monto excede el saldo pendiente (${formatMoney(saldo)})`);
       return;
     }
+    if (esCredito && montoNum > totalDisponible) {
+      toast.error(`El monto excede el crédito disponible (${formatMoney(totalDisponible)})`);
+      return;
+    }
     setSaving(true);
     try {
+      // Si es crédito: descontar de CreditoBeneficiario (FIFO, más antiguo primero)
+      if (esCredito && montoNum > 0) {
+        const ordenados = creditos
+          .filter(c => (c.monto_disponible || 0) > 0)
+          .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+        let restante = montoNum;
+        for (const cr of ordenados) {
+          if (restante <= 0) break;
+          const montoAUsar = Math.min(restante, cr.monto_disponible || 0);
+          if (montoAUsar > 0) {
+            const credFresh = await base44.entities.CreditoBeneficiario.get(cr.id);
+            await base44.entities.CreditoBeneficiario.update(cr.id, {
+              monto_disponible: Math.max(0, credFresh.monto_disponible - montoAUsar),
+            });
+            restante -= montoAUsar;
+          }
+        }
+        queryClient.invalidateQueries({ queryKey: ['creditos-todos'] });
+        queryClient.invalidateQueries({ queryKey: ['creditos-beneficiario', encargo.beneficiario_id] });
+      }
+
       const nuevoPagado = yaPagado + montoNum;
       const update = {
         monto_pagado: nuevoPagado,
         fecha_pago: fecha,
         forma_pago: formaPago,
       };
-      // El ingreso de la seña se deriva de PreEncargoTienda.monto_pagado en cajaUtils.
-      // No se crea MovimientoBanco (fuente única: PreEncargoTienda).
       await onSave(encargo.id, update);
       toast.success('Pago registrado');
       setOpen(false);
@@ -95,6 +133,19 @@ export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose,
             </div>
           </div>
 
+          {esCredito && (
+            <div className="bg-primary/5 rounded-lg p-3 flex items-center gap-2">
+              <Gift className="w-4 h-4 text-primary flex-shrink-0" />
+              <div className="text-sm">
+                <span className="text-muted-foreground">Crédito disponible: </span>
+                <span className="font-bold text-primary">{formatMoney(totalDisponible)}</span>
+                {totalDisponible === 0 && (
+                  <p className="text-xs text-destructive mt-0.5">El beneficiario no tiene créditos disponibles.</p>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Monto a pagar *</Label>
@@ -102,7 +153,7 @@ export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose,
                 type="number"
                 min="0"
                 step="0.01"
-                max={saldo}
+                max={esCredito ? Math.min(saldo, totalDisponible) : saldo}
                 value={monto}
                 onChange={(e) => setMonto(e.target.value)}
                 placeholder={saldo.toString()}
@@ -110,17 +161,17 @@ export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose,
             </div>
             <div className="space-y-1.5">
               <Label>Forma de pago</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {FORMAS_PAGO.map(fp => (
                   <Button
                     key={fp}
                     type="button"
                     variant={formaPago === fp ? 'default' : 'outline'}
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 text-xs"
                     onClick={() => setFormaPago(fp)}
                   >
-                    {fp}
+                    {fp === 'Crédito actividad' ? 'Crédito' : fp}
                   </Button>
                 ))}
               </div>
@@ -136,31 +187,44 @@ export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose,
             />
           </div>
 
-          <div className="flex gap-2">
+          {!esCredito && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setMonto(saldo.toString())}
+                disabled={saldo === 0}
+              >
+                Pago completo ({formatMoney(saldo)})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setMonto((Math.round(saldo / 2 * 100) / 100).toString())}
+                disabled={saldo === 0}
+              >
+                Mitad (50%)
+              </Button>
+            </div>
+          )}
+          {esCredito && totalDisponible > 0 && (
             <Button
               variant="outline"
               size="sm"
-              className="flex-1"
-              onClick={() => setMonto(saldo.toString())}
+              className="w-full"
+              onClick={() => setMonto(Math.min(saldo, totalDisponible).toString())}
               disabled={saldo === 0}
             >
-              Pago completo ({formatMoney(saldo)})
+              Usar {formatMoney(Math.min(saldo, totalDisponible))} de crédito
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={() => setMonto((Math.round(saldo / 2 * 100) / 100).toString())}
-              disabled={saldo === 0}
-            >
-              Mitad (50%)
-            </Button>
-          </div>
+          )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving || montoNum <= 0}>
+          <Button onClick={handleSave} disabled={saving || montoNum <= 0 || (esCredito && (totalDisponible === 0 || montoNum > totalDisponible))}>
             {saving ? 'Guardando...' : 'Registrar pago'}
           </Button>
         </DialogFooter>
