@@ -36,6 +36,11 @@ export default function ReporteCreditos() {
     queryFn: () => base44.entities.VentaTienda.filter({ forma_pago: 'Crédito actividad' }, '-fecha', 500),
   });
 
+  const { data: preEncargosCredito = [] } = useQuery({
+    queryKey: ['pre-encargos-credito-rep'],
+    queryFn: () => base44.entities.PreEncargoTienda.filter({ forma_pago: 'Crédito actividad' }, '-fecha', 500),
+  });
+
   // Solo pagos imputados con crédito de actividad (ingreso al grupo)
   const creditosUsados = useMemo(() => {
     return pagos
@@ -63,12 +68,29 @@ export default function ReporteCreditos() {
       .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   }, [ventasTiendaCredito, anio, desde, hasta]);
 
+  // Pre-encargos de tienda pagados (seña) con crédito de actividad (aún no entregados)
+  const preEncargosUsados = useMemo(() => {
+    return preEncargosCredito
+      .filter(e => e.estado !== 'Cancelado' && (e.monto_pagado || 0) > 0)
+      .filter(e => {
+        const year = e.fecha_pago ? e.fecha_pago.substring(0, 4) : (e.fecha ? e.fecha.substring(0, 4) : '');
+        if (year !== anio) return false;
+        const fRef = e.fecha_pago || e.fecha || '';
+        if (desde && fRef < desde) return false;
+        if (hasta && fRef > hasta) return false;
+        return true;
+      })
+      .sort((a, b) => (b.fecha_pago || b.fecha || '').localeCompare(a.fecha_pago || a.fecha || ''));
+  }, [preEncargosCredito, anio, desde, hasta]);
+
   const totalUtilizado = creditosUsados.reduce((s, p) => s + (p.monto || 0), 0)
-    + ventasTiendaUsadas.reduce((s, v) => s + (v.monto_total || 0), 0);
+    + ventasTiendaUsadas.reduce((s, v) => s + (v.monto_total || 0), 0)
+    + preEncargosUsados.reduce((s, e) => s + (e.monto_pagado || 0), 0);
   const totalCuota = creditosUsados.filter(p => p.tipo_pago === 'Cuota').reduce((s, p) => s + (p.monto || 0), 0);
   const totalCampamento = creditosUsados.filter(p => p.tipo_pago === 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
   const totalAfiliacion = creditosUsados.filter(p => p.tipo_pago === 'Afiliación').reduce((s, p) => s + (p.monto || 0), 0);
-  const totalTienda = ventasTiendaUsadas.reduce((s, v) => s + (v.monto_total || 0), 0);
+  const totalTienda = ventasTiendaUsadas.reduce((s, v) => s + (v.monto_total || 0), 0)
+    + preEncargosUsados.reduce((s, e) => s + (e.monto_pagado || 0), 0);
 
   // Agrupado por mes de aplicación (fecha_pago)
   const porMes = useMemo(() => {
@@ -122,7 +144,15 @@ export default function ReporteCreditos() {
       'Origen crédito': 'Tienda — crédito actividad',
       'Monto': v.monto_total || 0,
     }));
-    const filas = [...filasPago, ...filasTienda];
+    const filasEncargo = preEncargosUsados.map(e => ({
+      'Fecha': e.fecha_pago || e.fecha || '',
+      'Beneficiario': e.beneficiario_nombre || '—',
+      'Tipo': 'Tienda (pre-encargo)',
+      'Concepto': `${e.producto_nombre || ''}${e.cantidad > 1 ? ` (x${e.cantidad})` : ''}`,
+      'Origen crédito': 'Tienda — crédito actividad (seña)',
+      'Monto': e.monto_pagado || 0,
+    }));
+    const filas = [...filasPago, ...filasTienda, ...filasEncargo];
     import('xlsx').then(({ utils, writeFile }) => {
       const wb = utils.book_new();
       const ws = utils.json_to_sheet(filas);
@@ -138,10 +168,10 @@ export default function ReporteCreditos() {
         description="Créditos de actividad imputados a cuotas/campamentos — dinero a trasladar de la caja de créditos al ingreso del grupo"
       >
         <div className="flex gap-2 items-center">
-          <Button variant="outline" onClick={() => window.print()} disabled={creditosUsados.length === 0 && ventasTiendaUsadas.length === 0}>
+          <Button variant="outline" onClick={() => window.print()} disabled={creditosUsados.length === 0 && ventasTiendaUsadas.length === 0 && preEncargosUsados.length === 0}>
             <Download className="w-4 h-4 mr-2" />PDF
           </Button>
-          <Button onClick={exportarExcel} disabled={creditosUsados.length === 0 && ventasTiendaUsadas.length === 0}>
+          <Button onClick={exportarExcel} disabled={creditosUsados.length === 0 && ventasTiendaUsadas.length === 0 && preEncargosUsados.length === 0}>
             <Download className="w-4 h-4 mr-2" />Excel
           </Button>
         </div>
@@ -197,7 +227,7 @@ export default function ReporteCreditos() {
             <span className="text-xs">Total utilizado</span>
           </div>
           <p className="text-2xl font-bold mt-1 text-primary">{formatMoney(totalUtilizado)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{creditosUsados.length + ventasTiendaUsadas.length} aplicaciones</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{creditosUsados.length + ventasTiendaUsadas.length + preEncargosUsados.length} aplicaciones</p>
         </Card>
         <Card className="p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -227,7 +257,7 @@ export default function ReporteCreditos() {
             <span className="text-xs">En tienda</span>
           </div>
           <p className="text-2xl font-bold mt-1 text-green-700">{formatMoney(totalTienda)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{ventasTiendaUsadas.length} ventas</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{ventasTiendaUsadas.length + preEncargosUsados.length} operaciones</p>
         </Card>
       </div>
 
@@ -283,7 +313,7 @@ export default function ReporteCreditos() {
         <h3 className="font-semibold text-sm p-4 pb-2">Detalle de aplicaciones</h3>
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">Cargando…</p>
-        ) : creditosUsados.length === 0 && ventasTiendaUsadas.length === 0 ? (
+        ) : creditosUsados.length === 0 && ventasTiendaUsadas.length === 0 && preEncargosUsados.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
             <Gift className="w-10 h-10 mx-auto mb-2 opacity-30" />
             <p className="text-sm">No hay créditos utilizados en {anio}{desde || hasta ? ' para el rango seleccionado' : ''}.</p>
@@ -340,6 +370,25 @@ export default function ReporteCreditos() {
                       </span>
                     </td>
                     <td className="px-4 py-2 text-right font-semibold text-amber-700">{formatMoney(v.monto_total)}</td>
+                  </tr>
+                ))}
+                {preEncargosUsados.map(e => (
+                  <tr key={`pe-${e.id}`} className="border-b last:border-0 hover:bg-muted/20">
+                    <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">{formatFecha(e.fecha_pago || e.fecha)}</td>
+                    <td className="px-4 py-2 font-medium">{e.beneficiario_nombre || '—'}</td>
+                    <td className="px-4 py-2">
+                      <Badge variant="outline" className="text-xs text-green-700 border-green-300">
+                        <ShoppingCart className="w-3 h-3 mr-1" />
+                        {e.producto_nombre}{e.cantidad > 1 ? ` (x${e.cantidad})` : ''}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-2 text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <ShoppingCart className="w-3 h-3 text-green-600 flex-shrink-0" />
+                        <span className="truncate">Tienda — crédito actividad (seña)</span>
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-right font-semibold text-amber-700">{formatMoney(e.monto_pagado)}</td>
                   </tr>
                 ))}
               </tbody>
