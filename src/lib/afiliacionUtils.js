@@ -19,17 +19,46 @@ export function getMontoSeguro(b, config) {
 }
 
 /**
- * Determina si la primera afiliación está bonificada (no abona) según la fecha límite.
- * - Si ya tiene afiliación previa → no es primera vez → false
- * - Si no hay fecha límite configurada → siempre bonificado
- * - Si hay fecha límite → bonificado solo si fechaPago <= fecha límite
+ * Determina si la primera afiliación está bonificada (no abona).
+ * - Si tiene fecha de primera afiliación ANTERIOR a este año → renovación (debe pagar)
+ * - Si tiene fecha de primera afiliación de este año o después → bonificado (primera vez este año)
+ * - Si no tiene fecha (nunca afiliado) → bonificado, salvo que la fecha de pago supere la fecha límite
  */
 export function esPrimeraVezBonificado(b, config, fechaPago) {
   if (!b) return false;
-  if (b.fecha_primer_afiliacion) return false; // ya afiliado antes → renovación
-  if (!config?.fecha_limite_primera_vez) return true; // sin límite → bonificado
+  const anioNum = config?.anio ? Number(config.anio) : new Date().getFullYear();
+  if (b.fecha_primer_afiliacion) {
+    const yearPrimera = new Date(b.fecha_primer_afiliacion + 'T00:00:00').getFullYear();
+    // Si la primera afiliación fue antes de este año → renovación
+    if (yearPrimera < anioNum) return false;
+    // Si fue este año o después → bonificado
+    return true;
+  }
+  // Sin fecha → primera vez, bonificado salvo fecha límite
+  if (!config?.fecha_limite_primera_vez) return true;
   const fecha = fechaPago || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   return fecha <= config.fecha_limite_primera_vez;
+}
+
+/**
+ * Construye el objeto MovimientoBanco (ingreso) para un pago de afiliación.
+ * Devuelve null si no corresponde (primera vez sin costo, o monto 0).
+ * El dinero entra directamente a caja/banco cuando la familia paga.
+ */
+export function buildMovimientoAfiliacion(afiliacion) {
+  if (!afiliacion || afiliacion.es_primera_vez) return null;
+  const montoIngreso = Math.max(0, (afiliacion.monto_pagado || 0) - (afiliacion.monto_pagado_credito || 0));
+  if (montoIngreso <= 0) return null;
+  const cuenta = afiliacion.forma_pago === 'Transferencia' ? 'Banco' : 'Caja';
+  return {
+    fecha: afiliacion.fecha_pago,
+    tipo: 'Ingreso',
+    cuenta,
+    origen: 'Afiliación',
+    concepto: `Afiliación ${afiliacion.anio} — ${afiliacion.beneficiario_nombre}`,
+    monto: montoIngreso,
+    referencia_id: afiliacion.id,
+  };
 }
 
 // Determina si es primera vez (sin afiliación previa registrada)
