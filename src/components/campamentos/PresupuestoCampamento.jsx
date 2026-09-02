@@ -35,14 +35,6 @@ const DEFAULT_ITEMS = [
   { id: 'imprevistos', label: 'Reserva imprevistos', icon: AlertTriangle, tipoDefault: 'fijo', dividirDefault: 'todos' },
 ];
 
-const GASTO_TO_ITEM = {
-  'Alimentos': 'comida',
-  'Transporte': 'transporte',
-  'Mantenimiento': 'alojamiento',
-  'Materiales': 'materiales',
-  'Campamento': 'alojamiento',
-};
-
 // Detect format: new (items values are objects) vs old (items values are numbers)
 function isNewFormat(items) {
   if (!items || typeof items !== 'object') return false;
@@ -164,34 +156,45 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
 
   const costoTotalEstimado = Object.values(itemCalculations).reduce((s, c) => s + c.total, 0);
 
-  // Cost per beneficiary
-  const costoPorBeneficiario = useMemo(() => {
-    if (cantBen === 0) return 0;
-    let totalBen = 0;
+  // Breakdown: split items into "todos" and "sólo beneficiarios" groups
+  const breakdown = useMemo(() => {
+    let gastosTodos = 0;        // items divididos entre todos
+    let gastosSoloBen = 0;       // items divididos sólo entre beneficiarios
+
     for (const def of DEFAULT_ITEMS) {
       const calc = itemCalculations[def.id];
-      const divisor = calc.dividir === 'todos' ? totalPersonas : cantBen;
-      if (divisor > 0) totalBen += calc.total / divisor;
+      if (calc.dividir === 'todos') gastosTodos += calc.total;
+      else gastosSoloBen += calc.total;
     }
-    return totalBen;
-  }, [itemCalculations, totalPersonas, cantBen]);
 
-  const costoPorPersona = useMemo(() => {
-    if (totalPersonas === 0) return 0;
-    return costoTotalEstimado / totalPersonas;
-  }, [costoTotalEstimado, totalPersonas]);
+    const divisorTodos = adultosPagan ? totalPersonas : cantBen;
 
-  // Gastos reales
-  const gastosReales = useMemo(() => {
-    const gastosCamp = gastos.filter(g => g.campamento_id === campamento?.id);
-    const porItem = {};
-    DEFAULT_ITEMS.forEach(i => { porItem[i.id] = 0; });
-    gastosCamp.forEach(g => {
-      const itemId = GASTO_TO_ITEM[g.categoria] || 'extras';
-      porItem[itemId] = (porItem[itemId] || 0) + (g.monto || 0);
-    });
-    return { porItem, total: gastosCamp.reduce((s, g) => s + (g.monto || 0), 0) };
-  }, [gastos, campamento]);
+    // Cost per beneficiary
+    // - "todos" items: if adults pay → divided by total_personas; if not → ben covers all
+    // - "sólo ben" items: always divided by beneficiarios
+    const costoBen_Todos = divisorTodos > 0 ? gastosTodos / divisorTodos : 0;
+    const costoBen_SoloBen = cantBen > 0 ? gastosSoloBen / cantBen : 0;
+    const costoPorBeneficiario = costoBen_Todos + costoBen_SoloBen;
+
+    // Cost per adult (only if adults pay)
+    const costoPorAdulto = adultosPagan ? (divisorTodos > 0 ? gastosTodos / divisorTodos : 0) : 0;
+
+    // How much beneficiaries are subsidizing for adults (when adults don't pay)
+    const subsidioAdultos = !adultosPagan && cantBen > 0 && cantAdultos > 0
+      ? (gastosTodos / cantBen) - (totalPersonas > 0 ? gastosTodos / totalPersonas : 0)
+      : 0;
+
+    return {
+      gastosTodos,
+      gastosSoloBen,
+      divisorTodos,
+      costoBen_Todos,
+      costoBen_SoloBen,
+      costoPorBeneficiario,
+      costoPorAdulto,
+      subsidioAdultos,
+    };
+  }, [itemCalculations, totalPersonas, cantBen, cantAdultos, adultosPagan]);
 
   // Ingresos
   const costoBenCamp = campamento?.costo_por_persona || 0;
@@ -244,23 +247,26 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
   const rows = DEFAULT_ITEMS.map(item => ({
     ...item,
     calc: itemCalculations[item.id],
-    real: gastosReales.porItem[item.id] || 0,
   }));
 
   const handlePrint = () => {
     const rowsHtml = rows.map(r => {
       const calc = r.calc;
-      const diff = calc.total - r.real;
-      const diffStr = r.real > 0
-        ? `<td style="text-align:right;color:${diff >= 0 ? '#16a34a' : '#dc2626'};font-weight:600">${diff >= 0 ? '+' : ''}${formatMoney(diff)}</td>`
-        : '<td style="text-align:center;color:#999">—</td>';
       const detalleStr = calc.detalle ? `<br><span style="font-size:10px;color:#888">${calc.detalle}</span>` : '';
       const tipoStr = TIPOS.find(t => t.value === calc.tipo)?.label || '';
       const divStr = calc.dividir === 'todos' ? 'Todos' : 'Sólo ben.';
-      return `<tr><td>${r.label}${detalleStr}</td><td style="text-align:center;font-size:10px">${tipoStr} / ${divStr}</td><td style="text-align:right">${formatMoney(calc.total)}</td><td style="text-align:right;color:${r.real > 0 ? '#dc2626' : '#999'}">${r.real > 0 ? formatMoney(r.real) : '—'}</td>${diffStr}</tr>`;
+      return `<tr><td>${r.label}${detalleStr}</td><td style="text-align:center;font-size:10px">${tipoStr} / ${divStr}</td><td style="text-align:right">${formatMoney(calc.total)}</td></tr>`;
     }).join('');
 
-    const totalDiff = costoTotalEstimado - gastosReales.total;
+    const bk = breakdown;
+    const desgloseHtml = `
+      <table style="margin-top:12px">
+        <tr><td>Gastos compartidos (todos)</td><td style="text-align:right">${formatMoney(bk.gastosTodos)}</td><td style="text-align:center;font-size:10px;color:#666">÷ ${bk.divisorTodos} = ${formatMoney(bk.costoBen_Todos)}/pers</td></tr>
+        <tr><td>Gastos sólo beneficiarios</td><td style="text-align:right">${formatMoney(bk.gastosSoloBen)}</td><td style="text-align:center;font-size:10px;color:#666">÷ ${cantBen} = ${formatMoney(bk.costoBen_SoloBen)}/ben</td></tr>
+        ${!adultosPagan && bk.subsidioAdultos > 0 ? `<tr style="color:#b45309"><td>Subsidio adultos (ben. absorben)</td><td style="text-align:right">+${formatMoney(bk.subsidioAdultos)}/ben</td><td></td></tr>` : ''}
+        <tr class="total"><td>Costo por beneficiario</td><td colspan="2" style="text-align:right">${formatMoney(bk.costoPorBeneficiario)}</td></tr>
+        ${adultosPagan ? `<tr><td>Costo por adulto</td><td colspan="2" style="text-align:right">${formatMoney(bk.costoPorAdulto)}</td></tr>` : '<tr style="color:#999"><td>Adultos no pagan</td><td colspan="2" style="text-align:right">$0</td></tr>'}
+      </table>`;
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Presupuesto ${campamento?.nombre}</title>
     <style>
@@ -272,20 +278,14 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
       th{background:#f0f0f0;font-weight:bold}
       .total{background:#f3f4f6;font-weight:bold}
       .resultado{margin-top:16px;padding:10px;border-radius:6px;font-size:14px;font-weight:bold;text-align:center}
-      .resumen{margin-top:12px;display:flex;gap:16px;font-size:12px}
-      .resumen div{padding:8px 12px;border-radius:6px;background:#f8f8f8}
     </style></head><body>
     <h1>Presupuesto — ${campamento?.nombre}</h1>
     <div class="meta">${campamento?.ubicacion ? `📍 ${campamento.ubicacion} · ` : ''}${dias} días · ${totalPersonas} personas (${cantBen} ben. + ${cantAdultos} adult.)${adultosPagan ? ' · Adultos pagan' : ' · Adultos no pagan'}</div>
-    <table><thead><tr><th>Categoría</th><th style="text-align:center">Tipo / Div.</th><th style="text-align:right">Presupuestado</th><th style="text-align:right">Gasto real</th><th style="text-align:right">Diferencia</th></tr></thead>
+    <table><thead><tr><th>Categoría</th><th style="text-align:center">Tipo / Div.</th><th style="text-align:right">Total</th></tr></thead>
     <tbody>${rowsHtml}</tbody>
-    <tfoot><tr class="total"><td colspan="2">Costo total estimado</td><td style="text-align:right">${formatMoney(costoTotalEstimado)}</td><td style="text-align:right">${formatMoney(gastosReales.total)}</td><td style="text-align:right">${formatMoney(totalDiff)}</td></tr></tfoot></table>
-    <div class="resumen">
-      <div>Costo/beneficiario: <b>${formatMoney(costoPorBeneficiario)}</b></div>
-      <div>Costo/persona: <b>${formatMoney(costoPorPersona)}</b></div>
-      <div>Ingreso esperado: <b>${formatMoney(ingresoTotal)}</b></div>
-    </div>
-    <div class="resultado" style="background:${resultado >= 0 ? '#dcfce7' : '#fee2e2'};color:${resultado >= 0 ? '#16a34a' : '#dc2626'}">${resultado >= 0 ? 'SUPERÁVIT' : 'DÉFICIT'}: ${formatMoney(Math.abs(resultado))}</div>
+    <tfoot><tr class="total"><td colspan="2">Costo total estimado</td><td style="text-align:right">${formatMoney(costoTotalEstimado)}</td></tr></tfoot></table>
+    ${desgloseHtml}
+    <div class="resultado" style="background:${resultado >= 0 ? '#dcfce7' : '#fee2e2'};color:${resultado >= 0 ? '#16a34a' : '#dc2626'}">${resultado >= 0 ? 'SUPERÁVIT' : 'DÉFICIT'}: ${formatMoney(Math.abs(resultado))} (Ingresos ${formatMoney(ingresoTotal)} − Gastos ${formatMoney(costoTotalEstimado)})</div>
     </body></html>`;
     const win = window.open('', '_blank');
     win.document.write(html);
@@ -437,59 +437,84 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
             })}
           </div>
 
-          {/* Resumen comparativo */}
-          <div className="space-y-1.5">
-            <div className="grid grid-cols-12 gap-1 px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-              <span className="col-span-5">Categoría</span>
-              <span className="col-span-3 text-right">Presup.</span>
-              <span className="col-span-2 text-right">Real</span>
-              <span className="col-span-2 text-right">Diff.</span>
+          {/* Desglose de costos por persona */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+              <Coins className="w-3.5 h-3.5" /> Desglose de costos
+            </p>
+
+            {/* Gastos compartidos */}
+            <div className="rounded-lg border p-2.5 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-purple-500" />
+                  Gastos compartidos (todos)
+                </span>
+                <span className="text-sm font-bold">{formatMoney(breakdown.gastosTodos)}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground pl-5">
+                ÷ {breakdown.divisorTodos} {adultosPagan ? 'personas' : 'beneficiarios (adultos no pagan)'}
+                {' = '}<span className="font-medium text-purple-700">{formatMoney(breakdown.costoBen_Todos)}</span>/pers
+              </p>
             </div>
-            {rows.map(r => {
-              const diff = r.calc.total - r.real;
-              const tieneReal = r.real > 0;
-              return (
-                <div key={r.id} className="grid grid-cols-12 gap-1 items-center py-1.5 px-3 bg-muted/30 rounded-md">
-                  <div className="col-span-5 flex items-center gap-1.5">
-                    <r.icon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                    <span className="text-sm truncate">{r.label}</span>
-                    {r.calc.dividir === 'todos' && <span className="text-[10px] text-purple-600 whitespace-nowrap">↗{totalPersonas}p</span>}
-                  </div>
-                  <span className="col-span-3 text-right text-sm font-medium">{formatMoney(r.calc.total)}</span>
-                  <span className={cn('col-span-2 text-right text-xs', tieneReal ? 'text-red-600 font-medium' : 'text-muted-foreground')}>
-                    {tieneReal ? formatMoney(r.real) : '—'}
+
+            {/* Gastos sólo beneficiarios */}
+            <div className="rounded-lg border p-2.5 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm flex items-center gap-1.5">
+                  <Coins className="w-3.5 h-3.5 text-blue-500" />
+                  Gastos sólo beneficiarios
+                </span>
+                <span className="text-sm font-bold">{formatMoney(breakdown.gastosSoloBen)}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground pl-5">
+                ÷ {cantBen} beneficiarios
+                {' = '}<span className="font-medium text-blue-700">{formatMoney(breakdown.costoBen_SoloBen)}</span>/ben
+              </p>
+            </div>
+
+            {/* Subsidio adultos */}
+            {!adultosPagan && breakdown.subsidioAdultos > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-amber-800 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Beneficiarios subsidian a {cantAdultos} adulto(s)
                   </span>
-                  <span className={cn('col-span-2 text-right text-xs font-medium', !tieneReal ? 'text-muted-foreground' : diff >= 0 ? 'text-green-600' : 'text-red-500')}>
-                    {tieneReal ? (diff >= 0 ? '+' : '') + formatMoney(diff) : '—'}
-                  </span>
+                  <span className="text-sm font-bold text-amber-700">+{formatMoney(breakdown.subsidioAdultos)}/ben</span>
                 </div>
-              );
-            })}
-            <div className="grid grid-cols-12 gap-1 items-center py-2 px-3 bg-slate-100 rounded-md border-t-2 border-slate-300">
-              <span className="col-span-5 text-sm font-bold">Total</span>
-              <span className="col-span-3 text-right text-sm font-bold text-slate-700">{formatMoney(costoTotalEstimado)}</span>
-              <span className="col-span-2 text-right text-sm font-bold text-red-600">{formatMoney(gastosReales.total)}</span>
-              <span className={cn('col-span-2 text-right text-sm font-bold', costoTotalEstimado - gastosReales.total >= 0 ? 'text-green-600' : 'text-red-500')}>
-                {formatMoney(costoTotalEstimado - gastosReales.total)}
-              </span>
+                <p className="text-[11px] text-amber-600 pl-5">
+                  Cada beneficiario absorbe la parte de los adultos que no pagan
+                </p>
+              </div>
+            )}
+
+            {/* Totales destacados */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-center">
+                <Coins className="w-4 h-4 text-blue-600 mx-auto mb-1" />
+                <p className="text-xs text-muted-foreground">Costo por beneficiario</p>
+                <p className="text-lg font-bold text-blue-700">{formatMoney(breakdown.costoPorBeneficiario)}</p>
+                <p className="text-[10px] text-muted-foreground">{cantBen} × {formatMoney(breakdown.costoPorBeneficiario)} = {formatMoney(breakdown.costoPorBeneficiario * cantBen)}</p>
+              </div>
+              <div className={cn('rounded-lg border p-3 text-center', adultosPagan ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-200')}>
+                <Users className={cn('w-4 h-4 mx-auto mb-1', adultosPagan ? 'text-purple-600' : 'text-slate-400')} />
+                <p className="text-xs text-muted-foreground">Costo por adulto</p>
+                <p className={cn('text-lg font-bold', adultosPagan ? 'text-purple-700' : 'text-slate-400')}>{adultosPagan ? formatMoney(breakdown.costoPorAdulto) : 'No pagan'}</p>
+                {adultosPagan && <p className="text-[10px] text-muted-foreground">{cantAdultos} × {formatMoney(breakdown.costoPorAdulto)} = {formatMoney(breakdown.costoPorAdulto * cantAdultos)}</p>}
+              </div>
             </div>
           </div>
 
-          {/* Costos unitarios calculados */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-lg bg-blue-50 border border-blue-200 p-2.5 text-center">
-              <Coins className="w-4 h-4 text-blue-600 mx-auto mb-1" />
-              <p className="text-xs text-muted-foreground">Costo/beneficiario</p>
-              <p className="text-base font-bold text-blue-700">{formatMoney(costoPorBeneficiario)}</p>
-            </div>
-            <div className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 text-center">
-              <Users className="w-4 h-4 text-slate-500 mx-auto mb-1" />
-              <p className="text-xs text-muted-foreground">Costo/persona</p>
-              <p className="text-base font-bold text-slate-700">{formatMoney(costoPorPersona)}</p>
+          {/* Total + Ingresos */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg bg-slate-100 border border-slate-300 p-2.5 text-center">
+              <p className="text-xs text-muted-foreground">Costo total estimado</p>
+              <p className="text-base font-bold text-slate-700">{formatMoney(costoTotalEstimado)}</p>
             </div>
             <div className="rounded-lg bg-green-50 border border-green-200 p-2.5 text-center">
-              <TrendingUp className="w-4 h-4 text-green-600 mx-auto mb-1" />
-              <p className="text-xs text-muted-foreground">Ingreso esp.</p>
+              <TrendingUp className="w-4 h-4 text-green-600 mx-auto mb-0.5" />
+              <p className="text-xs text-muted-foreground">Ingreso esperado</p>
               <p className="text-base font-bold text-green-700">{formatMoney(ingresoTotal)}</p>
             </div>
           </div>
