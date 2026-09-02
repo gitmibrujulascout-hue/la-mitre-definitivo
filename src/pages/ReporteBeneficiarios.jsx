@@ -109,10 +109,14 @@ export default function ReporteBeneficiarios() {
     const medCols = [42, 35, 35, 35, 35];
     const rowH = 7;
 
-    // Agrupar por rama
+    // Agrupar por rama: educadores/voluntarios se agrupan bajo su rama_educador
     const porRama = {};
     filtrados.forEach(b => {
-      const r = b.rama || 'Sin rama';
+      let r = b.rama || 'Sin rama';
+      // Educadores y Voluntarios se agrupan con la rama en la que trabajan
+      if (['Educador', 'Voluntario'].includes(b.rama) && b.rama_educador) {
+        r = b.rama_educador;
+      }
       if (!porRama[r]) porRama[r] = [];
       porRama[r].push(b);
     });
