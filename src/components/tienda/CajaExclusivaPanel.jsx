@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Wallet, ArrowDownLeft, ArrowUpRight, ArrowLeftRight } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
@@ -14,22 +13,72 @@ import { cn } from '@/lib/utils';
 
 /**
  * Panel de la caja exclusiva de la tienda.
- * Lee los movimientos de MovimientoBanco con cuenta='Caja exclusiva'
- * (ingresos por señas/ventas + egresos a proveedores + transferencias).
+ * Deriva ingresos de VentaTienda (destino='Caja exclusiva') + PreEncargoTienda señas
+ * de productos con caja_exclusiva. Los egresos y transferencias siguen en MovimientoBanco.
  */
 export default function CajaExclusivaPanel() {
   const [showEgreso, setShowEgreso] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
 
+  const { data: ventasTienda = [] } = useQuery({
+    queryKey: ['ventas_tienda'],
+    queryFn: () => base44.entities.VentaTienda.list('-fecha', 500),
+  });
+  const { data: preEncargos = [] } = useQuery({
+    queryKey: ['pre_encargos'],
+    queryFn: () => base44.entities.PreEncargoTienda.list('-fecha', 500),
+  });
+  const { data: productos = [] } = useQuery({
+    queryKey: ['productos_tienda'],
+    queryFn: () => base44.entities.ProductoTienda.list(),
+  });
   const { data: movimientos = [] } = useQuery({
     queryKey: ['movimientos_caja_exclusiva'],
     queryFn: () => base44.entities.MovimientoBanco.filter({ cuenta: 'Caja exclusiva' }, '-fecha', 500),
   });
 
-  const ingresos = movimientos.filter(m => m.tipo === 'Ingreso').reduce((s, m) => s + (m.monto || 0), 0);
-  const egresos = movimientos.filter(m => m.tipo === 'Egreso').reduce((s, m) => s + (m.monto || 0), 0);
+  const productosCajaExclusiva = useMemo(() => new Set(
+    productos.filter(p => p.caja_exclusiva).map(p => p.id)
+  ), [productos]);
+
+  // Ingresos derivados de VentaTienda (destino='Caja exclusiva')
+  const ventaTiendaIds = useMemo(() => new Set(ventasTienda.map(v => v.id)), [ventasTienda]);
+  const ingresosVentas = ventasTienda
+    .filter(v => v.destino === 'Caja exclusiva')
+    .reduce((s, v) => s + (v.monto_total || 0), 0);
+
+  // Ingresos por señas de pre-encargos no entregados (productos con caja exclusiva)
+  const ingresosSeñas = preEncargos
+    .filter(e => ['Pendiente', 'Confirmado'].includes(e.estado) && (e.monto_pagado || 0) > 0)
+    .filter(e => productosCajaExclusiva.has(e.producto_id))
+    .reduce((s, e) => s + (e.monto_pagado || 0), 0);
+
+  // Egresos y transferencias desde MovimientoBanco (excluyendo duplicados del sistema anterior)
+  const egresos = movimientos
+    .filter(m => m.tipo === 'Egreso' && !(m.origen === 'Manual' && m.referencia_id && ventaTiendaIds.has(m.referencia_id)))
+    .reduce((s, m) => s + (m.monto || 0), 0);
+
+  // Movimientos manuales no duplicados (transferencias a caja, etc.)
+  const movsManuales = movimientos.filter(m => !(m.origen === 'Manual' && m.referencia_id && ventaTiendaIds.has(m.referencia_id)));
+
+  const ingresos = ingresosVentas + ingresosSeñas;
   const saldo = ingresos - egresos;
-  const recientes = movimientos.slice(0, 8);
+
+  // Lista de movimientos recientes para la tabla
+  const movsRecientes = useMemo(() => {
+    const items = [
+      ...ventasTienda
+        .filter(v => v.destino === 'Caja exclusiva')
+        .map(v => ({ fecha: v.fecha, tipo: 'Ingreso', concepto: `Venta — ${v.producto_nombre}`, monto: v.monto_total })),
+      ...preEncargos
+        .filter(e => ['Pendiente', 'Confirmado'].includes(e.estado) && (e.monto_pagado || 0) > 0 && productosCajaExclusiva.has(e.producto_id))
+        .map(e => ({ fecha: e.fecha_pago || e.fecha, tipo: 'Ingreso', concepto: `Seña — ${e.producto_nombre}`, monto: e.monto_pagado })),
+      ...movsManuales
+        .filter(m => m.tipo === 'Egreso')
+        .map(m => ({ fecha: m.fecha, tipo: 'Egreso', concepto: m.concepto, monto: m.monto })),
+    ].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+    return items.slice(0, 8);
+  }, [ventasTienda, preEncargos, movsManuales, productosCajaExclusiva]);
 
   return (
     <>
@@ -70,10 +119,10 @@ export default function CajaExclusivaPanel() {
             </div>
           </div>
 
-          {recientes.length > 0 ? (
+          {movsRecientes.length > 0 ? (
             <div className="space-y-1 max-h-40 overflow-y-auto">
-              {recientes.map(m => (
-                <div key={m.id} className="flex items-center justify-between gap-2 text-xs py-1 px-2 rounded-md bg-muted/40">
+              {movsRecientes.map((m, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 text-xs py-1 px-2 rounded-md bg-muted/40">
                   <div className="flex items-center gap-2 min-w-0">
                     {m.tipo === 'Ingreso'
                       ? <ArrowUpRight className="w-3 h-3 text-green-600 shrink-0" />
@@ -197,7 +246,7 @@ function TransferDialog({ saldoActual, onClose }) {
           </DialogTitle>
           <DialogDescription>Mueve dinero de la caja exclusiva hacia la caja o banco general.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4">
           <div className="bg-muted/50 rounded-lg p-2 text-sm flex justify-between">
             <span className="text-muted-foreground">Saldo disponible</span>
             <span className="font-bold text-purple-700">{formatMoney(saldoActual)}</span>

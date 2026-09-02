@@ -66,8 +66,7 @@ export default function Tienda() {
   const deleteVenta = useMutation({
     mutationFn: async (venta) => {
       await base44.entities.VentaTienda.delete(venta.id);
-      // Eliminar el movimiento de caja asociado a esta venta
-      await base44.entities.MovimientoBanco.deleteMany({ referencia_id: venta.id });
+      // La VentaTienda es la fuente única del ingreso; no hay MovimientoBanco que eliminar.
       // Restaurar stock del producto
       const prod = productos.find(p => p.id === venta.producto_id);
       if (prod) {
@@ -106,8 +105,8 @@ export default function Tienda() {
       if (estado === 'Cancelado') {
         update.stock_reservado = false;
         update.monto_pagado = 0;
-        // Al cancelar, las señas registradas se anulan (el dinero vuelve a la familia)
-        await base44.entities.MovimientoBanco.deleteMany({ referencia_id: id });
+        // Al cancelar, monto_pagado vuelve a 0. cajaUtils deriva señas de monto_pagado,
+        // así que el ingreso desaparece automáticamente (fuente única: PreEncargoTienda).
       }
 
       // No se modifica el stock físico al cancelar: las reservas se calculan
@@ -128,7 +127,8 @@ export default function Tienda() {
   // Anular señas registradas en un pre-encargo (sin cancelar el pedido)
   const anularSenia = useMutation({
     mutationFn: async (encargo) => {
-      await base44.entities.MovimientoBanco.deleteMany({ referencia_id: encargo.id });
+      // Al resetear monto_pagado a 0, el ingreso de la seña desaparece de cajaUtils
+      // automáticamente (fuente única: PreEncargoTienda.monto_pagado).
       await base44.entities.PreEncargoTienda.update(encargo.id, { monto_pagado: 0 });
     },
     onSuccess: () => {

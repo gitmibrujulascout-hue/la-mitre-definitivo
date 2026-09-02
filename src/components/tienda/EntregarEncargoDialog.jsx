@@ -32,21 +32,13 @@ export default function EntregarEncargoDialog({ encargo, producto, onClose }) {
         observaciones: 'Generado desde pre-encargo',
       });
 
-      // 2. Registrar en la caja solo el saldo pendiente (las señas ya se registraron al pagarse)
-      const saldoPendiente = Math.max(0, (encargo.monto_total || 0) - (encargo.monto_pagado || 0));
-      if (saldoPendiente > 0) {
-        await base44.entities.MovimientoBanco.create({
-          fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
-          tipo: 'Ingreso',
-          concepto: `Venta tienda - ${encargo.producto_nombre} (${encargo.beneficiario_nombre})`,
-          monto: saldoPendiente,
-          cuenta: destino,
-          origen: 'Manual',
-          referencia_id: venta.id,
-        });
-      }
+      // El ingreso de dinero se deriva de VentaTienda en cajaUtils (fuente única).
+      // La VentaTienda registra el monto_total completo.
+      // Las señas de pre-encargos no entregados se derivan de PreEncargoTienda.monto_pagado.
+      // Al entregar, el encargo pasa a "Entregado" y deja de generar ingreso por señas,
+      // mientras que la VentaTienda captura el monto total. No hay doble conteo.
 
-      // 3. Decrementar stock físico (la entrega consume el stock real)
+      // 2. Decrementar stock físico (la entrega consume el stock real)
       const prod = await base44.entities.ProductoTienda.get(encargo.producto_id);
       if (prod) {
         if (prod.tiene_talles && encargo.talle) {

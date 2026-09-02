@@ -21,13 +21,13 @@ export default function ReporteCajaDialog({ open, onClose, cuentaInicial = 'Caja
   const [hasta, setHasta] = useState(hoy);
   const printRef = useRef();
 
-  const { pagos, gastos, movimientosExtra, privateCampIds } = useFondos();
+  const { pagos, gastos, ventasTienda, preEncargos, movimientosExtra, privateCampIds, ventaTiendaIds, productosCajaExclusiva } = useFondos();
 
   // Todos los movimientos de la cuenta (sin filtro de año), ordenados cronológicamente
   const todosMovimientos = useMemo(
-    () => buildMovimientos({ pagos, gastos, movimientosExtra, privateCampIds, cuenta, anio: null })
+    () => buildMovimientos({ pagos, gastos, ventasTienda, preEncargos, movimientosExtra, privateCampIds, ventaTiendaIds, productosCajaExclusiva, cuenta, anio: null })
       .map(m => ({ fecha: m.fecha, tipo: m.tipo, concepto: m.concepto, monto: m.monto, origen: m.origen === 'Pago cuota' ? 'Pago' : m.origen === 'Manual' ? 'Manual' : m.origen })),
-    [pagos, gastos, movimientosExtra, cuenta, privateCampIds]
+    [pagos, gastos, ventasTienda, preEncargos, movimientosExtra, cuenta, privateCampIds, ventaTiendaIds, productosCajaExclusiva]
   );
 
   // Saldo anterior al rango (suma de todo lo anterior a "desde")

@@ -119,7 +119,7 @@ export default function Caja() {
   );
 
   // Datos centralizados desde cajaUtils
-  const { pagos, gastos, movimientosExtra, privateCampIds } = useFondos();
+  const { pagos, gastos, ventasTienda, preEncargos, movimientosExtra, privateCampIds, ventaTiendaIds, productosCajaExclusiva } = useFondos();
 
   const deleteMov = useMutation({
     mutationFn: refId => base44.entities.MovimientoBanco.delete(refId),
@@ -129,12 +129,12 @@ export default function Caja() {
   const anioFiltro = mostrarTodos ? null : anio;
 
   const movimientosCaja = useMemo(
-    () => buildMovimientos({ pagos, gastos, movimientosExtra, privateCampIds, cuenta: 'Caja', anio: anioFiltro }),
-    [pagos, gastos, movimientosExtra, anioFiltro, privateCampIds]
+    () => buildMovimientos({ pagos, gastos, ventasTienda, preEncargos, movimientosExtra, privateCampIds, ventaTiendaIds, productosCajaExclusiva, cuenta: 'Caja', anio: anioFiltro }),
+    [pagos, gastos, ventasTienda, preEncargos, movimientosExtra, anioFiltro, privateCampIds, ventaTiendaIds, productosCajaExclusiva]
   );
   const movimientosBanco = useMemo(
-    () => buildMovimientos({ pagos, gastos, movimientosExtra, privateCampIds, cuenta: 'Banco', anio: anioFiltro }),
-    [pagos, gastos, movimientosExtra, anioFiltro, privateCampIds]
+    () => buildMovimientos({ pagos, gastos, ventasTienda, preEncargos, movimientosExtra, privateCampIds, ventaTiendaIds, productosCajaExclusiva, cuenta: 'Banco', anio: anioFiltro }),
+    [pagos, gastos, ventasTienda, preEncargos, movimientosExtra, anioFiltro, privateCampIds, ventaTiendaIds, productosCajaExclusiva]
   );
 
   const movimientos = tab === 'caja' ? movimientosCaja : movimientosBanco;
@@ -143,11 +143,11 @@ export default function Caja() {
   const saldoInicial = useMemo(() => {
     if (!anioFiltro) return 0;
     const cuenta = tab === 'caja' ? 'Caja' : 'Banco';
-    const todos = buildMovimientos({ pagos, gastos, movimientosExtra, privateCampIds, cuenta, anio: null });
+    const todos = buildMovimientos({ pagos, gastos, ventasTienda, preEncargos, movimientosExtra, privateCampIds, ventaTiendaIds, productosCajaExclusiva, cuenta, anio: null });
     return todos
       .filter(m => (m.fecha || '') < anioFiltro)
       .reduce((s, m) => s + (m.tipo === 'Ingreso' ? (m.monto || 0) : -(m.monto || 0)), 0);
-  }, [pagos, gastos, movimientosExtra, privateCampIds, anioFiltro, tab]);
+  }, [pagos, gastos, ventasTienda, preEncargos, movimientosExtra, privateCampIds, ventaTiendaIds, productosCajaExclusiva, anioFiltro, tab]);
 
   // Saldo acumulado por fila (arranca desde el saldo inicial, no desde 0)
   const movimientosConSaldo = useMemo(() => {

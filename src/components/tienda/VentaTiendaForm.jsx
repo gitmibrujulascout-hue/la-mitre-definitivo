@@ -80,18 +80,8 @@ export default function VentaTiendaForm({ open, onClose, productos, beneficiario
           observaciones: formaPago === 'Crédito actividad' ? 'Crédito aplicado' : undefined,
         });
 
-        // Registrar el ingreso de dinero en la caja correspondiente (no aplica para crédito actividad)
-        if (formaPago !== 'Crédito actividad') {
-          await base44.entities.MovimientoBanco.create({
-            fecha,
-            tipo: 'Ingreso',
-            concepto: `Venta tienda - ${prod.nombre}${ben?.nombre ? ` (${ben.nombre})` : ''}`,
-            monto: cant * precio,
-            cuenta: prod.caja_exclusiva ? 'Caja exclusiva' : (formaPago === 'Transferencia' ? 'Banco' : 'Caja'),
-            origen: 'Manual',
-            referencia_id: venta.id,
-          });
-        }
+        // El ingreso de dinero se deriva automáticamente de VentaTienda en cajaUtils.
+        // No se crea MovimientoBanco (fuente única: VentaTienda).
 
         // Decrement stock
         if (prod.tiene_talles && it.talle) {

@@ -49,19 +49,8 @@ export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose,
         fecha_pago: fecha,
         forma_pago: formaPago,
       };
-      // Registrar el dinero de la seña en la caja correspondiente
-      const cuentaMov = producto?.caja_exclusiva
-        ? 'Caja exclusiva'
-        : (formaPago === 'Transferencia' ? 'Banco' : 'Caja');
-      await base44.entities.MovimientoBanco.create({
-        fecha,
-        tipo: 'Ingreso',
-        concepto: `Seña tienda - ${encargo.producto_nombre} (${encargo.beneficiario_nombre})`,
-        monto: montoNum,
-        cuenta: cuentaMov,
-        origen: 'Manual',
-        referencia_id: encargo.id,
-      });
+      // El ingreso de la seña se deriva de PreEncargoTienda.monto_pagado en cajaUtils.
+      // No se crea MovimientoBanco (fuente única: PreEncargoTienda).
       await onSave(encargo.id, update);
       toast.success('Pago registrado');
       setOpen(false);
