@@ -672,29 +672,28 @@ export default function Afiliaciones() {
   const montoAdeudado = useMemo(() => {
     let total = 0;
     beneficiariosElegibles.forEach(b => {
-      const bonificado = esPrimeraVezBonificado(b, configAnio, hoyStr);
-      if (bonificado) return;
       const afil = mapAfiliados[b.id];
-      const montoSeguro = getMontoSeguro(b, configAnio);
-      if (!afil) {
-        total += montoSeguro;
-      } else {
+      if (afil) {
         if (afil.es_primera_vez || (afil.monto || 0) === 0) return;
-        total += Math.max(0, (afil.monto || montoSeguro) - (afil.monto_pagado || afil.monto || 0));
+        total += Math.max(0, (afil.monto || 0) - (afil.monto_pagado || afil.monto || 0));
+      } else {
+        const bonificado = esPrimeraVezBonificado(b, configAnio, hoyStr);
+        if (bonificado) return;
+        total += getMontoSeguro(b, configAnio);
       }
     });
     return total;
   }, [beneficiariosElegibles, mapAfiliados, configAnio, hoyStr]);
 
-  // Total exigido por SA: TODOS los beneficiarios (activos e inactivos) deben afiliación
-  // (excepto primera vez bonificada). Para los que ya tienen registro, usa el monto guardado.
-  // Para los que no tienen registro, usa el precio actual de config.
+  // Total exigido por SA: TODOS los beneficiarios (activos e inactivos) deben afiliación.
+  // Si tienen registro de afiliación, usa ese monto (ya guardado, no recalcula).
+  // Si no tienen registro, usa esPrimeraVezBonificado + config para determinar si paga.
   const totalExigidoSA = useMemo(() =>
     beneficiariosElegibles.reduce((s, b) => {
-      const bonificado = esPrimeraVezBonificado(b, configAnio, hoyStr);
-      if (bonificado) return s;
       const afil = mapAfiliados[b.id];
       if (afil) return s + (afil.monto || 0);
+      const bonificado = esPrimeraVezBonificado(b, configAnio, hoyStr);
+      if (bonificado) return s;
       return s + getMontoSeguro(b, configAnio);
     }, 0),
   [beneficiariosElegibles, mapAfiliados, configAnio, hoyStr]);
