@@ -673,15 +673,19 @@ export default function Afiliaciones() {
   }, [beneficiariosActivos, mapAfiliados, configAnio, hoyStr]);
 
   // Total exigido por SA: TODOS los beneficiarios activos deben afiliación
-  // (excepto primera vez bonificada dentro de la fecha límite configurada)
+  // (excepto primera vez bonificada dentro de la fecha límite configurada).
+  // Para los que ya tienen registro, usa el monto guardado (snapshot real cobrado).
+  // Para los que no tienen registro, usa el precio actual de config.
   const totalExigidoSA = useMemo(() =>
     beneficiariosActivos.reduce((s, b) => {
       const primera = !b.fecha_primer_afiliacion;
       const bonificado = primera && esPrimeraVezBonificado(b, configAnio, hoyStr);
       if (bonificado) return s;
+      const afil = mapAfiliados[b.id];
+      if (afil && (afil.monto || 0) > 0) return s + afil.monto;
       return s + getMontoSeguro(b, configAnio);
     }, 0),
-  [beneficiariosActivos, configAnio, hoyStr]);
+  [beneficiariosActivos, mapAfiliados, configAnio, hoyStr]);
   const totalADepositarSA = Math.max(0, totalExigidoSA - totalDepositadoSA);
 
   return (
