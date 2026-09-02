@@ -12,12 +12,13 @@ import { ArrowLeft, CheckCircle2, XCircle, Award, Tent, Gift, Zap, ShieldCheck, 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import RamaBadge from '@/components/shared/RamaBadge';
 import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, marzoEsBonificado, mesExcluidoPorActividad, getCuotaBeneficiario, calcularMontoPorMes, calcularEsperadoPorMes } from '@/lib/ramaUtils';
+import { getMontoSeguro } from '@/lib/afiliacionUtils';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import WhatsAppResumenBtn from '@/components/cuenta/WhatsAppResumenBtn';
 import AplicarCreditoDialog from '@/components/cuenta/AplicarCreditoDialog';
 
-export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, onBack, afiliacion, esPrimeraVezAfiliacion, todosLosBeneficiarios = [] }) {
+export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, onBack, afiliacion, esPrimeraVezAfiliacion, todosLosBeneficiarios = [], configAfil }) {
   const [showAplicar, setShowAplicar] = useState(false);
   const [creditoSeleccionado, setCreditoSeleccionado] = useState(null);
   const queryClient = useQueryClient();
@@ -30,6 +31,7 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
 
   if (!beneficiario) return null;
 
+  const montoSeguroEsperado = getMontoSeguro(beneficiario, configAfil);
   const pagosAnio = pagos.filter(p => p.anio === anio);
   const pagosCuotaAnio = pagosAnio.filter(p => p.tipo_pago !== 'Campamento');
   const montoPorMes = calcularMontoPorMes(pagosCuotaAnio, beneficiario, todosLosBeneficiarios);
@@ -91,18 +93,18 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
               ) : (
                 <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                   <span className="text-xs text-muted-foreground">
-                    Seguro: <strong>{formatMoney(afiliacion.monto || 0)}</strong>
+                    Seguro: <strong>{formatMoney(montoSeguroEsperado)}</strong>
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    Pagado: <strong className={(afiliacion.monto_pagado || 0) >= (afiliacion.monto || 0) ? 'text-green-600' : 'text-orange-600'}>
+                    Pagado: <strong className={(afiliacion.monto_pagado || 0) >= montoSeguroEsperado ? 'text-green-600' : 'text-orange-600'}>
                       {formatMoney(afiliacion.monto_pagado || 0)}
                     </strong>
                   </span>
-                  {(afiliacion.monto_pagado || 0) >= (afiliacion.monto || 0) ? (
+                  {(afiliacion.monto_pagado || 0) >= montoSeguroEsperado ? (
                     <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">✓ Pagado</Badge>
                   ) : (
                     <Badge className="bg-orange-100 text-orange-700 border-orange-300 border text-xs">
-                      <AlertCircle className="w-3 h-3 mr-1" />Pendiente {formatMoney((afiliacion.monto || 0) - (afiliacion.monto_pagado || 0))}
+                      <AlertCircle className="w-3 h-3 mr-1" />Pendiente {formatMoney(montoSeguroEsperado - (afiliacion.monto_pagado || 0))}
                     </Badge>
                   )}
                 </div>
@@ -110,7 +112,7 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
             ) : (
               <div className="flex items-center gap-2 mt-0.5">
                 <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs">
-                  <AlertCircle className="w-3 h-3 mr-1" />Sin afiliar — debe abonar seguro
+                  <AlertCircle className="w-3 h-3 mr-1" />Sin afiliar — debe {formatMoney(montoSeguroEsperado)}
                 </Badge>
               </div>
             )}

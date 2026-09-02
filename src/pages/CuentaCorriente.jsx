@@ -14,7 +14,7 @@ import ResumenDeudas from '@/components/cuenta/ResumenDeudas';
 import GrillaCuotasMensuales from '@/components/cuenta/GrillaCuotasMensuales';
 import PagoForm from '@/components/pagos/PagoForm';
 import { RAMAS, TODOS_LOS_ROLES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado, calcularMesesQueGeneranDeuda, calcularMontoPorMes, calcularEsperadoPorMes } from '@/lib/ramaUtils';
-import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
+import { getMontoSeguro } from '@/lib/afiliacionUtils';
 
 const CUOTA_EFECTIVO_REF = CUOTA_EFECTIVO;
 import { cn } from '@/lib/utils';
@@ -57,6 +57,11 @@ export default function CuentaCorriente() {
   const { data: todosCreditos = [] } = useQuery({
     queryKey: ['creditos'],
     queryFn: () => base44.entities.CreditoBeneficiario.list(),
+  });
+
+  const { data: configAfiliaciones = [] } = useQuery({
+    queryKey: ['config-afiliaciones'],
+    queryFn: () => base44.entities.ConfigAfiliacion.list(),
   });
 
   // Solo calcular deudas desde 2026 en adelante
@@ -104,13 +109,13 @@ export default function CuentaCorriente() {
         const esperado = esperadoPorMes[m] || cuotaIndividual;
         return s + Math.max(0, esperado - pagado);
       }, 0);
-      // Afiliación del año (ya calculado arriba)
+      // Afiliación del año: el monto debido se calcula según el tipo_afiliacion actual
+      const configAfil = configAfiliaciones.find(c => Number(c.anio) === Number(anio));
+      const montoEsperadoAfil = getMontoSeguro(b, configAfil);
       let saldoAfiliacion = 0;
       if (!esPrimeraVez && anio >= AÑO_INICIO) {
-        // Debe pagar afiliación: si no tiene registro o tiene saldo pendiente
-        const montoPagadoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto_pagado ?? afiliacionAnio.monto ?? 0) : 0;
-        const montoDebidoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto ?? MONTO_SEGURO_AFILIACION) : MONTO_SEGURO_AFILIACION;
-        saldoAfiliacion = montoPagadoAfiliacion - montoDebidoAfiliacion;
+        const montoPagadoAfiliacion = afiliacionAnio ? (afiliacionAnio.monto_pagado ?? 0) : 0;
+        saldoAfiliacion = montoPagadoAfiliacion - montoEsperadoAfil;
       }
 
       const saldo = -deudaCuotas + pagadoCamp - totalCampamentos + saldoAfiliacion;
@@ -140,7 +145,7 @@ export default function CuentaCorriente() {
         deudaCampamento: Math.max(0, totalCampamentos - pagadoCamp),
       };
     });
-  }, [activos, pagos, campamentos, afiliaciones, anio, todosCreditos]);
+  }, [activos, pagos, campamentos, afiliaciones, anio, todosCreditos, configAfiliaciones]);
 
   const filtered = cuentas.filter(c => {
     const matchSearch = !search || c.nombre?.toLowerCase().includes(search.toLowerCase());
@@ -186,7 +191,8 @@ export default function CuentaCorriente() {
         ? c.adultos_ids?.includes(selectedBen.id)
         : c.beneficiarios_ids?.includes(selectedBen.id)
     );
-    return <CuentaDetalle beneficiario={cuenta} pagos={pagosDelBen} campamentos={campBen} anio={anio} onBack={() => setSelectedBen(null)} afiliacion={cuenta?.afiliacionAnio} esPrimeraVezAfiliacion={cuenta?.esPrimeraVezAfiliacion} todosLosBeneficiarios={beneficiarios} />;
+    const configAfilDet = configAfiliaciones.find(c => Number(c.anio) === Number(anio));
+    return <CuentaDetalle beneficiario={cuenta} pagos={pagosDelBen} campamentos={campBen} anio={anio} onBack={() => setSelectedBen(null)} afiliacion={cuenta?.afiliacionAnio} esPrimeraVezAfiliacion={cuenta?.esPrimeraVezAfiliacion} todosLosBeneficiarios={beneficiarios} configAfil={configAfilDet} />;
   }
 
   return (
