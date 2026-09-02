@@ -682,7 +682,7 @@ export default function Afiliaciones() {
       const bonificado = primera && esPrimeraVezBonificado(b, configAnio, hoyStr);
       if (bonificado) return s;
       const afil = mapAfiliados[b.id];
-      if (afil && (afil.monto || 0) > 0) return s + afil.monto;
+      if (afil) return s + (afil.monto || 0);
       return s + getMontoSeguro(b, configAnio);
     }, 0),
   [beneficiariosActivos, mapAfiliados, configAnio, hoyStr]);
