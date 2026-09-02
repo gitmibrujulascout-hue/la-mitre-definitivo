@@ -38,6 +38,10 @@
       "type": "object",
       "description": "Costos personalizados por persona: { 'beneficiario_id': monto }. Anula el costo_por_persona / costo_adultos."
     },
+    "presupuesto": {
+      "type": "object",
+      "description": "Datos del presupuesto del campamento: { comida_por_persona_dia, items: { transporte: monto, ... }, splits: { transporte: bool, ... } }"
+    },
     "ramas_participantes": {
       "type": "array",
       "items": {
@@ -65,6 +69,13 @@
         "type": "string"
       },
       "description": "IDs de beneficiarios menores de 18 a\u00f1os que entregaron la autorizaci\u00f3n familiar"
+    },
+    "confirmaciones_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs de personas (beneficiarios y adultos) que confirmaron su asistencia al campamento"
     },
     "autorizacion_activa": {
       "type": "boolean",

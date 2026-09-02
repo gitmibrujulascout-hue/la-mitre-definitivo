@@ -81,6 +81,7 @@ export default function EstadoCuenta() {
   // Calcular datos de cuenta para un beneficiario
   const calcularCuenta = (b) => {
     if (!b) return null;
+    try {
     const activos = beneficiarios.filter(x => x.activo !== false);
     const pagosDelBen = pagos.filter(p => p.beneficiario_id === b.id);
     const pagosCuotasAnio = pagosDelBen.filter(
@@ -100,11 +101,11 @@ export default function EstadoCuenta() {
 
     // Cuota del mes actual para display
     const mesActualNombre = MESES[new Date().getMonth()];
-    const baseMesActual = getCuotaBaseMes(mesActualNombre, anio, configCuotas);
+    const baseMesActual = getCuotaBaseMes(mesActualNombre, anio, configCuotas) || CUOTA_EFECTIVO;
     const cuotaIndividual = getCuotaBeneficiario(b, activos, baseMesActual);
     // Calcular cuota transferencia aplicando el mismo ratio de descuento que efectivo
-    const ratioDescuento = esBeneficiarioConCuota(b) ? cuotaIndividual / baseMesActual : 1;
-    const baseTransferenciaActual = getCuotaTransferenciaMes(mesActualNombre, anio, configCuotas);
+    const ratioDescuento = esBeneficiarioConCuota(b) && baseMesActual > 0 ? cuotaIndividual / baseMesActual : 1;
+    const baseTransferenciaActual = getCuotaTransferenciaMes(mesActualNombre, anio, configCuotas) || CUOTA_TRANSFERENCIA;
     const cuotaTransferencia = Math.round(baseTransferenciaActual * ratioDescuento);
 
     // Calcular deuda mes por mes: cada mes puede tener su propio valor de cuota
@@ -113,13 +114,13 @@ export default function EstadoCuenta() {
     const alDia = esBeneficiarioConCuota(b) ? estaAlDia(b, pagosCuotasAnio, mesesQueGeneranDeuda) : false;
     if (esBeneficiarioConCuota(b)) {
       const mesesPendientes = mesesQueGeneranDeuda.filter(m => {
-        const baseMes = getCuotaBaseMes(m, anio, configCuotas);
+        const baseMes = getCuotaBaseMes(m, anio, configCuotas) || CUOTA_EFECTIVO;
         const cuotaBenMes = getCuotaBeneficiario(b, activos, baseMes);
         const esperadoMes = esperadoPorMes[m] || cuotaBenMes;
         return (montoPorMes[m] || 0) < esperadoMes - 0.01;
       });
       deudaCuotas = mesesPendientes.reduce((s, m) => {
-        const baseMes = getCuotaBaseMes(m, anio, configCuotas);
+        const baseMes = getCuotaBaseMes(m, anio, configCuotas) || CUOTA_EFECTIVO;
         const cuotaBenMes = getCuotaBeneficiario(b, activos, baseMes);
         const esperadoMes = esperadoPorMes[m] || cuotaBenMes;
         return s + Math.max(0, esperadoMes - (montoPorMes[m] || 0));
@@ -186,6 +187,18 @@ export default function EstadoCuenta() {
       alDia,
       tieneDescuento: cuotaIndividual < CUOTA_EFECTIVO && esBeneficiarioConCuota(b),
     };
+    } catch (err) {
+      // Si hay un error calculando la cuenta de un beneficiario específico,
+      // devolver datos mínimos para que la página no quede en blanco
+      console.error('Error calculando cuenta de', b?.nombre, err);
+      return {
+        pagosAnio: [], mesesPagados: [], montoPorMes: {}, esperadoPorMes: {},
+        cuotaEfectiva: CUOTA_EFECTIVO, campBen: [], totalCampamentos: 0, pagadoCamp: 0,
+        cuotaIndividual: CUOTA_EFECTIVO, deudaCuotas: 0, pagadoCuotas: 0, saldo: 0,
+        totalCreditos: 0, creditosDisp: [], creditosBen: [], pagosConCredito: [],
+        marzoGratis: false, cuotaTransferencia: CUOTA_TRANSFERENCIA, alDia: false, tieneDescuento: false,
+      };
+    }
   };
 
   const handleBuscar = () => {

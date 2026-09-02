@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import AutorizacionesPanel from './AutorizacionesPanel';
 import BalanceCampamento from './BalanceCampamento';
 import CodigoAccesoPanel from './CodigoAccesoPanel';
+import AsistenciaPanel from './AsistenciaPanel';
 import PresupuestoCampamento from './PresupuestoCampamento';
 import { differenceInYears, parseISO } from 'date-fns';
 
@@ -96,6 +97,7 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
 
   const handlePrint = () => {
     const autorizadosSet = new Set(campamento.autorizaciones_ids || []);
+    const confirmadosSet = new Set(campamento.confirmaciones_ids || []);
     // Mapa beneficiario_id -> monto pagado para este campamento
     const pagosMap = {};
     (pagos || []).forEach(p => {
@@ -109,13 +111,16 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
       const rows = lista.map(b => {
         contador++;
         const autorizo = autorizadosSet.has(b.id) ? '✓' : '';
+        const confirmo = confirmadosSet.has(b.id) ? '✓' : '';
         const montoPagado = pagosMap[b.id] ? `$${pagosMap[b.id].toLocaleString('es-AR')}` : '';
         const autorizClass = autorizadosSet.has(b.id) ? 'style="color:green;font-weight:bold;text-align:center"' : 'style="text-align:center"';
+        const confirmClass = confirmadosSet.has(b.id) ? 'style="color:green;font-weight:bold;text-align:center"' : 'style="text-align:center"';
         const pagoClass = pagosMap[b.id] ? 'style="color:green;font-weight:bold;text-align:center"' : 'style="text-align:center"';
         return `<tr>
           <td>${contador}</td>
           <td>${b.nombre}</td>
           <td>${b.dni || ''}</td>
+          <td ${confirmClass}>${confirmo}</td>
           <td ${autorizClass}>${autorizo}</td>
           <td ${pagoClass}>${montoPagado}</td>
         </tr>`;
@@ -125,7 +130,7 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
           ${rama} (${lista.length})
         </div>
         <table>
-          <thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th style="text-align:center;width:80px">Autorización</th><th style="text-align:center;width:90px">Pago</th></tr></thead>
+          <thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th style="text-align:center;width:70px">Confirm.</th><th style="text-align:center;width:80px">Autorización</th><th style="text-align:center;width:90px">Pago</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       `;
@@ -241,6 +246,12 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
           </p>
           <p className="text-xs text-muted-foreground">Autorizaciones</p>
         </Card>
+        <Card className="p-4 text-center">
+          <p className={cn('text-2xl font-bold', (campamento.confirmaciones_ids?.length || 0) === total && total > 0 ? 'text-green-600' : 'text-blue-500')}>
+            {campamento.confirmaciones_ids?.length || 0}/{total}
+          </p>
+          <p className="text-xs text-muted-foreground">Confirmados</p>
+        </Card>
       </div>
 
       {/* Ramas badges */}
@@ -255,12 +266,14 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <AutorizacionesPanel campamento={campamento} beneficiarios={beneficiarios} />
-        <BalanceCampamento campamento={campamento} pagos={pagos} gastos={gastos} />
+        <BalanceCampamento campamento={campamento} beneficiarios={beneficiarios} pagos={pagos} gastos={gastos} />
       </div>
 
       <div className="mb-6">
         <CodigoAccesoPanel campamento={campamento} />
       </div>
+
+      <AsistenciaPanel campamento={campamento} beneficiarios={beneficiarios} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Beneficiarios agrupados por rama */}
@@ -387,6 +400,7 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
           onClose={() => setShowPresupuesto(false)}
           campamento={campamento}
           beneficiarios={beneficiarios}
+          gastos={gastos}
         />
       )}
     </div>
