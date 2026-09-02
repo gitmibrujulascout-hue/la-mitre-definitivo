@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 
-export default function AsistenciaPanel({ campamento, beneficiarios }) {
+export default function AsistenciaPanel({ campamento, beneficiarios, pagos = [] }) {
   const queryClient = useQueryClient();
 
   const updateMutation = useMutation({
@@ -19,7 +19,16 @@ export default function AsistenciaPanel({ campamento, beneficiarios }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campamentos'] }),
   });
 
-  const confirmadosSet = useMemo(() => new Set(campamento.confirmaciones_ids || []), [campamento]);
+  // Confirmación efectiva: marcados manualmente + los que registraron algún pago (la seña confirma asistencia)
+  const confirmadosSet = useMemo(() => {
+    const set = new Set(campamento.confirmaciones_ids || []);
+    for (const p of pagos) {
+      if (p.campamento_id === campamento.id && p.beneficiario_id) {
+        set.add(p.beneficiario_id);
+      }
+    }
+    return set;
+  }, [campamento, pagos]);
 
   const todos = useMemo(() => {
     const getBen = (id) => beneficiarios.find(b => b.id === id);

@@ -49,6 +49,15 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
     [campamento, beneficiarios]
   );
 
+  // Confirmación efectiva: marcados manualmente + los que registraron algún pago (la seña confirma asistencia)
+  const pagosSet = useMemo(() => {
+    const set = new Set();
+    for (const p of pagos) {
+      if (p.campamento_id === campamento.id && p.beneficiario_id) set.add(p.beneficiario_id);
+    }
+    return set;
+  }, [pagos, campamento.id]);
+
   // Niños agrupados por rama, en orden canónico, y dentro de cada rama alfabéticamente
   const ninosPorRama = useMemo(() => {
     const map = {};
@@ -283,7 +292,7 @@ export default function CampamentoDetalle({ campamento, beneficiarios, pagos, ga
         <CodigoAccesoPanel campamento={campamento} />
       </div>
 
-      <AsistenciaPanel campamento={campamento} beneficiarios={beneficiarios} />
+      <AsistenciaPanel campamento={campamento} beneficiarios={beneficiarios} pagos={pagos} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Beneficiarios agrupados por rama */}

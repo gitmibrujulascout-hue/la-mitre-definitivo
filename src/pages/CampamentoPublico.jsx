@@ -116,7 +116,13 @@ function PagoCampamentoDialog({ open, onClose, campamento, beneficiarios, pagos,
     return beneficiarios.filter(b => ids.includes(b.id)).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   }, [campamento, beneficiarios]);
 
-  const confirmadosSet = useMemo(() => new Set(campamento.confirmaciones_ids || []), [campamento]);
+  const confirmadosSet = useMemo(() => {
+    const set = new Set(campamento.confirmaciones_ids || []);
+    for (const p of pagos) {
+      if (p.campamento_id === campamento.id && p.beneficiario_id) set.add(p.beneficiario_id);
+    }
+    return set;
+  }, [campamento, pagos]);
 
   const pagadoPor = (id) => pagos.filter(p => p.campamento_id === campamento.id && p.beneficiario_id === id).reduce((s, p) => s + p.monto, 0);
   const costo = (ben) => {
@@ -489,7 +495,13 @@ export default function CampamentoPublico() {
     if (esAdulto && campamento?.adultos_pagan) return campamento.costo_adultos || campamento.costo_por_persona;
     return campamento?.costo_por_persona;
   };
-  const confirmadosSet = useMemo(() => new Set(campamento?.confirmaciones_ids || []), [campamento]);
+  const confirmadosSet = useMemo(() => {
+    const set = new Set(campamento?.confirmaciones_ids || []);
+    for (const p of pagos) {
+      if (p.beneficiario_id) set.add(p.beneficiario_id);
+    }
+    return set;
+  }, [campamento, pagos]);
 
   const ninosPorRamaFiltrada = useMemo(() => {
     if (!soloPendientes) return ninosPorRama;

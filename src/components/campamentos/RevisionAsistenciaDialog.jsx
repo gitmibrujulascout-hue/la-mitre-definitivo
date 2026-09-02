@@ -22,7 +22,14 @@ export default function RevisionAsistenciaDialog({ open, onClose, campamento, be
   const queryClient = useQueryClient();
   const [seleccionados, setSeleccionados] = useState(new Set());
 
-  const confirmadosSet = useMemo(() => new Set(campamento.confirmaciones_ids || []), [campamento]);
+  // Confirmación efectiva: marcados manualmente + los que registraron algún pago (la seña confirma asistencia)
+  const confirmadosSet = useMemo(() => {
+    const set = new Set(campamento.confirmaciones_ids || []);
+    for (const p of pagos) {
+      if (p.campamento_id === campamento.id && p.beneficiario_id) set.add(p.beneficiario_id);
+    }
+    return set;
+  }, [campamento, pagos]);
 
   const todos = useMemo(() => {
     const getBen = (id) => beneficiarios.find(b => b.id === id);
@@ -69,8 +76,8 @@ export default function RevisionAsistenciaDialog({ open, onClose, campamento, be
       const saldo = costo - pagado;
       const noConfirmo = !confirmado;
       const noPago = costo > 0 && saldo > 0.01;
-      // Sospechoso de no asistencia: no confirmó Y no pagó (o no confirmó a secas)
-      const sospechoso = noConfirmo;
+      // Sospechoso de no asistencia: no confirmó Y no pagó (pagar = confirmar asistencia)
+      const sospechoso = noConfirmo && pagado === 0;
       return { ...b, esAdulto, confirmado, costo, pagado, saldo, noConfirmo, noPago, sospechoso };
     };
 
