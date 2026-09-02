@@ -1,8 +1,11 @@
 import React, { useMemo, useState, useRef } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { FileSpreadsheet, Printer, Package } from 'lucide-react';
-import { filtrarEncargos, buildPedidoProveedor } from '@/lib/reporteEncargosUtils';
+import { FileSpreadsheet, Printer, Package, Send } from 'lucide-react';
+import { filtrarEncargos, buildPedidoProveedor, ESTADOS_ACTIVOS } from '@/lib/reporteEncargosUtils';
+import { toast } from 'sonner';
 
 const FILTROS = [
   { key: 'activos', label: 'Activos' },
@@ -16,11 +19,33 @@ const FILTROS = [
 export default function ReporteProveedorDialog({ encargos, onClose }) {
   const [filtro, setFiltro] = useState('activos');
   const printRef = useRef();
+  const queryClient = useQueryClient();
 
   const encargosFiltrados = useMemo(() => filtrarEncargos(encargos, filtro), [encargos, filtro]);
   const { map: pedido, talles } = useMemo(() => buildPedidoProveedor(encargosFiltrados), [encargosFiltrados]);
   const totalUnidades = encargosFiltrados.reduce((s, e) => s + (e.cantidad || 0), 0);
   const productosOrdenados = Object.entries(pedido).sort((a, b) => a[0].localeCompare(b[0], 'es'));
+
+  // Encargos que se pueden marcar como "Pedido a proveedor" (los que están en estado activo)
+  const marcables = useMemo(
+    () => encargosFiltrados.filter(e => ESTADOS_ACTIVOS.includes(e.estado)),
+    [encargosFiltrados]
+  );
+
+  const marcarPedidoProveedor = useMutation({
+    mutationFn: async () => {
+      const updates = marcables.map(e => ({ id: e.id, estado: 'Pedido a proveedor' }));
+      if (updates.length === 0) return;
+      await base44.entities.PreEncargoTienda.bulkUpdate(updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
+      queryClient.invalidateQueries({ queryKey: ['pre_encargos_familia'] });
+      toast.success(`${marcables.length} encargo(s) marcados como "Pedido a proveedor"`);
+      onClose();
+    },
+    onError: (err) => toast.error('Error: ' + err.message),
+  });
 
   const handleExportXLS = () => {
     const talleHeaderCols = talles.map(t =>
@@ -81,6 +106,16 @@ export default function ReporteProveedorDialog({ encargos, onClose }) {
             ))}
           </div>
           <div className="flex-1" />
+          {marcables.length > 0 && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => { if (confirm(`¿Marcar ${marcables.length} encargo(s) como "Pedido a proveedor"? Dejarán de aparecer en futuros pedidos.`)) marcarPedidoProveedor.mutate(); }}
+              disabled={marcarPedidoProveedor.isPending}
+            >
+              <Send className="w-4 h-4 mr-1.5" />Marcar pedido a prov.
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleExportXLS}>
             <FileSpreadsheet className="w-4 h-4 mr-1.5" />Excel
           </Button>
