@@ -36,6 +36,7 @@ export default function Tienda() {
   const [pagoEncargo, setPagoEncargo] = useState(null);
   const [showReporteProveedor, setShowReporteProveedor] = useState(false);
   const [showListaEntrega, setShowListaEntrega] = useState(false);
+  const [ocultarCancelados, setOcultarCancelados] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: productos = [] } = useQuery({
@@ -221,6 +222,17 @@ export default function Tienda() {
   const ventasHoy = ventas.filter(v => v.fecha === new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
   const totalHoy = ventasHoy.reduce((s, v) => s + (v.monto_total || 0), 0);
   const hayCajaExclusiva = productos.some(p => p.caja_exclusiva);
+
+  // Pre-encargos ordenados: cancelados al final; ocultar si el toggle está activo
+  const preEncargosOrdenados = useMemo(() => {
+    const lista = ocultarCancelados ? preEncargos.filter(e => e.estado !== 'Cancelado') : preEncargos;
+    return [...lista].sort((a, b) => {
+      const aCancelado = a.estado === 'Cancelado' ? 1 : 0;
+      const bCancelado = b.estado === 'Cancelado' ? 1 : 0;
+      if (aCancelado !== bCancelado) return aCancelado - bCancelado;
+      return (b.fecha || '').localeCompare(a.fecha || '');
+    });
+  }, [preEncargos, ocultarCancelados]);
 
   const categorias = ['todas', 'Uniforme', 'Merchandising', 'Libro', 'Accesorio', 'Otro'];
 
@@ -490,7 +502,18 @@ export default function Tienda() {
             </div>
 
             {/* Tabla detallada */}
-            <h3 className="text-sm font-semibold mb-2">Detalle de pre-encargos</h3>
+            <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+              <h3 className="text-sm font-semibold">Detalle de pre-encargos</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setOcultarCancelados(v => !v)}
+              >
+                {ocultarCancelados ? <Eye className="w-3.5 h-3.5 mr-1" /> : <EyeOff className="w-3.5 h-3.5 mr-1" />}
+                {ocultarCancelados ? 'Mostrar cancelados' : 'Ocultar cancelados'}
+              </Button>
+            </div>
             <Card className="overflow-hidden">
               <Table>
                 <TableHeader>
@@ -507,10 +530,10 @@ export default function Tienda() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {preEncargos.length === 0 ? (
+                  {preEncargosOrdenados.length === 0 ? (
                     <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No hay pre-encargos</TableCell></TableRow>
-                  ) : preEncargos.map(e => (
-                    <TableRow key={e.id}>
+                  ) : preEncargosOrdenados.map(e => (
+                    <TableRow key={e.id} className={cn(e.estado === 'Cancelado' && 'opacity-50')}>
                       <TableCell className="text-muted-foreground text-sm whitespace-nowrap">{e.fecha}</TableCell>
                       <TableCell className="font-medium text-sm">{e.beneficiario_nombre}</TableCell>
                       <TableCell className="text-sm">{e.producto_nombre}</TableCell>
