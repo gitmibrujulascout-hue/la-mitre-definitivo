@@ -99,10 +99,16 @@ export function useFondos({ anio = null, filtrarPrivados = true } = {}) {
         if (e.forma_pago === 'Crédito actividad') return null; // el dinero ya entró vía la actividad
         return e.forma_pago === 'Transferencia' ? 'Banco' : 'Caja';
       };
-      const ingresosSeñas = preEncargos
+      const señasFiltradas = preEncargos
         .filter(e => ['Pendiente', 'Confirmado'].includes(e.estado) && (e.monto_pagado || 0) > 0)
         .filter(e => filtraAnio(e.fecha_pago))
-        .filter(e => cuentaSeña(e) === cuenta)
+        .filter(e => cuentaSeña(e) === cuenta);
+      const ingresosSeñas = señasFiltradas
+        .filter(e => !e.es_pedido_proveedor)
+        .reduce((s, e) => s + (e.monto_pagado || 0), 0);
+      // Señas a proveedores = egresos (reposición de stock)
+      const egresosSeñasProveedor = señasFiltradas
+        .filter(e => e.es_pedido_proveedor)
         .reduce((s, e) => s + (e.monto_pagado || 0), 0);
 
       // 5. Movimientos manuales y de afiliación (excluyendo duplicados del sistema anterior)
@@ -120,7 +126,7 @@ export function useFondos({ anio = null, filtrarPrivados = true } = {}) {
       const egresosExtra = movs.filter(m => m.tipo === 'Egreso').reduce((s, m) => s + (m.monto || 0), 0);
 
       const ingresos = ingresosPagos + ingresosVentas + ingresosSeñas + ingresosExtra;
-      const egresos = egresosGastos + egresosExtra;
+      const egresos = egresosGastos + egresosExtra + egresosSeñasProveedor;
       return { ingresos, egresos, saldo: ingresos - egresos };
     };
     return { caja: calcular('Caja'), banco: calcular('Banco') };
@@ -173,14 +179,24 @@ export function buildMovimientos({ pagos, gastos, ventasTienda, preEncargos, mov
     if (e.forma_pago === 'Crédito actividad') return null;
     return e.forma_pago === 'Transferencia' ? 'Banco' : 'Caja';
   };
-  const ingresoSeñas = (preEncargos || [])
+  const señasComun = (preEncargos || [])
     .filter(e => ['Pendiente', 'Confirmado'].includes(e.estado) && (e.monto_pagado || 0) > 0)
     .filter(e => filtraAnio(e.fecha_pago))
-    .filter(e => cuentaSeña(e) === cuenta)
+    .filter(e => cuentaSeña(e) === cuenta);
+  const ingresoSeñas = señasComun
+    .filter(e => !e.es_pedido_proveedor)
     .map(e => ({
       id: `seña-${e.id}`, refId: e.id, fecha: e.fecha_pago, tipo: 'Ingreso',
       concepto: `Seña tienda — ${e.producto_nombre} (${e.beneficiario_nombre})`,
       monto: e.monto_pagado, origen: 'Seña tienda', forma_pago: e.forma_pago,
+    }));
+  // Señas a proveedores = egresos
+  const egresoSeñas = señasComun
+    .filter(e => e.es_pedido_proveedor)
+    .map(e => ({
+      id: `seña-prov-${e.id}`, refId: e.id, fecha: e.fecha_pago, tipo: 'Egreso',
+      concepto: `Seña proveedor — ${e.producto_nombre}`,
+      monto: e.monto_pagado, origen: 'Seña proveedor', forma_pago: e.forma_pago,
     }));
 
   // Movimientos manuales (excluyendo duplicados del sistema anterior)
@@ -194,7 +210,7 @@ export function buildMovimientos({ pagos, gastos, ventasTienda, preEncargos, mov
     })
     .map(m => ({ ...m, id: `extra-${m.id}`, refId: m.id, esManual: m.origen === 'Manual' }));
 
-  return [...ingresoPagos, ...ingresoVentas, ...ingresoSeñas, ...egresoGastos, ...extras].sort((a, b) => {
+  return [...ingresoPagos, ...ingresoVentas, ...ingresoSeñas, ...egresoGastos, ...egresoSeñas, ...extras].sort((a, b) => {
     const diff = (a.fecha || '').localeCompare(b.fecha || '');
     if (diff !== 0) return diff;
     if (a.tipo === 'Ingreso' && b.tipo !== 'Ingreso') return -1;

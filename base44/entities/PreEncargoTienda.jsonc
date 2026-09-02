@@ -4,11 +4,21 @@
   "properties": {
     "beneficiario_id": {
       "type": "string",
-      "description": "ID del beneficiario que solicita el pre-encargo"
+      "description": "ID del beneficiario que solicita el pre-encargo. Null si es del Grupo."
     },
     "beneficiario_nombre": {
       "type": "string",
-      "description": "Nombre del beneficiario"
+      "description": "Nombre del beneficiario o 'Grupo'"
+    },
+    "es_grupo": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si el pre-encargo pertenece al Grupo (no a un beneficiario individual)"
+    },
+    "es_pedido_proveedor": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si es un pedido a proveedor para reposici\u00f3n de stock. Las se\u00f1as se cuentan como EGRESO (gasto), no como ingreso."
     },
     "producto_id": {
       "type": "string",
@@ -90,7 +100,6 @@
     }
   },
   "required": [
-    "beneficiario_id",
     "producto_id",
     "cantidad",
     "fecha"

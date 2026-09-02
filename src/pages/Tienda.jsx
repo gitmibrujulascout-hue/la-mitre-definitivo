@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2, Users, DollarSign, Undo2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, ShoppingBag, Package, AlertTriangle, TrendingUp, Search, Eye, EyeOff, ClipboardList, Check, X, CheckCircle2, Users, DollarSign, Undo2, Merge } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import ProductoTiendaForm from '@/components/tienda/ProductoTiendaForm';
 import VentaTiendaForm from '@/components/tienda/VentaTiendaForm';
@@ -19,6 +19,8 @@ import EncargosPorFamilia from '@/components/tienda/EncargosPorFamilia';
 import EditarEncargoDialog from '@/components/tienda/EditarEncargoDialog';
 import RegistrarPagoEncargoDialog from '@/components/tienda/RegistrarPagoEncargoDialog';
 import CajaExclusivaPanel from '@/components/tienda/CajaExclusivaPanel';
+import PreEncargoGrupoForm from '@/components/tienda/PreEncargoGrupoForm';
+import FusionarAGrupoDialog from '@/components/tienda/FusionarAGrupoDialog';
 import { formatMoney } from '@/lib/ramaUtils';
 import { getStockDisponiblePorTalle, getStockFisicoTotal } from '@/lib/tiendaStock';
 import { toast } from 'sonner';
@@ -37,6 +39,8 @@ export default function Tienda() {
   const [showReporteProveedor, setShowReporteProveedor] = useState(false);
   const [showListaEntrega, setShowListaEntrega] = useState(false);
   const [ocultarCancelados, setOcultarCancelados] = useState(false);
+  const [showPreEncargoGrupo, setShowPreEncargoGrupo] = useState(false);
+  const [showFusionarGrupo, setShowFusionarGrupo] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: productos = [] } = useQuery({
@@ -476,7 +480,13 @@ export default function Tienda() {
         {/* Pre-encargos */}
         {tab === 'encargos' && (
           <TabsContent value="encargos">
-            <div className="flex justify-end gap-2 mb-3">
+            <div className="flex justify-end gap-2 mb-3 flex-wrap">
+              <Button variant="default" size="sm" onClick={() => setShowPreEncargoGrupo(true)}>
+                <Users className="w-4 h-4 mr-1.5" />Pre-encargo del Grupo
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowFusionarGrupo(true)}>
+                <Merge className="w-4 h-4 mr-1.5" />Fusionar a Grupo
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setShowReporteProveedor(true)}>
                 <Package className="w-4 h-4 mr-1.5" />Pedido al proveedor
               </Button>
@@ -535,7 +545,13 @@ export default function Tienda() {
                   ) : preEncargosOrdenados.map(e => (
                     <TableRow key={e.id} className={cn(e.estado === 'Cancelado' && 'opacity-50')}>
                       <TableCell className="text-muted-foreground text-sm whitespace-nowrap">{e.fecha}</TableCell>
-                      <TableCell className="font-medium text-sm">{e.beneficiario_nombre}</TableCell>
+                      <TableCell className="font-medium text-sm">
+                        <div className="flex items-center gap-1">
+                          {e.beneficiario_nombre}
+                          {e.es_pedido_proveedor && <Badge className="bg-orange-100 text-orange-700 border-orange-300 border text-[10px]">Proveedor</Badge>}
+                          {e.es_grupo && !e.es_pedido_proveedor && <Badge className="bg-indigo-100 text-indigo-700 border-indigo-300 border text-[10px]">Grupo</Badge>}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-sm">{e.producto_nombre}</TableCell>
                       <TableCell>{e.talle ? <Badge variant="outline" className="text-xs">{e.talle}</Badge> : '—'}</TableCell>
                       <TableCell className="text-sm">{e.cantidad}</TableCell>
@@ -649,6 +665,22 @@ export default function Tienda() {
           producto={productos.find(p => p.id === pagoEncargo.producto_id)}
           onClose={() => setPagoEncargo(null)}
           onSave={(id, update) => registrarPagoEncargo.mutate({ id, update })}
+        />
+      )}
+      {showPreEncargoGrupo && (
+        <PreEncargoGrupoForm
+          open
+          onClose={() => setShowPreEncargoGrupo(false)}
+          productos={productos}
+        />
+      )}
+      {showFusionarGrupo && (
+        <FusionarAGrupoDialog
+          open
+          onClose={() => setShowFusionarGrupo(false)}
+          preEncargos={preEncargos}
+          beneficiarios={beneficiarios}
+          defaultBeneficiarioNombre="Eduardo Abalo"
         />
       )}
     </div>

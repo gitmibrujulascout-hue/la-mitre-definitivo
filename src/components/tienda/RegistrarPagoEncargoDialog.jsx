@@ -9,7 +9,7 @@ import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { base44 } from '@/api/base44Client';
 
-const FORMAS_PAGO = ['Efectivo', 'Transferencia', 'Crédito actividad'];
+const FORMAS_PAGO_BASE = ['Efectivo', 'Transferencia', 'Crédito actividad'];
 
 export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose, onSave }) {
   const queryClient = useQueryClient();
@@ -46,6 +46,9 @@ export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose,
   const saldo = Math.max(0, montoTotal - yaPagado);
   const montoNum = parseFloat(monto) || 0;
   const esCredito = formaPago === 'Crédito actividad';
+  const formasPago = encargo?.es_pedido_proveedor
+    ? FORMAS_PAGO_BASE.filter(fp => fp !== 'Crédito actividad')
+    : FORMAS_PAGO_BASE;
 
   const handleSave = async () => {
     if (montoNum <= 0) {
@@ -162,7 +165,7 @@ export default function RegistrarPagoEncargoDialog({ encargo, producto, onClose,
             <div className="space-y-1.5">
               <Label>Forma de pago</Label>
               <div className="flex flex-wrap gap-1.5">
-                {FORMAS_PAGO.map(fp => (
+                {formasPago.map(fp => (
                   <Button
                     key={fp}
                     type="button"
