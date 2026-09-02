@@ -672,10 +672,16 @@ export default function Afiliaciones() {
     return total;
   }, [beneficiariosActivos, mapAfiliados, configAnio, hoyStr]);
 
-  const totalExigidoSA = useMemo(
-    () => afiliacionesAnio.filter(a => !a.es_primera_vez).reduce((s, a) => s + (a.monto || 0), 0),
-    [afiliacionesAnio]
-  );
+  // Total exigido por SA: TODOS los beneficiarios activos deben afiliación
+  // (excepto primera vez bonificada dentro de la fecha límite configurada)
+  const totalExigidoSA = useMemo(() =>
+    beneficiariosActivos.reduce((s, b) => {
+      const primera = !b.fecha_primer_afiliacion;
+      const bonificado = primera && esPrimeraVezBonificado(b, configAnio, hoyStr);
+      if (bonificado) return s;
+      return s + getMontoSeguro(b, configAnio);
+    }, 0),
+  [beneficiariosActivos, configAnio, hoyStr]);
   const totalADepositarSA = Math.max(0, totalExigidoSA - totalDepositadoSA);
 
   return (
@@ -720,7 +726,7 @@ export default function Afiliaciones() {
               <XCircle className="w-5 h-5 text-red-500" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Sin afiliar</p>
+              <p className="text-xs text-muted-foreground">Pendientes</p>
               <p className="text-xl font-bold text-red-500">{totalSinAfiliar}</p>
             </div>
           </CardContent>
@@ -923,7 +929,7 @@ export default function Afiliaciones() {
       </Card>
 
       <div className="mt-6">
-        <RendicionesList anio={anio} />
+        <RendicionesList anio={anio} totalExigidoSA={totalExigidoSA} />
       </div>
 
       {showForm && (
@@ -962,6 +968,7 @@ export default function Afiliaciones() {
           onClose={() => setShowRendicion(false)}
           afiliaciones={afiliaciones}
           anio={anio}
+          totalExigidoSA={totalExigidoSA}
         />
       )}
 

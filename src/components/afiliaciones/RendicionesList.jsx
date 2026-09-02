@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import RegistrarRecuperoDialog from './RegistrarRecuperoDialog';
 
-export default function RendicionesList({ anio }) {
+export default function RendicionesList({ anio, totalExigidoSA: totalExigidoSAProp }) {
   const queryClient = useQueryClient();
   const { data: afiliaciones = [] } = useQuery({
     queryKey: ['afiliaciones'],
@@ -57,7 +57,7 @@ export default function RendicionesList({ anio }) {
       });
 
     const afilAnio = afiliaciones.filter(a => Number(a.anio) === Number(anio) && !a.es_primera_vez);
-    const totalExigidoSA = afilAnio.reduce((s, a) => s + (a.monto || 0), 0);
+    const totalExigidoSA = totalExigidoSAProp || afilAnio.reduce((s, a) => s + (a.monto || 0), 0);
     const totalRecaudadoFamilias = afilAnio.reduce(
       (s, a) => s + Math.max(0, (a.monto_pagado || 0) - (a.monto_pagado_credito || 0)), 0
     );
@@ -103,7 +103,7 @@ export default function RendicionesList({ anio }) {
         saldoADepositar,
       },
     };
-  }, [rendiciones, afiliaciones, anio]);
+  }, [rendiciones, afiliaciones, anio, totalExigidoSAProp]);
 
   if (isLoading || rendicionesCalculadas.length === 0) return null;
 

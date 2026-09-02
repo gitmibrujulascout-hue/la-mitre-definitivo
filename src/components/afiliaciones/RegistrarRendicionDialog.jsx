@@ -10,7 +10,7 @@ import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, anio }) {
+export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, anio, totalExigidoSA: totalExigidoSAProp }) {
   const queryClient = useQueryClient();
 
   const { data: rendiciones = [] } = useQuery({
@@ -18,12 +18,15 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
     queryFn: () => base44.entities.RendicionAfiliacion.list('-fecha', 50),
   });
 
-  // Total que SA exige (suma de monto de los no bonificada del año)
+  // Total que SA exige: viene calculado desde Afiliaciones.jsx (todos los activos).
+  // Fallback: suma de afiliaciones registradas no bonificadas.
   const totalExigidoSA = useMemo(
-    () => afiliaciones
-      .filter(a => Number(a.anio) === Number(anio) && !a.es_primera_vez)
-      .reduce((s, a) => s + (a.monto || 0), 0),
-    [afiliaciones, anio]
+    () => totalExigidoSAProp != null
+      ? totalExigidoSAProp
+      : afiliaciones
+        .filter(a => Number(a.anio) === Number(anio) && !a.es_primera_vez)
+        .reduce((s, a) => s + (a.monto || 0), 0),
+    [afiliaciones, anio, totalExigidoSAProp]
   );
 
   // Total recaudado en EFECTIVO de familias (acumulado, no bonificada).
