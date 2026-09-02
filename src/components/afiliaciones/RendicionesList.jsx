@@ -1,13 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Landmark, Download, Trash2, FileText, TrendingUp } from 'lucide-react';
+import { Landmark, Download, Trash2, FileText, TrendingUp, RotateCcw } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import RegistrarRecuperoDialog from './RegistrarRecuperoDialog';
 
 export default function RendicionesList({ anio }) {
   const queryClient = useQueryClient();
@@ -19,6 +20,12 @@ export default function RendicionesList({ anio }) {
     queryKey: ['rendiciones-afiliacion'],
     queryFn: () => base44.entities.RendicionAfiliacion.list('-fecha', 50),
   });
+  const { data: recuperos = [] } = useQuery({
+    queryKey: ['recuperos-afiliacion', anio],
+    queryFn: () => base44.entities.MovimientoBanco.filter({ origen: 'Recupero afiliación' }, '-fecha', 50),
+  });
+
+  const [showRecuperoDialog, setShowRecuperoDialog] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: async (r) => {
@@ -101,6 +108,10 @@ export default function RendicionesList({ anio }) {
   if (isLoading || rendicionesCalculadas.length === 0) return null;
 
   const s = resumen;
+  const yaRecuperado = recuperos
+    .filter(r => (r.fecha || '').startsWith(String(anio)))
+    .reduce((sum, r) => sum + (r.monto || 0), 0);
+  const pendienteRecupero = Math.max(0, s.disponibleFinal - yaRecuperado);
 
   return (
     <Card className="overflow-hidden mt-6">
@@ -144,6 +155,39 @@ export default function RendicionesList({ anio }) {
           <p className="text-sm font-bold text-orange-600">{formatMoney(s.saldoADepositar)}</p>
         </div>
       </div>
+
+      {/* Recuperos en caja */}
+      {s.totalDeCajaComun > 0 && (
+        <div className="flex items-center justify-between gap-3 p-4 bg-amber-50 border-b">
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-1.5">
+              <RotateCcw className="w-4 h-4 text-amber-600" />
+              <span className="font-medium text-amber-800">Recuperos en caja</span>
+            </div>
+            <span className="text-muted-foreground">
+              De caja común: <span className="font-semibold text-amber-700">{formatMoney(s.totalDeCajaComun)}</span>
+            </span>
+            <span className="text-muted-foreground">
+              Disponible: <span className="font-semibold text-green-600">{formatMoney(s.disponibleFinal)}</span>
+            </span>
+            <span className="text-muted-foreground">
+              Ya recuperado: <span className="font-semibold text-blue-600">{formatMoney(yaRecuperado)}</span>
+            </span>
+            <span className="text-muted-foreground">
+              Pendiente: <span className="font-semibold text-amber-600">{formatMoney(pendienteRecupero)}</span>
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-amber-300 text-amber-700 hover:bg-amber-100"
+            onClick={() => setShowRecuperoDialog(true)}
+            disabled={pendienteRecupero <= 0}
+          >
+            <RotateCcw className="w-3.5 h-3.5" /> Registrar recupero
+          </Button>
+        </div>
+      )}
 
       <Table>
         <TableHeader>
@@ -191,6 +235,14 @@ export default function RendicionesList({ anio }) {
           ))}
         </TableBody>
       </Table>
+
+      <RegistrarRecuperoDialog
+        open={showRecuperoDialog}
+        onClose={() => setShowRecuperoDialog(false)}
+        anio={anio}
+        disponible={s.disponibleFinal}
+        yaRecuperado={yaRecuperado}
+      />
     </Card>
   );
 }
