@@ -35,12 +35,16 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
     [afiliaciones, anio]
   );
 
-  // Ya ingresado y ya depositado en rendiciones anteriores este año
+  // Rendiciones anteriores del año (ordenadas por fecha para imputar secuencialmente)
   const rendicionesAnio = useMemo(
-    () => rendiciones.filter(r => Number(r.anio) === Number(anio)),
+    () => rendiciones
+      .filter(r => Number(r.anio) === Number(anio))
+      .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || '')),
     [rendiciones, anio]
   );
-  const yaIngresado = useMemo(
+
+  // Ya imputado a depósitos anteriores (el recaudado ya "usado" en rendiciones previas)
+  const yaImputado = useMemo(
     () => rendicionesAnio.reduce((s, r) => s + (r.monto_recaudado || 0), 0),
     [rendicionesAnio]
   );
@@ -49,11 +53,8 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
     [rendicionesAnio]
   );
 
-  // Nuevo efectivo a ingresar en esta rendición (lo recaudado desde la última rendición)
-  const recaudadoEstaRendicion = Math.max(0, totalRecaudadoAcumulado - yaIngresado);
-
-  // Excedente acumulado de rendiciones anteriores (recaudado > depositado)
-  const excedenteAnterior = Math.max(0, yaIngresado - yaDepositado);
+  // Recaudado disponible: efectivo de familias aún no imputado a depósitos anteriores
+  const recaudadoDisponible = Math.max(0, totalRecaudadoAcumulado - yaImputado);
 
   const [fechaDeposito, setFechaDeposito] = useState(() =>
     new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
@@ -63,8 +64,10 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
   const [file, setFile] = useState(null);
 
   const depositadoNum = parseFloat(montoDepositado) || 0;
-  // De caja común = depositado - recaudado nuevo - excedente acumulado (si hay)
-  const faltante = Math.max(0, depositadoNum - recaudadoEstaRendicion - excedenteAnterior);
+  // Imputar recaudado al depósito: lo que se pueda cubrir con recaudado disponible
+  const recaudadoImputado = Math.min(depositadoNum, recaudadoDisponible);
+  // De caja común = lo que el depósito no pudo cubrir con recaudado
+  const faltante = Math.max(0, depositadoNum - recaudadoDisponible);
 
   const rendirMutation = useMutation({
     mutationFn: async () => {
@@ -79,23 +82,23 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
         anio: Number(anio),
         fecha: fechaDeposito,
         monto_depositado: depositadoNum,
-        monto_recaudado: recaudadoEstaRendicion,
+        monto_recaudado: recaudadoImputado,
         monto_faltante: faltante,
         comprobante,
         archivo_url,
       });
-      // Egreso en caja: depósito a SA (el total que SA exige)
+      // Egreso en caja: depósito a SA
       await base44.entities.MovimientoBanco.create({
         fecha: fechaDeposito, tipo: 'Egreso', cuenta: 'Caja', origen: 'Afiliación',
         concepto: `Depósito Scout Argentina — rendición afiliaciones ${anio}`,
         monto: depositadoNum, referencia_id: rendicion.id,
       });
-      // Ingreso en caja: nuevo efectivo recaudado de las familias (si hubo)
-      if (recaudadoEstaRendicion > 0) {
+      // Ingreso en caja: efectivo recaudado de familias imputado a este depósito
+      if (recaudadoImputado > 0) {
         await base44.entities.MovimientoBanco.create({
           fecha: fechaDeposito, tipo: 'Ingreso', cuenta: 'Caja', origen: 'Afiliación',
           concepto: `Afiliaciones recaudadas — rendición ${anio}`,
-          monto: recaudadoEstaRendicion, referencia_id: rendicion.id,
+          monto: recaudadoImputado, referencia_id: rendicion.id,
         });
       }
     },
@@ -135,8 +138,7 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
               <Label className="text-xs">Monto depositado a SA *</Label>
               <Input type="number" value={montoDepositado} onChange={e => setMontoDepositado(e.target.value)} placeholder="Ingresá el monto real depositado" />
               <p className="text-xs text-muted-foreground mt-1">
-                SA exige: {formatMoney(totalExigidoSA)} · Recaudado disponible: {formatMoney(recaudadoEstaRendicion)}
-                {excedenteAnterior > 0 && <span className="text-green-600"> · Excedente anterior: {formatMoney(excedenteAnterior)}</span>}
+                SA exige: {formatMoney(totalExigidoSA)} · Recaudado disponible: {formatMoney(recaudadoDisponible)}
               </p>
               <p className="text-xs text-amber-600 mt-0.5">⚠ Ingresá el monto que realmente depositaste, no el que SA exige.</p>
             </div>
@@ -154,8 +156,8 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
           {/* Resumen financiero */}
           <div className="grid grid-cols-3 gap-2">
             <div className="p-2 rounded-lg bg-green-50 border border-green-200 text-center">
-              <p className="text-[10px] text-muted-foreground leading-tight">A ingresar (efectivo)</p>
-              <p className="text-sm font-bold text-green-700">{formatMoney(recaudadoEstaRendicion)}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">Recaudado imputado</p>
+              <p className="text-sm font-bold text-green-700">{formatMoney(recaudadoImputado)}</p>
             </div>
             <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-center">
               <p className="text-[10px] text-muted-foreground leading-tight">A depositar (SA)</p>
@@ -167,9 +169,13 @@ export default function RegistrarRendicionDialog({ open, onClose, afiliaciones, 
             </div>
           </div>
 
+          {recaudadoDisponible > depositadoNum && depositadoNum > 0 && (
+            <p className="text-xs text-green-600">
+              Te quedan {formatMoney(recaudadoDisponible - depositadoNum)} recaudados disponibles para próximos depósitos.
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
-            Recaudado en efectivo: {formatMoney(totalRecaudadoAcumulado)} · Ya ingresado en rendiciones anteriores: {formatMoney(yaIngresado)}
-            {excedenteAnterior > 0 && <span className="text-green-600"> · Excedente sin usar: {formatMoney(excedenteAnterior)}</span>}
+            Total recaudado familias: {formatMoney(totalRecaudadoAcumulado)} · Ya imputado en rendiciones anteriores: {formatMoney(yaImputado)}
           </p>
         </div>
 

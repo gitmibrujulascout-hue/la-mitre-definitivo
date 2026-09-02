@@ -38,7 +38,7 @@ export default function RendicionesList({ anio }) {
     }
   };
 
-  // Recalcular "de caja común" con arrastre de excedente entre rendiciones
+  // Imputar el recaudado secuencialmente a cada depósito (pool de efectivo de familias)
   const { rendicionesCalculadas, resumen } = useMemo(() => {
     const rendAnio = rendiciones
       .filter(r => Number(r.anio) === Number(anio))
@@ -48,24 +48,26 @@ export default function RendicionesList({ anio }) {
         return (a.created_date || '').localeCompare(b.created_date || '');
       });
 
-    let excedenteAcumulado = 0;
+    // Total recaudado en efectivo de familias (excluye crédito y bonificados)
+    const afilAnio = afiliaciones.filter(a => Number(a.anio) === Number(anio) && !a.es_primera_vez);
+    const totalRecaudadoFamilias = afilAnio.reduce(
+      (s, a) => s + Math.max(0, (a.monto_pagado || 0) - (a.monto_pagado_credito || 0)), 0
+    );
+    const totalExigidoSA = afilAnio.reduce((s, a) => s + (a.monto || 0), 0);
+
+    // Pool de recaudado que se va imputando a cada depósito
+    let pool = totalRecaudadoFamilias;
     const calculadas = rendAnio.map(r => {
       const depositado = r.monto_depositado || 0;
-      const recaudado = r.monto_recaudado || 0;
-      const excedentePrevio = excedenteAcumulado;
-      const deCajaComun = Math.max(0, depositado - recaudado - excedentePrevio);
-      excedenteAcumulado = Math.max(0, excedentePrevio + recaudado - depositado);
-      return { ...r, deCajaComunCalculado: deCajaComun, excedenteRestante: excedenteAcumulado };
+      const imputado = Math.min(depositado, pool);
+      const deCajaComun = Math.max(0, depositado - pool);
+      pool -= imputado;
+      return { ...r, monto_recaudado_calculado: imputado, deCajaComunCalculado: deCajaComun, disponibleRestante: pool };
     });
 
     const totalDepositado = calculadas.reduce((s, r) => s + (r.monto_depositado || 0), 0);
-    const totalRecaudado = calculadas.reduce((s, r) => s + (r.monto_recaudado || 0), 0);
+    const totalImputado = calculadas.reduce((s, r) => s + r.monto_recaudado_calculado, 0);
     const totalDeCajaComun = calculadas.reduce((s, r) => s + r.deCajaComunCalculado, 0);
-
-    // Total que SA exige (afiliaciones no primera vez del año)
-    const afilAnio = afiliaciones.filter(a => Number(a.anio) === Number(anio) && !a.es_primera_vez);
-    const totalExigidoSA = afilAnio.reduce((s, a) => s + (a.monto || 0), 0);
-    const totalRecaudadoFamilias = afilAnio.reduce((s, a) => s + Math.max(0, (a.monto_pagado || 0) - (a.monto_pagado_credito || 0)), 0);
     const saldoADepositar = Math.max(0, totalExigidoSA - totalDepositado);
 
     return {
@@ -74,9 +76,9 @@ export default function RendicionesList({ anio }) {
         totalExigidoSA,
         totalRecaudadoFamilias,
         totalDepositado,
-        totalRecaudado,
+        totalImputado,
         totalDeCajaComun,
-        excedenteFinal: excedenteAcumulado,
+        disponibleFinal: pool,
         saldoADepositar,
       },
     };
@@ -110,24 +112,22 @@ export default function RendicionesList({ anio }) {
           <p className="text-sm font-bold text-red-600">{formatMoney(s.totalDepositado)}</p>
         </div>
         <div className="text-center">
+          <p className="text-[10px] text-muted-foreground leading-tight">Imputado a depósitos</p>
+          <p className="text-sm font-bold text-green-600">{formatMoney(s.totalImputado)}</p>
+        </div>
+        <div className="text-center">
           <p className="text-[10px] text-muted-foreground leading-tight">De caja común</p>
           <p className="text-sm font-bold text-amber-600">{formatMoney(s.totalDeCajaComun)}</p>
         </div>
         <div className="text-center">
-          <p className="text-[10px] text-muted-foreground leading-tight">Excedente en caja</p>
-          <p className={cn('text-sm font-bold', s.excedenteFinal > 0 ? 'text-green-600' : 'text-muted-foreground')}>
-            {s.excedenteFinal > 0 ? formatMoney(s.excedenteFinal) : '—'}
+          <p className="text-[10px] text-muted-foreground leading-tight">Disponible próx. depósito</p>
+          <p className={cn('text-sm font-bold', s.disponibleFinal > 0 ? 'text-green-600' : 'text-muted-foreground')}>
+            {s.disponibleFinal > 0 ? formatMoney(s.disponibleFinal) : '—'}
           </p>
         </div>
         <div className="text-center">
           <p className="text-[10px] text-muted-foreground leading-tight">Saldo a depositar</p>
           <p className="text-sm font-bold text-orange-600">{formatMoney(s.saldoADepositar)}</p>
-        </div>
-        <div className="text-center">
-          <p className="text-[10px] text-muted-foreground leading-tight">Neto caja</p>
-          <p className={cn('text-sm font-bold', (s.totalRecaudado - s.totalDepositado) >= 0 ? 'text-green-600' : 'text-red-600')}>
-            {formatMoney(s.totalRecaudado - s.totalDepositado)}
-          </p>
         </div>
       </div>
 
@@ -148,16 +148,16 @@ export default function RendicionesList({ anio }) {
             <TableRow key={r.id}>
               <TableCell className="text-sm">{r.fecha}</TableCell>
               <TableCell className="text-right font-semibold text-red-600">{formatMoney(r.monto_depositado)}</TableCell>
-              <TableCell className="text-right text-green-600">{formatMoney(r.monto_recaudado || 0)}</TableCell>
+              <TableCell className="text-right text-green-600">{formatMoney(r.monto_recaudado_calculado || 0)}</TableCell>
               <TableCell className="text-right">
                 {r.deCajaComunCalculado > 0
                   ? <span className="text-amber-600 font-medium">{formatMoney(r.deCajaComunCalculado)}</span>
                   : <span className="text-muted-foreground">—</span>}
               </TableCell>
               <TableCell className="text-right">
-                {r.excedenteRestante > 0
+                {r.disponibleRestante > 0
                   ? <span className="text-green-600 font-medium flex items-center justify-end gap-0.5">
-                      <TrendingUp className="w-3 h-3" />{formatMoney(r.excedenteRestante)}
+                      <TrendingUp className="w-3 h-3" />{formatMoney(r.disponibleRestante)}
                     </span>
                   : <span className="text-muted-foreground">—</span>}
               </TableCell>
