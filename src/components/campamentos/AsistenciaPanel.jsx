@@ -16,7 +16,11 @@ export default function AsistenciaPanel({ campamento, beneficiarios, pagos = [] 
 
   const updateMutation = useMutation({
     mutationFn: data => base44.entities.Campamento.update(campamento.id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campamentos'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campamentos'] });
+      queryClient.invalidateQueries({ queryKey: ['campamento_pub'] });
+      queryClient.invalidateQueries({ queryKey: ['pagos_pub'] });
+    },
   });
 
   // Confirmación efectiva: marcados manualmente + los que registraron algún pago (la seña confirma asistencia)

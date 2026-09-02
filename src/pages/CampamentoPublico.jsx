@@ -701,11 +701,12 @@ export default function CampamentoPublico() {
                   const pagado = pagadoPor(b.id);
                   const costoB = costo(b);
                   const saldo = costoB - pagado;
+                  const confirmado = confirmadosSet.has(b.id) || pagado > 0;
                   return (
                     <div key={b.id} className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-muted/40 text-sm border-b border-border/30 last:border-0">
                       <span className="text-muted-foreground w-5 text-xs">{i + 1}.</span>
                       <span className="flex-1 font-medium">{b.nombre}</span>
-                      {confirmadosSet.has(b.id)
+                      {confirmado
                         ? <Badge className="bg-green-100 text-green-700 text-xs">✓ Confirmó</Badge>
                         : <Badge variant="outline" className="text-xs text-muted-foreground">Sin confirmar</Badge>}
                       {campamento.autorizacion_activa && (
@@ -742,11 +743,12 @@ export default function CampamentoPublico() {
                 const pagado = pagadoPor(b.id);
                 const costoB = costo(b);
                 const saldo = costoB - pagado;
+                const confirmado = confirmadosSet.has(b.id) || pagado > 0;
                 return (
                   <div key={b.id} className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-muted/40 text-sm border-b border-border/30 last:border-0">
                     <span className="text-muted-foreground w-5 text-xs">{i + 1}.</span>
                     <span className="flex-1 font-medium">{b.nombre}</span>
-                    {confirmadosSet.has(b.id)
+                    {confirmado
                       ? <Badge className="bg-green-100 text-green-700 text-xs">✓ Confirmó</Badge>
                       : <Badge variant="outline" className="text-xs text-muted-foreground">Sin confirmar</Badge>}
                     {b.rama_educador && <Badge variant="outline" className="text-xs">{b.rama_educador}</Badge>}
