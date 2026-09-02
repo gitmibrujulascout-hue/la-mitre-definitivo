@@ -21,6 +21,7 @@ import BalanceCampamento from '@/components/campamentos/BalanceCampamento';
 import AutorizacionesPanel from '@/components/campamentos/AutorizacionesPanel';
 import DescargarAutorizacionButton from '@/components/campamentos/DescargarAutorizacionButton';
 import DescargarCircularButton from '@/components/campamentos/DescargarCircularButton';
+import PresupuestoResumenPublico from '@/components/campamentos/PresupuestoResumenPublico';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const ORDEN_RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
@@ -650,6 +651,9 @@ export default function CampamentoPublico() {
           <AutorizacionesPanel campamento={campamento} beneficiarios={beneficiarios} invalidateKey="campamento_pub" />
           <BalanceCampamento campamento={campamento} pagos={pagos} gastos={gastos} />
         </div>
+
+        {/* Presupuesto */}
+        <PresupuestoResumenPublico campamento={campamento} />
 
         {/* Alertas médicas */}
         {conAlertas.length > 0 && (
