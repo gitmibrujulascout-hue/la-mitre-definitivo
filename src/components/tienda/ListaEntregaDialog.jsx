@@ -32,23 +32,29 @@ export default function ListaEntregaDialog({ encargos, onClose }) {
   const listaEntrega = useMemo(() => buildListaEntrega(encargosFiltrados), [encargosFiltrados]);
   const totalUnidades = encargosFiltrados.reduce((s, e) => s + (e.cantidad || 0), 0);
   const totalMonto = encargosFiltrados.reduce((s, e) => s + (e.monto_total || 0), 0);
+  const totalPagado = encargosFiltrados.reduce((s, e) => s + (e.monto_pagado || 0), 0);
+  const totalSaldo = totalMonto - totalPagado;
 
   const handleExportXLS = () => {
     let rn = 0;
     const filas = listaEntrega.map(({ nombre, items }) => {
       const subTotal = items.reduce((s, i) => s + (i.monto_total || 0), 0);
       const subUnidades = items.reduce((s, i) => s + (i.cantidad || 0), 0);
-      const benHeader = `<tr style="background:#e8eeff"><td colspan="4" style="padding:6px 8px;border:1px solid #b0b8e0;font-weight:bold;color:#2a3d9e">${nombre}</td><td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:center;font-weight:bold">${subUnidades}</td><td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:right;font-weight:bold;color:#15803d">${formatMoney(subTotal)}</td><td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:center">${items[0]?.estado || ''}</td></tr>`;
+      const subPagado = items.reduce((s, i) => s + (i.monto_pagado || 0), 0);
+      const subSaldo = subTotal - subPagado;
+      const pagoLabel = subPagado === 0 ? 'Sin pago' : subSaldo <= 0.01 ? 'Pagó total' : 'Pagó a cuenta';
+      const benHeader = `<tr style="background:#e8eeff"><td colspan="4" style="padding:6px 8px;border:1px solid #b0b8e0;font-weight:bold;color:#2a3d9e">${nombre}</td><td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:center;font-weight:bold">${subUnidades}</td><td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:right;font-weight:bold">${formatMoney(subTotal)}</td><td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:right;color:#1d4ed8">${formatMoney(subPagado)}</td><td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:right;font-weight:bold;color:${subSaldo > 0.01 ? '#b91c1c' : '#15803d'}">${formatMoney(subSaldo)}</td><td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:center;font-size:9px">${pagoLabel}</td><td style="padding:6px 8px;border:1px solid #b0b8e0;text-align:center">${items[0]?.estado || ''}</td></tr>`;
       const itemFilas = items.map(i => {
         rn++;
-        return `<tr><td style="padding:5px 8px;border:1px solid #ddd;color:#888">${rn}</td><td style="padding:5px 8px 5px 20px;border:1px solid #ddd">${i.producto_nombre}</td><td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${i.talle || '—'}</td><td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${i.cantidad || 0}</td><td style="padding:5px 8px;border:1px solid #ddd;text-align:right">${formatMoney(i.precio_unitario || 0)}</td><td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-weight:bold">${formatMoney(i.monto_total || 0)}</td><td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${i.estado}</td></tr>`;
+        const saldo = (i.monto_total || 0) - (i.monto_pagado || 0);
+        return `<tr><td style="padding:5px 8px;border:1px solid #ddd;color:#888">${rn}</td><td style="padding:5px 8px 5px 20px;border:1px solid #ddd">${i.producto_nombre}</td><td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${i.talle || '—'}</td><td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${i.cantidad || 0}</td><td style="padding:5px 8px;border:1px solid #ddd;text-align:right">${formatMoney(i.precio_unitario || 0)}</td><td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-weight:bold">${formatMoney(i.monto_total || 0)}</td><td style="padding:5px 8px;border:1px solid #ddd;text-align:right;color:#1d4ed8">${formatMoney(i.monto_pagado || 0)}</td><td style="padding:5px 8px;border:1px solid #ddd;text-align:right;color:${saldo > 0.01 ? '#b91c1c' : '#15803d'}">${formatMoney(saldo)}</td><td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${i.estado}</td></tr>`;
       }).join('');
       return benHeader + itemFilas;
     }).join('');
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;font-size:11px}table{border-collapse:collapse;width:100%}th{background:#f3f4f6;padding:7px 8px;border:1px solid #ccc;font-size:10px;text-transform:uppercase;text-align:left}h2{font-size:15px;color:#312e81}</style></head><body>
       <h2>Lista de entrega por beneficiario — Tienda</h2>
-      <p style="font-size:11px;color:#666">Filtro: ${filtro} · ${encargosFiltrados.length} encargo(s) · ${totalUnidades} unidades · ${formatMoney(totalMonto)}</p>
-      <table><thead><tr><th>#</th><th>Producto</th><th>Talle</th><th>Cant.</th><th>Precio unit.</th><th>Total</th><th>Estado</th></tr></thead><tbody>${filas}<tr style="background:#dcfce7;font-weight:bold"><td colspan="3" style="padding:7px 8px;border:1px solid #86efac">TOTAL GENERAL</td><td style="padding:7px 8px;border:1px solid #86efac;text-align:center">${totalUnidades}</td><td style="padding:7px 8px;border:1px solid #86efac"></td><td style="padding:7px 8px;border:1px solid #86efac;text-align:right;color:#15803d">${formatMoney(totalMonto)}</td><td style="padding:7px 8px;border:1px solid #86efac"></td></tr></tbody></table>
+      <p style="font-size:11px;color:#666">Filtro: ${filtro} · ${encargosFiltrados.length} encargo(s) · ${totalUnidades} unidades · Total: ${formatMoney(totalMonto)} · Pagado: ${formatMoney(totalPagado)} · Saldo: ${formatMoney(totalSaldo)}</p>
+      <table><thead><tr><th>#</th><th>Producto</th><th>Talle</th><th>Cant.</th><th>Precio unit.</th><th>Total</th><th>Pagado</th><th>Saldo</th><th>Estado</th></tr></thead><tbody>${filas}<tr style="background:#dcfce7;font-weight:bold"><td colspan="3" style="padding:7px 8px;border:1px solid #86efac">TOTAL GENERAL</td><td style="padding:7px 8px;border:1px solid #86efac;text-align:center">${totalUnidades}</td><td style="padding:7px 8px;border:1px solid #86efac"></td><td style="padding:7px 8px;border:1px solid #86efac;text-align:right;color:#15803d">${formatMoney(totalMonto)}</td><td style="padding:7px 8px;border:1px solid #86efac;text-align:right;color:#1d4ed8">${formatMoney(totalPagado)}</td><td style="padding:7px 8px;border:1px solid #86efac;text-align:right;color:${totalSaldo > 0.01 ? '#b91c1c' : '#15803d'}">${formatMoney(totalSaldo)}</td><td style="padding:7px 8px;border:1px solid #86efac"></td></tr></tbody></table>
     </body></html>`;
     const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -98,7 +104,7 @@ export default function ListaEntregaDialog({ encargos, onClose }) {
         </div>
 
         <div className="text-xs text-muted-foreground mb-3">
-          {encargosFiltrados.length} encargo(s) · <strong>{totalUnidades}</strong> unidades · <strong>{formatMoney(totalMonto)}</strong>
+          {encargosFiltrados.length} encargo(s) · <strong>{totalUnidades}</strong> unidades · Total: <strong>{formatMoney(totalMonto)}</strong> · Pagado: <strong className="text-blue-700">{formatMoney(totalPagado)}</strong> · Saldo: <strong className={totalSaldo > 0.01 ? 'text-red-600' : 'text-green-700'}>{formatMoney(totalSaldo)}</strong>
         </div>
 
         <div ref={printRef} className="space-y-4">
@@ -107,13 +113,23 @@ export default function ListaEntregaDialog({ encargos, onClose }) {
           ) : listaEntrega.map(({ nombre, items }) => {
             const subUnidades = items.reduce((s, i) => s + (i.cantidad || 0), 0);
             const subTotal = items.reduce((s, i) => s + (i.monto_total || 0), 0);
+            const subPagado = items.reduce((s, i) => s + (i.monto_pagado || 0), 0);
+            const subSaldo = subTotal - subPagado;
+            const pagoLabel = subPagado === 0 ? 'Sin pago' : subSaldo <= 0.01 ? 'Pagó total' : 'Pagó a cuenta';
             return (
               <div key={nombre} className="border rounded-lg overflow-hidden">
-                <div className="bg-blue-50/60 px-3 py-2 flex items-center justify-between border-b border-blue-100">
+                <div className="bg-blue-50/60 px-3 py-2 flex items-center justify-between border-b border-blue-100 flex-wrap gap-2">
                   <span className="font-semibold text-sm text-blue-900">{nombre}</span>
-                  <div className="flex items-center gap-3 text-xs">
+                  <div className="flex items-center gap-3 text-xs flex-wrap">
                     <span className="text-muted-foreground">{subUnidades} {subUnidades === 1 ? 'unidad' : 'unidades'}</span>
-                    <span className="font-bold text-green-700">{formatMoney(subTotal)}</span>
+                    <span className="text-muted-foreground">Total: <span className="font-bold text-gray-800">{formatMoney(subTotal)}</span></span>
+                    <span className="text-blue-700">Pagado: <span className="font-bold">{formatMoney(subPagado)}</span></span>
+                    <span className={subSaldo > 0.01 ? 'text-red-600 font-bold' : 'text-green-700 font-bold'}>Saldo: {formatMoney(subSaldo)}</span>
+                    {subPagado > 0 && (
+                      <Badge variant="outline" className={`text-xs ${subSaldo <= 0.01 ? 'bg-green-100 text-green-700 border-green-300' : 'bg-amber-100 text-amber-700 border-amber-300'}`}>
+                        {pagoLabel}
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <table className="w-full text-xs">
@@ -123,28 +139,40 @@ export default function ListaEntregaDialog({ encargos, onClose }) {
                       <th className="px-2 py-1.5 text-center border-b">Talle</th>
                       <th className="px-2 py-1.5 text-center border-b">Cant.</th>
                       <th className="px-2 py-1.5 text-right border-b">Total</th>
+                      <th className="px-2 py-1.5 text-right border-b">Pagado</th>
+                      <th className="px-2 py-1.5 text-right border-b">Saldo</th>
                       <th className="px-2 py-1.5 text-center border-b">Estado</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map(i => (
+                    {items.map(i => {
+                      const saldo = (i.monto_total || 0) - (i.monto_pagado || 0);
+                      return (
                       <tr key={i.id} className="border-b">
                         <td className="px-2 py-1.5">{i.producto_nombre}</td>
                         <td className="px-2 py-1.5 text-center">{i.talle ? <Badge variant="outline" className="text-xs">{i.talle}</Badge> : '—'}</td>
                         <td className="px-2 py-1.5 text-center font-medium">{i.cantidad}</td>
                         <td className="px-2 py-1.5 text-right font-semibold">{formatMoney(i.monto_total)}</td>
+                        <td className="px-2 py-1.5 text-right text-blue-700">{formatMoney(i.monto_pagado || 0)}</td>
+                        <td className={`px-2 py-1.5 text-right font-semibold ${saldo > 0.01 ? 'text-red-600' : 'text-green-700'}`}>{formatMoney(saldo)}</td>
                         <td className="px-2 py-1.5 text-center">{estadoBadge(i.estado)}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             );
           })}
           {listaEntrega.length > 0 && (
-            <div className="bg-green-50 border-t-2 border-green-300 px-3 py-2 flex items-center justify-between text-sm font-bold rounded">
+            <div className="bg-green-50 border-t-2 border-green-300 px-3 py-2 flex items-center justify-between text-sm font-bold rounded flex-wrap gap-2">
               <span>TOTAL GENERAL</span>
-              <span className="text-green-700">{totalUnidades} unidades · {formatMoney(totalMonto)}</span>
+              <div className="flex items-center gap-4 flex-wrap">
+                <span>{totalUnidades} unidades</span>
+                <span className="text-gray-800">Total: {formatMoney(totalMonto)}</span>
+                <span className="text-blue-700">Pagado: {formatMoney(totalPagado)}</span>
+                <span className={totalSaldo > 0.01 ? 'text-red-600' : 'text-green-700'}>Saldo: {formatMoney(totalSaldo)}</span>
+              </div>
             </div>
           )}
         </div>
