@@ -6,21 +6,33 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatMoney, RAMA_CONFIG } from '@/lib/ramaUtils';
-import { Calculator, TrendingUp, TrendingDown, Users, Calendar, Utensils, Bus, Truck, MapPin, Package, Pill, Plus, AlertTriangle, Printer, Save, Check } from 'lucide-react';
+import { Calculator, TrendingUp, TrendingDown, Users, Calendar, Utensils, Bus, Truck, MapPin, Package, Pill, Plus, AlertTriangle, Printer, Save, Check, Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+const TIPOS = [
+  { value: 'fijo', label: 'Monto fijo', desc: 'Total del rubro' },
+  { value: 'por_persona_dia', label: '$/pers/día', desc: 'Por persona por día' },
+  { value: 'por_persona', label: '$/pers', desc: 'Por persona (total)' },
+  { value: 'cantidad_precio', label: 'Cant × $', desc: 'Cantidad × precio unitario' },
+];
+
+const DIVISION = [
+  { value: 'todos', label: 'Todos', desc: 'Ben. + adultos' },
+  { value: 'beneficiarios', label: 'Sólo ben.', desc: 'Sólo beneficiarios' },
+];
+
 const DEFAULT_ITEMS = [
-  { id: 'comida', label: 'Comida', icon: Utensils, perPersonPerDay: true, splitWithAdults: true },
-  { id: 'transporte', label: 'Transporte', icon: Bus, perPersonPerDay: false, splitWithAdults: true },
-  { id: 'flete', label: 'Flete / Traslado', icon: Truck, perPersonPerDay: false, splitWithAdults: true },
-  { id: 'alojamiento', label: 'Alojamiento / Lugar', icon: MapPin, perPersonPerDay: false, splitWithAdults: true },
-  { id: 'materiales', label: 'Materiales', icon: Package, perPersonPerDay: false, splitWithAdults: false },
-  { id: 'medicamentos', label: 'Medicamentos', icon: Pill, perPersonPerDay: false, splitWithAdults: false },
-  { id: 'extras', label: 'Extras', icon: Plus, perPersonPerDay: false, splitWithAdults: false },
-  { id: 'imprevistos', label: 'Reserva imprevistos', icon: AlertTriangle, perPersonPerDay: false, splitWithAdults: true },
+  { id: 'comida', label: 'Comida', icon: Utensils, tipoDefault: 'por_persona_dia', dividirDefault: 'todos' },
+  { id: 'transporte', label: 'Transporte', icon: Bus, tipoDefault: 'fijo', dividirDefault: 'todos' },
+  { id: 'flete', label: 'Flete / Traslado', icon: Truck, tipoDefault: 'fijo', dividirDefault: 'todos' },
+  { id: 'alojamiento', label: 'Alojamiento / Lugar', icon: MapPin, tipoDefault: 'fijo', dividirDefault: 'todos' },
+  { id: 'materiales', label: 'Materiales', icon: Package, tipoDefault: 'fijo', dividirDefault: 'beneficiarios' },
+  { id: 'medicamentos', label: 'Medicamentos', icon: Pill, tipoDefault: 'fijo', dividirDefault: 'beneficiarios' },
+  { id: 'extras', label: 'Extras', icon: Plus, tipoDefault: 'fijo', dividirDefault: 'todos' },
+  { id: 'imprevistos', label: 'Reserva imprevistos', icon: AlertTriangle, tipoDefault: 'fijo', dividirDefault: 'todos' },
 ];
 
 const GASTO_TO_ITEM = {
@@ -31,64 +43,145 @@ const GASTO_TO_ITEM = {
   'Campamento': 'alojamiento',
 };
 
+// Detect format: new (items values are objects) vs old (items values are numbers)
+function isNewFormat(items) {
+  if (!items || typeof items !== 'object') return false;
+  const vals = Object.values(items);
+  return vals.length > 0 && typeof vals[0] === 'object';
+}
+
+// Migrate old format → new format
+function migratePresupuesto(saved, camp) {
+  const result = {
+    cantidad_beneficiarios: saved.cantidad_beneficiarios ?? (camp?.beneficiarios_ids?.length ?? 0),
+    cantidad_adultos: saved.cantidad_adultos ?? (camp?.adultos_ids?.length ?? 0),
+    dias_manual: saved.dias_manual ?? null,
+    adultos_pagan_override: saved.adultos_pagan_override ?? null,
+    items: {},
+  };
+
+  // Already new format → use directly, fill defaults for missing items
+  if (isNewFormat(saved.items)) {
+    for (const def of DEFAULT_ITEMS) {
+      const existing = saved.items[def.id];
+      result.items[def.id] = {
+        tipo: existing?.tipo || def.tipoDefault,
+        monto: existing?.monto ?? '',
+        cantidad: existing?.cantidad ?? '',
+        precio_unitario: existing?.precio_unitario ?? '',
+        dividir_entre: existing?.dividir_entre || def.dividirDefault,
+      };
+    }
+    return result;
+  }
+
+  // Old format migration
+  const oldItems = saved.items || {};
+  const oldSplits = saved.splits || {};
+  const oldComida = saved.comida_por_persona_dia;
+
+  for (const def of DEFAULT_ITEMS) {
+    const oldSplit = oldSplits[def.id];
+    const dividir = oldSplit != null ? (oldSplit ? 'todos' : 'beneficiarios') : def.dividirDefault;
+
+    if (def.id === 'comida' && oldComida) {
+      result.items[def.id] = { tipo: 'por_persona_dia', monto: oldComida, dividir_entre: dividir };
+    } else if (oldItems[def.id] != null && oldItems[def.id] !== '') {
+      result.items[def.id] = { tipo: 'fijo', monto: String(oldItems[def.id]), dividir_entre: dividir };
+    } else {
+      result.items[def.id] = { tipo: def.tipoDefault, monto: '', dividir_entre: def.dividirDefault };
+    }
+  }
+
+  return result;
+}
+
 export default function PresupuestoCampamento({ open, onClose, campamento, beneficiarios = [], gastos = [] }) {
   const queryClient = useQueryClient();
   const saved = campamento?.presupuesto || {};
 
-  const [comidaPorPersonaDia, setComidaPorPersonaDia] = useState(saved.comida_por_persona_dia || '');
-  const [itemValues, setItemValues] = useState(saved.items || {});
-  const [itemSplits, setItemSplits] = useState(saved.splits || Object.fromEntries(DEFAULT_ITEMS.map(i => [i.id, i.splitWithAdults])));
+  const [estado, setEstado] = useState(() => migratePresupuesto(saved, campamento, beneficiarios));
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    const s = campamento?.presupuesto || {};
-    setComidaPorPersonaDia(s.comida_por_persona_dia || '');
-    setItemValues(s.items || {});
-    setItemSplits(s.splits || Object.fromEntries(DEFAULT_ITEMS.map(i => [i.id, i.splitWithAdults])));
+    setEstado(migratePresupuesto(campamento?.presupuesto || {}, campamento, beneficiarios));
     setDirty(false);
   }, [campamento?.id]);
 
   const getBen = (id) => beneficiarios.find(b => b.id === id);
-  const ninos = useMemo(() => (campamento?.beneficiarios_ids || []).map(getBen).filter(Boolean), [campamento, beneficiarios]);
-  const adultos = useMemo(() => (campamento?.adultos_ids || []).map(getBen).filter(Boolean), [campamento, beneficiarios]);
+  const ninosCamp = (campamento?.beneficiarios_ids || []).map(getBen).filter(Boolean).length;
+  const adultosCamp = (campamento?.adultos_ids || []).map(getBen).filter(Boolean).length;
 
-  const beneficiariosCamp = ninos.length;
-  const adultosCamp = adultos.length;
-  const totalPersonas = beneficiariosCamp + adultosCamp;
+  const cantBen = parseInt(estado.cantidad_beneficiarios) || 0;
+  const cantAdultos = parseInt(estado.cantidad_adultos) || 0;
+  const totalPersonas = cantBen + cantAdultos;
 
-  const headcountPorRama = useMemo(() => {
-    const map = {};
-    ninos.forEach(b => {
-      const r = b.rama || 'Sin rama';
-      map[r] = (map[r] || 0) + 1;
-    });
-    adultos.forEach(b => {
-      const r = b.rama_educador || b.rama || 'Adultos';
-      map[r] = (map[r] || 0) + 1;
-    });
-    return map;
-  }, [ninos, adultos]);
+  const adultosPagan = estado.adultos_pagan_override ?? campamento?.adultos_pagan ?? false;
 
-  const dias = useMemo(() => {
+  const diasAuto = useMemo(() => {
     if (!campamento?.fecha_inicio || !campamento?.fecha_fin) return 0;
     const ini = new Date(campamento.fecha_inicio + 'T12:00:00');
     const fin = new Date(campamento.fecha_fin + 'T12:00:00');
     const diff = Math.ceil((fin - ini) / (1000 * 60 * 60 * 24)) + 1;
     return diff > 0 ? diff : 0;
   }, [campamento]);
+  const dias = estado.dias_manual != null && estado.dias_manual !== '' ? parseInt(estado.dias_manual) : diasAuto;
 
-  const comidaTotal = (parseFloat(comidaPorPersonaDia) || 0) * totalPersonas * dias;
+  // Calculate each item total
+  const itemCalculations = useMemo(() => {
+    const result = {};
+    for (const def of DEFAULT_ITEMS) {
+      const item = estado.items[def.id] || { tipo: def.tipoDefault, monto: '', dividir_entre: def.dividirDefault };
+      const tipo = item.tipo || 'fijo';
+      const dividir = item.dividir_entre || 'todos';
+      const personasDivisor = dividir === 'todos' ? totalPersonas : cantBen;
 
-  const itemTotals = useMemo(() => {
-    const totals = {};
-    for (const item of DEFAULT_ITEMS) {
-      totals[item.id] = item.perPersonPerDay ? comidaTotal : (parseFloat(itemValues[item.id]) || 0);
+      let total = 0;
+      let detalle = '';
+
+      if (tipo === 'fijo') {
+        total = parseFloat(item.monto) || 0;
+        detalle = '';
+      } else if (tipo === 'por_persona_dia') {
+        const monto = parseFloat(item.monto) || 0;
+        total = monto * personasDivisor * dias;
+        if (monto && personasDivisor && dias) detalle = `${formatMoney(monto)} × ${personasDivisor} pers × ${dias} días`;
+      } else if (tipo === 'por_persona') {
+        const monto = parseFloat(item.monto) || 0;
+        total = monto * personasDivisor;
+        if (monto && personasDivisor) detalle = `${formatMoney(monto)} × ${personasDivisor} pers`;
+      } else if (tipo === 'cantidad_precio') {
+        const cant = parseFloat(item.cantidad) || 0;
+        const precio = parseFloat(item.precio_unitario) || 0;
+        total = cant * precio;
+        if (cant && precio) detalle = `${cant} × ${formatMoney(precio)}`;
+      }
+
+      result[def.id] = { total, detalle, tipo, dividir, personasDivisor };
     }
-    return totals;
-  }, [comidaTotal, itemValues]);
+    return result;
+  }, [estado, totalPersonas, cantBen, dias]);
 
-  const costoTotalEstimado = Object.values(itemTotals).reduce((s, v) => s + v, 0);
+  const costoTotalEstimado = Object.values(itemCalculations).reduce((s, c) => s + c.total, 0);
 
+  // Cost per beneficiary
+  const costoPorBeneficiario = useMemo(() => {
+    if (cantBen === 0) return 0;
+    let totalBen = 0;
+    for (const def of DEFAULT_ITEMS) {
+      const calc = itemCalculations[def.id];
+      const divisor = calc.dividir === 'todos' ? totalPersonas : cantBen;
+      if (divisor > 0) totalBen += calc.total / divisor;
+    }
+    return totalBen;
+  }, [itemCalculations, totalPersonas, cantBen]);
+
+  const costoPorPersona = useMemo(() => {
+    if (totalPersonas === 0) return 0;
+    return costoTotalEstimado / totalPersonas;
+  }, [costoTotalEstimado, totalPersonas]);
+
+  // Gastos reales
   const gastosReales = useMemo(() => {
     const gastosCamp = gastos.filter(g => g.campamento_id === campamento?.id);
     const porItem = {};
@@ -100,21 +193,11 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
     return { porItem, total: gastosCamp.reduce((s, g) => s + (g.monto || 0), 0) };
   }, [gastos, campamento]);
 
-  const costoPorBeneficiario = useMemo(() => {
-    if (beneficiariosCamp === 0) return 0;
-    let totalBen = 0;
-    for (const item of DEFAULT_ITEMS) {
-      const val = itemTotals[item.id];
-      const divisors = itemSplits[item.id] ? totalPersonas : beneficiariosCamp;
-      if (divisors > 0) totalBen += (val / divisors) * beneficiariosCamp;
-    }
-    return totalBen / beneficiariosCamp;
-  }, [itemTotals, itemSplits, totalPersonas, beneficiariosCamp]);
-
-  const ingresoBeneficiarios = beneficiariosCamp * (campamento?.costo_por_persona || 0);
-  const ingresoAdultos = campamento?.adultos_pagan
-    ? adultosCamp * (campamento?.costo_adultos || campamento?.costo_por_persona || 0)
-    : 0;
+  // Ingresos
+  const costoBenCamp = campamento?.costo_por_persona || 0;
+  const costoAdultoCamp = campamento?.costo_adultos || costoBenCamp;
+  const ingresoBeneficiarios = cantBen * costoBenCamp;
+  const ingresoAdultos = adultosPagan ? cantAdultos * costoAdultoCamp : 0;
   const ingresoTotal = ingresoBeneficiarios + ingresoAdultos;
   const resultado = ingresoTotal - costoTotalEstimado;
 
@@ -122,6 +205,7 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
     mutationFn: data => base44.entities.Campamento.update(campamento.id, { presupuesto: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campamentos'] });
+      queryClient.invalidateQueries({ queryKey: ['campamento_pub'] });
       setDirty(false);
       toast.success('Presupuesto guardado');
     },
@@ -129,33 +213,53 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
 
   const handleSave = () => {
     saveMutation.mutate({
-      comida_por_persona_dia: comidaPorPersonaDia,
-      items: itemValues,
-      splits: itemSplits,
+      cantidad_beneficiarios: estado.cantidad_beneficiarios,
+      cantidad_adultos: estado.cantidad_adultos,
+      dias_manual: estado.dias_manual,
+      adultos_pagan_override: estado.adultos_pagan_override,
+      items: estado.items,
     });
+  };
+
+  const updateItem = (id, field, value) => {
+    setEstado(prev => ({
+      ...prev,
+      items: { ...prev.items, [id]: { ...prev.items[id], [field]: value } },
+    }));
+    setDirty(true);
+  };
+
+  const syncFromCampamento = () => {
+    setEstado(prev => ({
+      ...prev,
+      cantidad_beneficiarios: ninosCamp,
+      cantidad_adultos: adultosCamp,
+      dias_manual: null,
+      adultos_pagan_override: null,
+    }));
+    setDirty(true);
+    toast.info(`Sincronizado: ${ninosCamp} ben. + ${adultosCamp} adultos`);
   };
 
   const rows = DEFAULT_ITEMS.map(item => ({
     ...item,
-    value: itemTotals[item.id],
+    calc: itemCalculations[item.id],
     real: gastosReales.porItem[item.id] || 0,
-    detail: item.perPersonPerDay && dias > 0 && totalPersonas > 0 && comidaPorPersonaDia
-      ? `${formatMoney(parseFloat(comidaPorPersonaDia) || 0)} × ${totalPersonas} pers × ${dias} días`
-      : null,
-    split: itemSplits[item.id],
-    divisors: itemSplits[item.id] ? totalPersonas : beneficiariosCamp,
   }));
 
   const handlePrint = () => {
     const rowsHtml = rows.map(r => {
-      const diff = r.value - r.real;
+      const calc = r.calc;
+      const diff = calc.total - r.real;
       const diffStr = r.real > 0
         ? `<td style="text-align:right;color:${diff >= 0 ? '#16a34a' : '#dc2626'};font-weight:600">${diff >= 0 ? '+' : ''}${formatMoney(diff)}</td>`
         : '<td style="text-align:center;color:#999">—</td>';
-      return `<tr><td>${r.label}</td><td style="text-align:right">${formatMoney(r.value)}</td><td style="text-align:right;color:${r.real > 0 ? '#dc2626' : '#999'}">${r.real > 0 ? formatMoney(r.real) : '—'}</td>${diffStr}</tr>`;
+      const detalleStr = calc.detalle ? `<br><span style="font-size:10px;color:#888">${calc.detalle}</span>` : '';
+      const tipoStr = TIPOS.find(t => t.value === calc.tipo)?.label || '';
+      const divStr = calc.dividir === 'todos' ? 'Todos' : 'Sólo ben.';
+      return `<tr><td>${r.label}${detalleStr}</td><td style="text-align:center;font-size:10px">${tipoStr} / ${divStr}</td><td style="text-align:right">${formatMoney(calc.total)}</td><td style="text-align:right;color:${r.real > 0 ? '#dc2626' : '#999'}">${r.real > 0 ? formatMoney(r.real) : '—'}</td>${diffStr}</tr>`;
     }).join('');
 
-    const ramaHtml = Object.entries(headcountPorRama).map(([r, c]) => `${r}: ${c}`).join(' · ');
     const totalDiff = costoTotalEstimado - gastosReales.total;
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Presupuesto ${campamento?.nombre}</title>
@@ -168,14 +272,20 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
       th{background:#f0f0f0;font-weight:bold}
       .total{background:#f3f4f6;font-weight:bold}
       .resultado{margin-top:16px;padding:10px;border-radius:6px;font-size:14px;font-weight:bold;text-align:center}
+      .resumen{margin-top:12px;display:flex;gap:16px;font-size:12px}
+      .resumen div{padding:8px 12px;border-radius:6px;background:#f8f8f8}
     </style></head><body>
     <h1>Presupuesto — ${campamento?.nombre}</h1>
-    <div class="meta">${campamento?.ubicacion ? `📍 ${campamento.ubicacion} · ` : ''}${dias} días · ${totalPersonas} personas (${beneficiariosCamp} ben. + ${adultosCamp} adult.)${ramaHtml ? ` · ${ramaHtml}` : ''}</div>
-    <table><thead><tr><th>Categoría</th><th style="text-align:right">Presupuestado</th><th style="text-align:right">Gasto real</th><th style="text-align:right">Diferencia</th></tr></thead>
+    <div class="meta">${campamento?.ubicacion ? `📍 ${campamento.ubicacion} · ` : ''}${dias} días · ${totalPersonas} personas (${cantBen} ben. + ${cantAdultos} adult.)${adultosPagan ? ' · Adultos pagan' : ' · Adultos no pagan'}</div>
+    <table><thead><tr><th>Categoría</th><th style="text-align:center">Tipo / Div.</th><th style="text-align:right">Presupuestado</th><th style="text-align:right">Gasto real</th><th style="text-align:right">Diferencia</th></tr></thead>
     <tbody>${rowsHtml}</tbody>
-    <tfoot><tr class="total"><td>Costo total estimado</td><td style="text-align:right">${formatMoney(costoTotalEstimado)}</td><td style="text-align:right">${formatMoney(gastosReales.total)}</td><td style="text-align:right">${formatMoney(totalDiff)}</td></tr></tfoot></table>
-    <div class="resultado" style="background:${resultado >= 0 ? '#dcfce7' : '#fee2e2'};color:${resultado >= 0 ? '#16a34a' : '#dc2626'}">${resultado >= 0 ? 'SUPERÁVIT' : 'DÉFICIT'}: ${formatMoney(Math.abs(resultado))} (Ingresos ${formatMoney(ingresoTotal)} − Gastos ${formatMoney(costoTotalEstimado)})</div>
-    <p style="margin-top:12px;color:#666;font-size:11px">Costo por beneficiario: ${formatMoney(costoPorBeneficiario)}</p>
+    <tfoot><tr class="total"><td colspan="2">Costo total estimado</td><td style="text-align:right">${formatMoney(costoTotalEstimado)}</td><td style="text-align:right">${formatMoney(gastosReales.total)}</td><td style="text-align:right">${formatMoney(totalDiff)}</td></tr></tfoot></table>
+    <div class="resumen">
+      <div>Costo/beneficiario: <b>${formatMoney(costoPorBeneficiario)}</b></div>
+      <div>Costo/persona: <b>${formatMoney(costoPorPersona)}</b></div>
+      <div>Ingreso esperado: <b>${formatMoney(ingresoTotal)}</b></div>
+    </div>
+    <div class="resultado" style="background:${resultado >= 0 ? '#dcfce7' : '#fee2e2'};color:${resultado >= 0 ? '#16a34a' : '#dc2626'}">${resultado >= 0 ? 'SUPERÁVIT' : 'DÉFICIT'}: ${formatMoney(Math.abs(resultado))}</div>
     </body></html>`;
     const win = window.open('', '_blank');
     win.document.write(html);
@@ -183,9 +293,14 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
     win.print();
   };
 
+  const updateField = (field, value) => {
+    setEstado(prev => ({ ...prev, [field]: value }));
+    setDirty(true);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calculator className="w-5 h-5 text-primary" />
@@ -194,92 +309,135 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Resumen del campamento */}
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-muted/50 rounded-lg p-2.5">
-              <Users className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-              <p className="text-lg font-bold">{totalPersonas}</p>
-              <p className="text-xs text-muted-foreground">{beneficiariosCamp} ben. + {adultosCamp} adult.</p>
+          {/* Variables del presupuesto */}
+          <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide flex items-center gap-1">
+                <Users className="w-3.5 h-3.5" /> Variables del presupuesto
+              </p>
+              <Button size="sm" variant="ghost" className="h-6 text-xs text-blue-600" onClick={syncFromCampamento}>
+                Sync desde campamento ({ninosCamp}+{adultosCamp})
+              </Button>
             </div>
-            <div className="bg-muted/50 rounded-lg p-2.5">
-              <Calendar className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-              <p className="text-lg font-bold">{dias}</p>
-              <p className="text-xs text-muted-foreground">días</p>
-            </div>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-2.5">
-              <TrendingUp className="w-4 h-4 text-green-600 mx-auto mb-1" />
-              <p className="text-sm font-bold text-green-700">{formatMoney(ingresoTotal)}</p>
-              <p className="text-xs text-muted-foreground">Ingreso esp.</p>
-            </div>
-          </div>
-
-          {/* Headcount por rama (para cocina) */}
-          {Object.keys(headcountPorRama).length > 0 && (
-            <div className="flex flex-wrap gap-1.5 items-center">
-              <span className="text-xs text-muted-foreground font-medium">Cocina:</span>
-              {Object.entries(headcountPorRama).map(([rama, count]) => {
-                const config = RAMA_CONFIG[rama];
-                return (
-                  <span key={rama} className={cn('px-2 py-0.5 rounded-full text-xs font-medium border', config?.badge || 'bg-muted')}>
-                    {rama}: {count}
-                  </span>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Inputs de gastos estimados */}
-          <div className="space-y-3">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <Label>Comida por persona por día</Label>
-                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-                  <Checkbox
-                    checked={itemSplits.comida}
-                    onCheckedChange={(v) => { setItemSplits(prev => ({ ...prev, comida: v })); setDirty(true); }}
+            <div className="grid grid-cols-4 gap-2">
+              <div>
+                <Label className="text-xs">Beneficiarios</Label>
+                <Input type="number" value={estado.cantidad_beneficiarios} onChange={e => updateField('cantidad_beneficiarios', e.target.value)} className="h-8" />
+              </div>
+              <div>
+                <Label className="text-xs">Adultos</Label>
+                <Input type="number" value={estado.cantidad_adultos} onChange={e => updateField('cantidad_adultos', e.target.value)} className="h-8" />
+              </div>
+              <div>
+                <Label className="text-xs">Días {estado.dias_manual == null && `(auto: ${diasAuto})`}</Label>
+                <Input type="number" value={estado.dias_manual ?? ''} onChange={e => updateField('dias_manual', e.target.value)} placeholder={String(diasAuto)} className="h-8" />
+              </div>
+              <div className="flex items-end">
+                <label className="flex items-center gap-1.5 text-xs cursor-pointer pb-1.5">
+                  <input
+                    type="checkbox"
+                    checked={adultosPagan}
+                    onChange={e => updateField('adultos_pagan_override', e.target.checked)}
+                    className="rounded"
                   />
-                  Dividir con adultos
+                  Adultos pagan
                 </label>
               </div>
-              <Input
-                type="number"
-                value={comidaPorPersonaDia}
-                onChange={e => { setComidaPorPersonaDia(e.target.value); setDirty(true); }}
-                placeholder="Ej: 5000"
-              />
-              {dias > 0 && totalPersonas > 0 && comidaPorPersonaDia && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  = {formatMoney(comidaTotal)} ({itemSplits.comida ? totalPersonas : beneficiariosCamp} pers × {dias} días)
-                </p>
-              )}
             </div>
-
-            {DEFAULT_ITEMS.filter(i => !i.perPersonPerDay).map(item => (
-              <div key={item.id}>
-                <div className="flex items-center justify-between mb-1">
-                  <Label className="flex items-center gap-1.5">
-                    <item.icon className="w-3.5 h-3.5 text-muted-foreground" />
-                    {item.label}
-                  </Label>
-                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-                    <Checkbox
-                      checked={itemSplits[item.id]}
-                      onCheckedChange={(v) => { setItemSplits(prev => ({ ...prev, [item.id]: v })); setDirty(true); }}
-                    />
-                    Dividir con adultos
-                  </label>
-                </div>
-                <Input
-                  type="number"
-                  value={itemValues[item.id] || ''}
-                  onChange={e => { setItemValues(prev => ({ ...prev, [item.id]: e.target.value })); setDirty(true); }}
-                  placeholder="0"
-                />
+            <div className="grid grid-cols-4 gap-2 text-center text-xs">
+              <div className="bg-white/60 rounded px-2 py-1">
+                <span className="text-muted-foreground">Total pers: </span>
+                <span className="font-bold">{totalPersonas}</span>
               </div>
-            ))}
+              <div className="bg-white/60 rounded px-2 py-1">
+                <span className="text-muted-foreground">Días: </span>
+                <span className="font-bold">{dias}</span>
+              </div>
+              <div className="bg-white/60 rounded px-2 py-1">
+                <span className="text-muted-foreground">$/ben: </span>
+                <span className="font-bold">{formatMoney(costoBenCamp)}</span>
+              </div>
+              <div className="bg-white/60 rounded px-2 py-1">
+                <span className="text-muted-foreground">$/adulto: </span>
+                <span className="font-bold">{formatMoney(costoAdultoCamp)}</span>
+              </div>
+            </div>
           </div>
 
-          {/* Resumen de costos con comparación real */}
+          {/* Items del presupuesto */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rubros del presupuesto</p>
+            {rows.map(item => {
+              const calc = item.calc;
+              return (
+                <div key={item.id} className="rounded-lg border p-2.5 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <item.icon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm font-medium flex-1">{item.label}</span>
+                    <Badge2 className={cn('text-[10px]', calc.dividir === 'todos' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700')}>
+                      {calc.dividir === 'todos' ? `${totalPersonas} pers` : `${cantBen} ben`}
+                    </Badge2>
+                    <span className="text-sm font-bold tabular-nums w-20 text-right">{formatMoney(calc.total)}</span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-1.5 items-end">
+                    <div className="col-span-3">
+                      <Label className="text-[10px] text-muted-foreground">Tipo</Label>
+                      <Select value={calc.tipo} onValueChange={v => updateItem(item.id, 'tipo', v)}>
+                        <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {TIPOS.map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-3">
+                      <Label className="text-[10px] text-muted-foreground">Dividir entre</Label>
+                      <Select value={calc.dividir} onValueChange={v => updateItem(item.id, 'dividir_entre', v)}>
+                        <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {DIVISION.map(d => <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {calc.tipo === 'fijo' && (
+                      <div className="col-span-6">
+                        <Label className="text-[10px] text-muted-foreground">Monto total</Label>
+                        <Input type="number" value={estado.items[item.id]?.monto ?? ''} onChange={e => updateItem(item.id, 'monto', e.target.value)} placeholder="0" className="h-7 text-xs" />
+                      </div>
+                    )}
+                    {calc.tipo === 'por_persona_dia' && (
+                      <div className="col-span-6">
+                        <Label className="text-[10px] text-muted-foreground">$/pers/día</Label>
+                        <Input type="number" value={estado.items[item.id]?.monto ?? ''} onChange={e => updateItem(item.id, 'monto', e.target.value)} placeholder="0" className="h-7 text-xs" />
+                      </div>
+                    )}
+                    {calc.tipo === 'por_persona' && (
+                      <div className="col-span-6">
+                        <Label className="text-[10px] text-muted-foreground">$/persona</Label>
+                        <Input type="number" value={estado.items[item.id]?.monto ?? ''} onChange={e => updateItem(item.id, 'monto', e.target.value)} placeholder="0" className="h-7 text-xs" />
+                      </div>
+                    )}
+                    {calc.tipo === 'cantidad_precio' && (
+                      <>
+                        <div className="col-span-3">
+                          <Label className="text-[10px] text-muted-foreground">Cantidad</Label>
+                          <Input type="number" value={estado.items[item.id]?.cantidad ?? ''} onChange={e => updateItem(item.id, 'cantidad', e.target.value)} placeholder="0" className="h-7 text-xs" />
+                        </div>
+                        <div className="col-span-3">
+                          <Label className="text-[10px] text-muted-foreground">Precio unit.</Label>
+                          <Input type="number" value={estado.items[item.id]?.precio_unitario ?? ''} onChange={e => updateItem(item.id, 'precio_unitario', e.target.value)} placeholder="0" className="h-7 text-xs" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {calc.detalle && (
+                    <p className="text-[10px] text-muted-foreground pl-6">{calc.detalle}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Resumen comparativo */}
           <div className="space-y-1.5">
             <div className="grid grid-cols-12 gap-1 px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
               <span className="col-span-5">Categoría</span>
@@ -288,16 +446,16 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
               <span className="col-span-2 text-right">Diff.</span>
             </div>
             {rows.map(r => {
-              const diff = r.value - r.real;
+              const diff = r.calc.total - r.real;
               const tieneReal = r.real > 0;
               return (
                 <div key={r.id} className="grid grid-cols-12 gap-1 items-center py-1.5 px-3 bg-muted/30 rounded-md">
                   <div className="col-span-5 flex items-center gap-1.5">
                     <r.icon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                     <span className="text-sm truncate">{r.label}</span>
-                    {r.split && <span className="text-[10px] text-purple-600 whitespace-nowrap">↗{r.divisors}p</span>}
+                    {r.calc.dividir === 'todos' && <span className="text-[10px] text-purple-600 whitespace-nowrap">↗{totalPersonas}p</span>}
                   </div>
-                  <span className="col-span-3 text-right text-sm font-medium">{formatMoney(r.value)}</span>
+                  <span className="col-span-3 text-right text-sm font-medium">{formatMoney(r.calc.total)}</span>
                   <span className={cn('col-span-2 text-right text-xs', tieneReal ? 'text-red-600 font-medium' : 'text-muted-foreground')}>
                     {tieneReal ? formatMoney(r.real) : '—'}
                   </span>
@@ -315,9 +473,24 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
                 {formatMoney(costoTotalEstimado - gastosReales.total)}
               </span>
             </div>
-            <div className="flex items-center justify-between py-1.5 px-3 bg-muted/30 rounded-md">
-              <span className="text-sm text-muted-foreground">Costo por beneficiario</span>
-              <span className="text-sm font-medium">{formatMoney(costoPorBeneficiario)}</span>
+          </div>
+
+          {/* Costos unitarios calculados */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-2.5 text-center">
+              <Coins className="w-4 h-4 text-blue-600 mx-auto mb-1" />
+              <p className="text-xs text-muted-foreground">Costo/beneficiario</p>
+              <p className="text-base font-bold text-blue-700">{formatMoney(costoPorBeneficiario)}</p>
+            </div>
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 text-center">
+              <Users className="w-4 h-4 text-slate-500 mx-auto mb-1" />
+              <p className="text-xs text-muted-foreground">Costo/persona</p>
+              <p className="text-base font-bold text-slate-700">{formatMoney(costoPorPersona)}</p>
+            </div>
+            <div className="rounded-lg bg-green-50 border border-green-200 p-2.5 text-center">
+              <TrendingUp className="w-4 h-4 text-green-600 mx-auto mb-1" />
+              <p className="text-xs text-muted-foreground">Ingreso esp.</p>
+              <p className="text-base font-bold text-green-700">{formatMoney(ingresoTotal)}</p>
             </div>
           </div>
 
@@ -350,4 +523,8 @@ export default function PresupuestoCampamento({ open, onClose, campamento, benef
       </DialogContent>
     </Dialog>
   );
+}
+
+function Badge2({ className, children }) {
+  return <span className={cn('inline-flex items-center rounded px-1.5 py-0.5 font-semibold', className)}>{children}</span>;
 }
