@@ -579,17 +579,18 @@ export default function Tienda() {
                       <TableCell>
                         {e.estado === 'Pendiente' && <Badge className="bg-amber-100 text-amber-700 border-amber-300 border text-xs">Pendiente</Badge>}
                         {e.estado === 'Confirmado' && <Badge className="bg-blue-100 text-blue-700 border-blue-300 border text-xs">Confirmado</Badge>}
+                        {e.estado === 'Pedido a proveedor' && <Badge className="bg-purple-100 text-purple-700 border-purple-300 border text-xs">Pedido a prov.</Badge>}
                         {e.estado === 'Entregado' && <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">Entregado</Badge>}
                         {e.estado === 'Cancelado' && <Badge className="bg-red-100 text-red-700 border-red-300 border text-xs">Cancelado</Badge>}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          {(e.estado === 'Pendiente' || e.estado === 'Confirmado') && (
+                          {(e.estado === 'Pendiente' || e.estado === 'Confirmado' || e.estado === 'Pedido a proveedor') && (
                             <Button variant="outline" size="sm" className="h-7 text-xs text-green-700 border-green-300 hover:bg-green-50" onClick={() => setPagoEncargo(e)} title="Registrar pago / seña">
                               <DollarSign className="w-3 h-3 mr-1" />Pago
                             </Button>
                           )}
-                          {e.monto_pagado > 0 && (e.estado === 'Pendiente' || e.estado === 'Confirmado') && (
+                          {e.monto_pagado > 0 && (e.estado === 'Pendiente' || e.estado === 'Confirmado' || e.estado === 'Pedido a proveedor') && (
                             <Button variant="outline" size="sm" className="h-7 text-xs text-amber-700 border-amber-300 hover:bg-amber-50" onClick={() => { if (confirm('¿Anular la seña registrada? Se quitará el dinero de la caja y se reiniciará el monto pagado.')) anularSenia.mutate(e); }} title="Anular seña">
                               <Undo2 className="w-3 h-3 mr-1" />Anular seña
                             </Button>
@@ -606,11 +607,18 @@ export default function Tienda() {
                           )}
                           {e.estado === 'Confirmado' && (
                             <>
-                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEntregarEncargo(e)}>
-                                <CheckCircle2 className="w-3 h-3 mr-1" />Entregar
+                              <Button variant="outline" size="sm" className="h-7 text-xs text-purple-700 border-purple-300 hover:bg-purple-50" onClick={() => actualizarEncargo.mutate({ id: e.id, estado: 'Pedido a proveedor' })} title="Marcar como pedido al proveedor">
+                                <Package className="w-3 h-3 mr-1" />Pedido
                               </Button>
                               <Button variant="ghost" size="icon" className="h-7" onClick={() => actualizarEncargo.mutate({ id: e.id, estado: 'Cancelado' })}>
                                 <X className="w-3.5 h-3.5 text-red-500" />
+                              </Button>
+                            </>
+                          )}
+                          {e.estado === 'Pedido a proveedor' && (
+                            <>
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEntregarEncargo(e)}>
+                                <CheckCircle2 className="w-3 h-3 mr-1" />Entregar
                               </Button>
                             </>
                           )}

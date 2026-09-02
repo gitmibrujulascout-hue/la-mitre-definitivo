@@ -8,6 +8,7 @@ const FILTROS = [
   { key: 'activos', label: 'Activos' },
   { key: 'Pendiente', label: 'Pendientes' },
   { key: 'Confirmado', label: 'Confirmados' },
+  { key: 'Pedido a proveedor', label: 'Pedido a prov.' },
   { key: 'Entregado', label: 'Entregados' },
   { key: 'todos', label: 'Todos' },
 ];

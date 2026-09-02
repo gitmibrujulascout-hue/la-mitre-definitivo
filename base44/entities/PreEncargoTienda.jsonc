@@ -73,11 +73,12 @@
       "enum": [
         "Pendiente",
         "Confirmado",
+        "Pedido a proveedor",
         "Entregado",
         "Cancelado"
       ],
       "default": "Pendiente",
-      "description": "Estado del pre-encargo"
+      "description": "Estado del pre-encargo. 'Pedido a proveedor' = ya se pas\u00f3 el pedido al proveedor, no debe incluirse en futuros pedidos."
     },
     "stock_reservado": {
       "type": "boolean",
