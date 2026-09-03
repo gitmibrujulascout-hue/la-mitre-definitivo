@@ -24,6 +24,7 @@ import TiendaFamilia from '@/components/tienda/TiendaFamilia';
 import CalendarioFamilia from '@/components/dashboard/CalendarioFamilia';
 import DescargarAutorizacionButton from '@/components/campamentos/DescargarAutorizacionButton';
 import DescargarCircularButton from '@/components/campamentos/DescargarCircularButton';
+import { Lock } from 'lucide-react';
 
 const AÑO_INICIO = 2026;
 
@@ -223,6 +224,16 @@ export default function EstadoCuenta() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 relative overflow-hidden">
+      {/* Acceso administrativo discreto */}
+      <div className="absolute top-3 right-4 z-50">
+        <button
+          onClick={() => base44.auth.redirectToLogin(window.location.href)}
+          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          <Lock className="w-3 h-3" />
+          Acceso administrativo
+        </button>
+      </div>
       {/* Background logo */}
       <div 
         className="fixed inset-0 pointer-events-none opacity-10"
