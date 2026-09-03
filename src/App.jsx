@@ -49,8 +49,8 @@ const AuthenticatedApp = () => {
     }
   }
 
-  // Redirect non-admin users to estado-cuenta / ficha-emergencia only
-  if (user && user.role !== 'admin') {
+  // Non-admins AND unauthenticated visitors: only public pages (estado-cuenta, ficha-emergencia, campamento)
+  if (!user || user.role !== 'admin') {
     return (
       <Routes>
         <Route path="/estado-cuenta" element={<EstadoCuenta />} />
