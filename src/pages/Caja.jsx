@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownLeft, Trash2, Upload, FileText, Gift } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownLeft, Trash2, Upload, FileText, Gift, Database } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import ImportMovimientosBancoDialog from '@/components/caja/ImportMovimientosBancoDialog';
 import CajaChicaPanel from '@/components/caja/CajaChicaPanel';
 import ReporteCajaDialog from '@/components/caja/ReporteCajaDialog';
+import AnalizarEgresosDialog from '@/components/caja/AnalizarEgresosDialog';
 import { useFondos, buildMovimientos } from '@/lib/cajaUtils';
 
 function MovimientoManualDialog({ open, onClose, cuentaDestino }) {
@@ -29,9 +30,30 @@ function MovimientoManualDialog({ open, onClose, cuentaDestino }) {
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
-    mutationFn: data => base44.entities.MovimientoBanco.create(data),
+    mutationFn: async (data) => {
+      // Los egresos se guardan como Gasto (origen único de egresos).
+      // Los ingresos siguen siendo MovimientoBanco manuales.
+      if (data.tipo === 'Egreso') {
+        await base44.entities.Gasto.create({
+          descripcion: data.concepto,
+          monto: data.monto,
+          fecha: data.fecha,
+          categoria: 'Otro',
+          forma_pago: data.forma_pago,
+          destino: cuentaDestino === 'Banco' ? 'Banco' : 'Caja',
+          observaciones: data.observaciones || undefined,
+        });
+      } else {
+        await base44.entities.MovimientoBanco.create({
+          ...data,
+          origen: 'Manual',
+          cuenta: cuentaDestino,
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['movimientos_banco'] });
+      queryClient.invalidateQueries({ queryKey: ['gastos'] });
       toast.success('Movimiento registrado');
       onClose();
     }
@@ -42,8 +64,6 @@ function MovimientoManualDialog({ open, onClose, cuentaDestino }) {
     createMutation.mutate({
       ...form,
       monto: parseFloat(form.monto),
-      origen: 'Manual',
-      cuenta: cuentaDestino,
     });
   };
 
@@ -104,6 +124,7 @@ export default function Caja() {
   const [showNuevo, setShowNuevo] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showReporte, setShowReporte] = useState(false);
+  const [showAnalisis, setShowAnalisis] = useState(false);
   const [anio, setAnio] = useState(new Date().getFullYear().toString());
   const [mostrarTodos, setMostrarTodos] = useState(false);
   const queryClient = useQueryClient();
@@ -179,6 +200,9 @@ export default function Caja() {
             <Upload className="w-4 h-4 mr-2" />Importar PDF banco
           </Button>
         )}
+        <Button variant="outline" onClick={() => setShowAnalisis(true)}>
+          <Database className="w-4 h-4 mr-2" />Unificar con Gastos
+        </Button>
         <Button variant="outline" onClick={() => setShowReporte(true)}>
           <FileText className="w-4 h-4 mr-2" />Generar reporte
         </Button>
@@ -347,6 +371,9 @@ export default function Caja() {
       )}
       {showReporte && (
         <ReporteCajaDialog open onClose={() => setShowReporte(false)} cuentaInicial={tab === 'caja' ? 'Caja' : 'Banco'} />
+      )}
+      {showAnalisis && (
+        <AnalizarEgresosDialog open onClose={() => setShowAnalisis(false)} />
       )}
     </div>
   );
