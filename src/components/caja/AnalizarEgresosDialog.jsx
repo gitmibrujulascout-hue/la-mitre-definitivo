@@ -41,6 +41,7 @@ export default function AnalizarEgresosDialog({ open, onClose }) {
     return movs.filter(m =>
       m.origen === 'Manual' &&
       m.tipo === 'Egreso' &&
+      m.cuenta === 'Caja' &&
       !m.referencia_id
     );
   }, [movs]);
@@ -107,8 +108,8 @@ export default function AnalizarEgresosDialog({ open, onClose }) {
           monto: m.monto,
           fecha: m.fecha,
           categoria: categoriaDefault,
-          forma_pago: m.cuenta === 'Banco' ? 'Transferencia' : 'Efectivo',
-          destino: m.cuenta === 'Banco' ? 'Banco' : 'Caja',
+          forma_pago: 'Efectivo',
+          destino: 'Caja',
           observaciones: `Migrado desde MovimientoBanco (ID: ${m.id})`,
         });
         // Marcar el MovimientoBanco como migrado: origen='Gasto', referencia al gasto creado
@@ -222,16 +223,15 @@ export default function AnalizarEgresosDialog({ open, onClose }) {
                     <TableHead className="w-10"></TableHead>
                     <TableHead className="w-20">Fecha</TableHead>
                     <TableHead>Concepto</TableHead>
-                    <TableHead className="w-24">Cuenta</TableHead>
                     <TableHead className="w-28">Monto</TableHead>
                     <TableHead className="w-24">¿En Gastos?</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
                   ) : filtrados.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       {egresosHuérfanos.length === 0 ? '✓ No hay egresos pendientes de migrar' : 'Sin resultados para el filtro'}
                     </TableCell></TableRow>
                   ) : (
@@ -247,7 +247,6 @@ export default function AnalizarEgresosDialog({ open, onClose }) {
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{m.fecha}</TableCell>
                           <TableCell className="text-sm font-medium max-w-xs truncate">{m.concepto}</TableCell>
-                          <TableCell><Badge variant="outline" className="text-xs">{m.cuenta}</Badge></TableCell>
                           <TableCell className="font-semibold text-red-500">{formatMoney(m.monto)}</TableCell>
                           <TableCell>
                             {match
