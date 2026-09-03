@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import PageHeader from '@/components/shared/PageHeader';
 import ConfigAfiliacionPanel from '@/components/afiliaciones/ConfigAfiliacionPanel';
 import { MESES, MESES_SIN_CUOTA, formatMoney, esBeneficiarioConCuota, calcularMesesQueGeneranDeuda, getCuotaBaseMes, getMesesBonificadosCredito, getCreditoMesBeneficiario, getLabelCreditoMes, getMontoCreditoMes } from '@/lib/ramaUtils';
-import { DollarSign, Save, Trash2, Gift, CheckCircle2, AlertCircle } from 'lucide-react';
+import { DollarSign, Save, Trash2, Gift, CheckCircle2, AlertCircle, Lock } from 'lucide-react';
 
 export default function ConfiguracionCuotas() {
   const [anioFiltro, setAnioFiltro] = useState(new Date().getFullYear());
@@ -42,6 +42,30 @@ export default function ConfiguracionCuotas() {
   const { data: creditos = [] } = useQuery({
     queryKey: ['creditos'],
     queryFn: () => base44.entities.CreditoBeneficiario.list(),
+  });
+
+  const { data: configGeneral = [] } = useQuery({
+    queryKey: ['config_general'],
+    queryFn: () => base44.entities.ConfigGeneral.list(),
+  });
+
+  const [claveAdmin, setClaveAdmin] = useState('');
+  const claveAdminConfig = configGeneral[0];
+
+  const guardarClaveMut = useMutation({
+    mutationFn: async (clave) => {
+      if (claveAdminConfig) {
+        await base44.entities.ConfigGeneral.update(claveAdminConfig.id, { clave_admin: clave });
+      } else {
+        await base44.entities.ConfigGeneral.create({ clave_admin: clave });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['config_general'] });
+      setClaveAdmin('');
+      toast.success('Clave de acceso administrativo actualizada');
+    },
+    onError: () => toast.error('Error al guardar la clave'),
   });
 
   const configAnio = useMemo(() =>
@@ -228,6 +252,43 @@ export default function ConfiguracionCuotas() {
 
       {/* Configuración de afiliaciones */}
       <ConfigAfiliacionPanel anio={Number(anioFiltro)} />
+
+      {/* Clave de acceso administrativo */}
+      <Card className="p-5 mb-6 border-slate-200 bg-slate-50/40">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <Lock className="w-5 h-5 text-slate-600 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-sm text-slate-900">Clave de acceso administrativo</h3>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Clave que se solicita al hacer clic en "Acceso administrativo" desde la página de consulta familiar.
+                {claveAdminConfig?.clave_admin
+                  ? <> Hay una clave configurada. </>
+                  : <> <strong>No hay clave configurada</strong> — el acceso estará bloqueado hasta definir una. </>}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              type="text"
+              value={claveAdmin}
+              onChange={e => setClaveAdmin(e.target.value)}
+              placeholder={claveAdminConfig?.clave_admin ? '•••••••• (ingresar nueva)' : 'Definir clave'}
+              className="w-48 h-8 text-sm"
+            />
+            <Button
+              size="sm"
+              onClick={() => {
+                if (!claveAdmin.trim()) { toast.error('Ingresá una clave'); return; }
+                guardarClaveMut.mutate(claveAdmin.trim());
+              }}
+              disabled={guardarClaveMut.isPending || !claveAdmin.trim()}
+            >
+              <Save className="w-3 h-3 mr-1" />{claveAdminConfig?.clave_admin ? 'Cambiar' : 'Guardar'}
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       {/* Generación de créditos para meses bonificados */}
       {creditosData.length > 0 && (

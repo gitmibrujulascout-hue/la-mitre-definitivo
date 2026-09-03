@@ -25,6 +25,7 @@ import CalendarioFamilia from '@/components/dashboard/CalendarioFamilia';
 import DescargarAutorizacionButton from '@/components/campamentos/DescargarAutorizacionButton';
 import DescargarCircularButton from '@/components/campamentos/DescargarCircularButton';
 import { Lock } from 'lucide-react';
+import ClaveAdminDialog from '@/components/public/ClaveAdminDialog';
 
 const AÑO_INICIO = 2026;
 
@@ -34,6 +35,7 @@ export default function EstadoCuenta() {
   const [editandoSalud, setEditandoSalud] = useState(null); // beneficiario seleccionado
   const [saludExpandido, setSaludExpandido] = useState({}); // { [id]: bool }
   const [anio] = useState(new Date().getFullYear());
+  const [claveDialogOpen, setClaveDialogOpen] = useState(false);
 
   const { data: beneficiarios = [], isLoading: loadingBen } = useQuery({
     queryKey: ['beneficiarios'],
@@ -227,13 +229,18 @@ export default function EstadoCuenta() {
       {/* Acceso administrativo discreto */}
       <div className="absolute top-3 right-4 z-50">
         <button
-          onClick={() => base44.auth.redirectToLogin(window.location.href)}
+          onClick={() => setClaveDialogOpen(true)}
           className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
         >
           <Lock className="w-3 h-3" />
           Acceso administrativo
         </button>
       </div>
+      <ClaveAdminDialog
+        open={claveDialogOpen}
+        onClose={() => setClaveDialogOpen(false)}
+        onSuccess={() => base44.auth.redirectToLogin(window.location.href)}
+      />
       {/* Background logo */}
       <div 
         className="fixed inset-0 pointer-events-none opacity-10"
