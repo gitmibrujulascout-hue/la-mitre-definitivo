@@ -1,0 +1,33 @@
+{
+  "name": "ConfigGeneral",
+  "type": "object",
+  "properties": {
+    "clave_admin": {
+      "type": "string",
+      "description": "Clave para acceder al panel administrativo desde la p\u00e1gina p\u00fablica de consulta familiar"
+    }
+  },
+  "required": [],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

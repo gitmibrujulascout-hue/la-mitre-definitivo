@@ -16,6 +16,12 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     checkAppState();
+    // Safety net: if public settings fetch hangs, force-show public pages after 15s
+    const timeout = setTimeout(() => {
+      setIsLoadingPublicSettings(false);
+      setIsLoadingAuth(false);
+    }, 15000);
+    return () => clearTimeout(timeout);
   }, []);
 
   const checkAppState = async () => {
