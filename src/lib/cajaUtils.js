@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 
 /**
  * Lógica centralizada de cálculo de caja/banco.
@@ -49,13 +50,26 @@ const EXTRA_ORIGENES = ['Manual', 'Crédito', 'Afiliación'];
  * @param {object} opts - { anio: string|null, filtrarPrivados: bool }
  */
 export function useFondos({ anio = null, filtrarPrivados = true } = {}) {
-  const { data: pagos = [] } = useQuery({ queryKey: ['pagos'], queryFn: () => base44.entities.Pago.list('-fecha_pago', 5000) });
-  const { data: gastos = [] } = useQuery({ queryKey: ['gastos'], queryFn: () => base44.entities.Gasto.list('-fecha', 5000) });
-  const { data: movimientosExtra = [] } = useQuery({ queryKey: ['movimientos_banco'], queryFn: () => base44.entities.MovimientoBanco.list('-fecha', 2000) });
-  const { data: campamentos = [] } = useQuery({ queryKey: ['campamentos'], queryFn: () => base44.entities.Campamento.list() });
-  const { data: ventasTienda = [] } = useQuery({ queryKey: ['ventas_tienda'], queryFn: () => base44.entities.VentaTienda.list('-fecha', 5000) });
-  const { data: preEncargos = [] } = useQuery({ queryKey: ['pre_encargos'], queryFn: () => base44.entities.PreEncargoTienda.list('-fecha', 5000) });
-  const { data: productosTienda = [] } = useQuery({ queryKey: ['productos_tienda'], queryFn: () => base44.entities.ProductoTienda.list() });
+  const { isAuthenticated } = useAuth();
+
+  const pagosQ = useQuery({ queryKey: ['pagos'], queryFn: () => base44.entities.Pago.list('-fecha_pago', 5000) });
+  const gastosQ = useQuery({ queryKey: ['gastos'], queryFn: () => base44.entities.Gasto.list('-fecha', 5000) });
+  // Admin-only entities: wait for auth to be ready before querying, with extra retries
+  const movsQ = useQuery({ queryKey: ['movimientos_banco'], queryFn: () => base44.entities.MovimientoBanco.list('-fecha', 2000), enabled: isAuthenticated, retry: 3, retryDelay: 1000 });
+  const campQ = useQuery({ queryKey: ['campamentos'], queryFn: () => base44.entities.Campamento.list() });
+  const ventasQ = useQuery({ queryKey: ['ventas_tienda'], queryFn: () => base44.entities.VentaTienda.list('-fecha', 5000), enabled: isAuthenticated, retry: 3, retryDelay: 1000 });
+  const encargosQ = useQuery({ queryKey: ['pre_encargos'], queryFn: () => base44.entities.PreEncargoTienda.list('-fecha', 5000), enabled: isAuthenticated, retry: 3, retryDelay: 1000 });
+  const productosQ = useQuery({ queryKey: ['productos_tienda'], queryFn: () => base44.entities.ProductoTienda.list() });
+
+  const pagos = pagosQ.data || [];
+  const gastos = gastosQ.data || [];
+  const movimientosExtra = movsQ.data || [];
+  const campamentos = campQ.data || [];
+  const ventasTienda = ventasQ.data || [];
+  const preEncargos = encargosQ.data || [];
+  const productosTienda = productosQ.data || [];
+
+  const isLoading = pagosQ.isLoading || gastosQ.isLoading || movsQ.isLoading || ventasQ.isLoading || encargosQ.isLoading || productosQ.isLoading;
 
   const privateCampIds = useMemo(() => new Set(
     campamentos.filter(c => c.es_privado).map(c => c.id)
@@ -132,7 +146,7 @@ export function useFondos({ anio = null, filtrarPrivados = true } = {}) {
     return { caja: calcular('Caja'), banco: calcular('Banco') };
   }, [pagos, gastos, ventasTienda, preEncargos, movimientosExtra, privateCampIds, ventaTiendaIds, productosCajaExclusiva, anio, filtrarPrivados]);
 
-  return { ...fondos, pagos, gastos, ventasTienda, preEncargos, movimientosExtra, privateCampIds, campamentos, ventaTiendaIds, productosCajaExclusiva };
+  return { ...fondos, pagos, gastos, ventasTienda, preEncargos, movimientosExtra, privateCampIds, campamentos, ventaTiendaIds, productosCajaExclusiva, isLoading };
 }
 
 /**

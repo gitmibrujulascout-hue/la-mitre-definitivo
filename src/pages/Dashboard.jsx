@@ -23,7 +23,7 @@ export default function Dashboard() {
   });
 
   // Fondos calculados con lógica centralizada (compartida con Caja y Reporte)
-  const { caja, banco, pagos, gastos, campamentos } = useFondos();
+  const { caja, banco, pagos, gastos, campamentos, isLoading: isLoadingFondos } = useFondos();
   const fondos = { caja, banco };
 
   const navigate = useNavigate();
@@ -43,9 +43,9 @@ export default function Dashboard() {
       {/* 1. Stats principales */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard title="Beneficiarios activos" value={activos.length} subtitle={`${becados.length} becados`} icon={Users} />
-        <StatsCard title="Balance total" value={formatMoney(fondos.caja.saldo + fondos.banco.saldo)} subtitle="Caja + Banco" icon={CreditCard} />
-        <StatsCard title="Saldo Caja" value={formatMoney(fondos.caja.saldo)} subtitle={`+${formatMoney(fondos.caja.ingresos)} / −${formatMoney(fondos.caja.egresos)}`} icon={Wallet} />
-        <StatsCard title="Saldo Banco" value={formatMoney(fondos.banco.saldo)} subtitle={`+${formatMoney(fondos.banco.ingresos)} / −${formatMoney(fondos.banco.egresos)}`} icon={Landmark} />
+        <StatsCard title="Balance total" value={isLoadingFondos ? '—' : formatMoney(fondos.caja.saldo + fondos.banco.saldo)} subtitle={isLoadingFondos ? 'Cargando...' : 'Caja + Banco'} icon={CreditCard} />
+        <StatsCard title="Saldo Caja" value={isLoadingFondos ? '—' : formatMoney(fondos.caja.saldo)} subtitle={isLoadingFondos ? 'Cargando...' : `+${formatMoney(fondos.caja.ingresos)} / −${formatMoney(fondos.caja.egresos)}`} icon={Wallet} />
+        <StatsCard title="Saldo Banco" value={isLoadingFondos ? '—' : formatMoney(fondos.banco.saldo)} subtitle={isLoadingFondos ? 'Cargando...' : `+${formatMoney(fondos.banco.ingresos)} / −${formatMoney(fondos.banco.egresos)}`} icon={Landmark} />
       </div>
 
       {/* 2. Beneficiarios por rama */}
@@ -81,19 +81,20 @@ export default function Dashboard() {
             <div className="flex items-center gap-2 mb-3">
               <Icon className="w-4 h-4 text-primary" />
               <span className="font-semibold text-sm">{label}</span>
+              {isLoadingFondos && <span className="text-xs text-muted-foreground animate-pulse">cargando...</span>}
             </div>
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="bg-green-50 rounded-lg p-2">
                 <p className="text-xs text-muted-foreground">Ingresos</p>
-                <p className="font-bold text-green-700 text-sm">{formatMoney(data.ingresos)}</p>
+                <p className="font-bold text-green-700 text-sm">{isLoadingFondos ? '—' : formatMoney(data.ingresos)}</p>
               </div>
               <div className="bg-red-50 rounded-lg p-2">
                 <p className="text-xs text-muted-foreground">Egresos</p>
-                <p className="font-bold text-red-600 text-sm">{formatMoney(data.egresos)}</p>
+                <p className="font-bold text-red-600 text-sm">{isLoadingFondos ? '—' : formatMoney(data.egresos)}</p>
               </div>
               <div className={cn('rounded-lg p-2', data.saldo >= 0 ? 'bg-blue-50' : 'bg-red-50')}>
                 <p className="text-xs text-muted-foreground">Saldo</p>
-                <p className={cn('font-bold text-sm', data.saldo >= 0 ? 'text-blue-700' : 'text-red-600')}>{formatMoney(data.saldo)}</p>
+                <p className={cn('font-bold text-sm', data.saldo >= 0 ? 'text-blue-700' : 'text-red-600')}>{isLoadingFondos ? '—' : formatMoney(data.saldo)}</p>
               </div>
             </div>
           </Card>
