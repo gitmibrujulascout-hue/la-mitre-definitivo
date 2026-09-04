@@ -39,7 +39,7 @@ La aplicación publicada en `mibrujulascout.com.ar` ya tiene una implementación
 | Datos | Supabase productivo | Supabase nuevo vacío | Exportar y mapear, nunca copiar a ciegas |
 | Super admin | Consola avanzada | Roles preparados, sin consola equivalente | Implementar panel después del inventario |
 | Tenants | Varios tenants reales | La Mitre inicial | Crear importación por tenant |
-| Onboarding | Flujo y alertas existentes | No completo | Replicar estados y pasos necesarios |
+| Onboarding | Flujo y alertas existentes | Flujo propio de la nueva aplicación | Conservarlo; comparar sólo campos faltantes, sin duplicarlo |
 | Archivos | Recursos históricos | Bucket nuevo | Migrar archivos con inventario y verificación |
 | IA | Funciones existentes en la aplicación vieja | `ai-extract` con `o4-mini` | Probar con archivos reales |
 | Dominio | `mibrujulascout.com.ar` | Dominio temporal de Vercel | Mantener ambos hasta aceptar la nueva |
@@ -63,4 +63,4 @@ La aplicación vieja conserva el dominio principal hasta que la nueva pase la li
 
 ## Próximo paso técnico
 
-Construir el inventario y el importador de datos. El repositorio no contiene una exportación de la aplicación vieja, por lo que esa parte no puede ejecutarse automáticamente todavía.
+Conservar el onboarding de la nueva aplicación. El siguiente trabajo será inventariar datos, permisos y funciones de la aplicación vieja, sin reemplazar ese flujo. El repositorio no contiene una exportación histórica, por lo que esa parte no puede ejecutarse automáticamente todavía.
