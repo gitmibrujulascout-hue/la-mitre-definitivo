@@ -12,7 +12,15 @@ export const AuthProvider = ({ children }) => {
     if (!authUser) return null;
     const { data, error } = await supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle();
     if (error) throw error;
-    return { ...authUser, ...(data || {}) };
+    const { data: membership } = await supabase
+      .from('tenant_memberships')
+      .select('tenant_id, role, tenants(id, name, slug)')
+      .eq('user_id', authUser.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (membership?.tenant_id) window.localStorage.setItem('mibrujula_active_tenant', membership.tenant_id);
+    return { ...authUser, ...(data || {}), tenant_id: membership?.tenant_id || null, tenant_role: membership?.role || null, tenant: membership?.tenants || null };
   };
 
   useEffect(() => {
