@@ -11,7 +11,7 @@ serve(async (req) => {
     const content = [{ type: 'input_text', text: prompt }, ...file_urls.map((url: string) => ({ type: 'input_file', file_url: url }))];
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: 'gpt-4.1-mini', input: [{ role: 'user', content }], store: false,
+      body: JSON.stringify({ model: 'o4-mini', input: [{ role: 'user', content }], store: false,
         text: response_json_schema ? { format: { type: 'json_schema', name: 'extracted_data', strict: true, schema: response_json_schema } } : undefined })
     });
     const result = await response.json();
