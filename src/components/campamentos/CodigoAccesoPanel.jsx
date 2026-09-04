@@ -58,8 +58,8 @@ export default function CodigoAccesoPanel({ campamento }) {
     },
   });
 
-  const appId = window.location.hostname.split('.')[0].replace('preview-sandbox--', '');
-  const prodOrigin = `https://${appId}.base44.app`;
+  // El enlace público debe usar el despliegue actual, no Base44.
+  const prodOrigin = window.location.origin;
   const url = accesoActivo
     ? `${prodOrigin}/campamento/${accesoActivo.codigo}`
     : null;
