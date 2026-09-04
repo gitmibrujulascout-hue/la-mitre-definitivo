@@ -27,6 +27,7 @@ import ReporteCreditos from '@/pages/ReporteCreditos';
 import FichaEmergencia from '@/pages/FichaEmergencia.jsx';
 import CampamentoPublico from '@/pages/CampamentoPublico';
 import Login from '@/pages/Login';
+import SuperAdmin from '@/pages/SuperAdmin';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, user } = useAuth();
@@ -77,6 +78,7 @@ const AuthenticatedApp = () => {
         <Route path="/reporte-beneficiarios" element={<ReporteBeneficiarios />} />
         <Route path="/directorio-emergencias" element={<DirectorioEmergencias />} />
         <Route path="/consultas-familias" element={<ConsultasFamilias />} />
+        <Route path="/super-admin" element={<SuperAdmin />} />
       </Route>
       <Route path="/estado-cuenta" element={<EstadoCuenta />} />
       <Route path="/ficha-emergencia" element={<FichaEmergencia />} />

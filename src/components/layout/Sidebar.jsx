@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAvisosPendientes } from '@/hooks/useAvisosPendientes';
+import { useAuth } from '@/lib/AuthContext';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -31,6 +32,8 @@ export default function Sidebar() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { encargosPendientes, solicitudesSaludPendientes } = useAvisosPendientes();
+  const { user } = useAuth();
+  const visibleNavItems = user?.is_super_admin ? [...navItems, { path: '/super-admin', label: 'Super admin', icon: ShieldCheck }] : navItems;
   const avisosPorPath = {
     '/tienda': encargosPendientes,
     '/beneficiarios': solicitudesSaludPendientes,
@@ -77,7 +80,7 @@ export default function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {navItems.map(item => {
+          {visibleNavItems.map(item => {
             const isActive = location.pathname === item.path;
             const avisos = avisosPorPath[item.path] || 0;
             return (
