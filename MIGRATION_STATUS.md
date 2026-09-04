@@ -4,13 +4,14 @@
 
 - Repositorio original conectado a Vercel desde `main`.
 - Autenticación, perfiles, esquema inicial y superadministradores en Supabase.
-- Multi-tenancy base y Storage `app-files` preparados.
+- Multi-tenancy base, 24 columnas `tenant_id` y Storage `app-files` preparados.
+- Tenant `la-mitre` creado; Sebastián y Facundo son `admin` del tenant y superadministradores globales.
 - Adaptador de datos y subida de archivos conectados a Supabase.
 - Plugin de compilación de Base44 retirado.
 
 ## Próximas fases
 
-1. Ejecutar `supabase/snippets/0002_multitenant_rollout.sql` y asignar tenants.
+1. Asignar `tenant_id` a los registros históricos cuando se importen.
 2. Importar los datos históricos mediante una exportación autorizada.
 3. Sustituir IA, extracción de archivos y mensajería por Edge Functions.
 4. Migrar imágenes/documentos externos al bucket `app-files`.
