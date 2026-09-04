@@ -26,9 +26,10 @@ import ConsultasFamilias from '@/pages/ConsultasFamilias';
 import ReporteCreditos from '@/pages/ReporteCreditos';
 import FichaEmergencia from '@/pages/FichaEmergencia.jsx';
 import CampamentoPublico from '@/pages/CampamentoPublico';
+import Login from '@/pages/Login';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, user } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, user } = useAuth();
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -40,19 +41,13 @@ const AuthenticatedApp = () => {
   }
 
   // Handle authentication errors
-  if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      navigateToLogin();
-      return null;
-    }
-  }
+  if (authError && !user) return <UserNotRegisteredError />;
 
   // Non-admins AND unauthenticated visitors: only public pages (estado-cuenta, ficha-emergencia, campamento)
   if (!user || user.role !== 'admin') {
     return (
       <Routes>
+        <Route path="/login" element={<Login />} />
         <Route path="/estado-cuenta" element={<EstadoCuenta />} />
         <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
         <Route path="/campamento/:codigo" element={<CampamentoPublico />} />
