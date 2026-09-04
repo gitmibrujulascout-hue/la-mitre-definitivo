@@ -7,6 +7,7 @@
 - Multi-tenancy base, 24 columnas `tenant_id` y Storage `app-files` preparados.
 - Tenant `la-mitre` creado; Sebastián y Facundo son `admin` del tenant y superadministradores globales.
 - Adaptador de datos y subida de archivos conectados a Supabase.
+- Contexto de tenant activo agregado al adaptador: consultas, altas y operaciones masivas quedan asociadas a La Mitre.
 - Plugin de compilación de Base44 retirado.
 
 ## Próximas fases
