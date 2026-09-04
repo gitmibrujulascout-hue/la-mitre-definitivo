@@ -8,14 +8,14 @@
 - Tenant `la-mitre` creado; Sebastián y Facundo son `admin` del tenant y superadministradores globales.
 - Adaptador de datos y subida de archivos conectados a Supabase.
 - Contexto de tenant activo agregado al adaptador: consultas, altas y operaciones masivas quedan asociadas a La Mitre.
-- Edge Function `ai-extract` preparada para reemplazar IA y extracción estructurada de Base44 mediante OpenAI Structured Outputs.
+- Edge Function `ai-extract` publicada en Supabase para reemplazar IA y extracción estructurada de Base44 mediante OpenAI Structured Outputs.
 - Plugin de compilación de Base44 retirado.
 
 ## Próximas fases
 
 1. Asignar `tenant_id` a los registros históricos cuando se importen.
 2. Importar los datos históricos mediante una exportación autorizada.
-3. Publicar `ai-extract` y configurar `OPENAI_API_KEY` en secretos de Supabase.
+3. Probar `ai-extract` con un PDF y una planilla reales.
 4. Migrar imágenes/documentos externos al bucket `app-files`.
 5. Reemplazar progresivamente `base44Client` por módulos nativos.
 6. Crear políticas específicas por tenant y probar cada rol.
