@@ -42,8 +42,21 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Handle authentication errors
-  if (authError && !user) return <UserNotRegisteredError />;
+  // Public entry points must remain reachable even when a stale session cannot
+  // load its profile. Protected paths keep the explicit access error.
+  if (authError && !user) {
+    return (
+      <Routes>
+        <Route path="/app/administracion/inicio" element={<Navigate to="/" replace />} />
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/estado-cuenta" element={<EstadoCuenta />} />
+        <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
+        <Route path="/campamento/:codigo" element={<CampamentoPublico />} />
+        <Route path="*" element={<UserNotRegisteredError />} />
+      </Routes>
+    );
+  }
 
   // Non-admins AND unauthenticated visitors: only public pages (estado-cuenta, ficha-emergencia, campamento)
   if (!user || user.role !== 'admin') {

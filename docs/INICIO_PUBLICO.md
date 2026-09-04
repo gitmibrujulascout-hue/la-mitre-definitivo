@@ -22,3 +22,5 @@ pública de estado de cuenta.
 - Un administrador autenticado continúa viendo el dashboard actual en `/`.
 - La ruta heredada `/app/administracion/inicio` redirige a `/` para evitar que
   marcadores de la plataforma anterior mezclen ambas aplicaciones.
+- Una sesión vencida o un error al recuperar el perfil no bloquean la portada
+  ni el login; las rutas operativas continúan protegidas.
