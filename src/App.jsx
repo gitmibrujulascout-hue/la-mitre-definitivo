@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -49,6 +49,7 @@ const AuthenticatedApp = () => {
   if (!user || user.role !== 'admin') {
     return (
       <Routes>
+        <Route path="/app/administracion/inicio" element={<Navigate to="/" replace />} />
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/estado-cuenta" element={<EstadoCuenta />} />
@@ -62,6 +63,7 @@ const AuthenticatedApp = () => {
   // Render the main app (admin only)
   return (
     <Routes>
+      <Route path="/app/administracion/inicio" element={<Navigate to="/" replace />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/beneficiarios" element={<Beneficiarios />} />
