@@ -27,6 +27,6 @@ export const base44 = {
     }
     throw new Error(`La función ${name} todavía debe migrarse a Supabase Edge Functions.`);
   } },
-  integrations: { Core: { UploadFile: uploadFile, InvokeLLM: async () => { throw new Error('La integración de IA debe migrarse a una Edge Function.'); }, ExtractDataFromUploadedFile: async () => { throw new Error('La extracción de archivos debe migrarse a una Edge Function.'); } } },
+  integrations: { Core: { UploadFile: uploadFile, InvokeLLM: async ({ prompt, file_urls = [], response_json_schema } = {}) => { const { data, error } = await supabase.functions.invoke('ai-extract', { body: { prompt, file_urls, response_json_schema } }); if (error) throw error; return data; }, ExtractDataFromUploadedFile: async ({ file_url, json_schema } = {}) => { const { data, error } = await supabase.functions.invoke('ai-extract', { body: { prompt: 'Extraé los datos del archivo respetando exactamente el esquema indicado.', file_urls: [file_url], response_json_schema: json_schema } }); if (error) throw error; return { status: 'success', output: data }; } } },
   agents: { getWhatsAppConnectURL: () => '/login' }
 };
