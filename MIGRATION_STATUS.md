@@ -1,0 +1,21 @@
+# Estado de migración Mi Brújula Scout
+
+## Completado
+
+- Repositorio original conectado a Vercel desde `main`.
+- Autenticación, perfiles, esquema inicial y superadministradores en Supabase.
+- Multi-tenancy base y Storage `app-files` preparados.
+- Adaptador de datos y subida de archivos conectados a Supabase.
+- Plugin de compilación de Base44 retirado.
+
+## Próximas fases
+
+1. Ejecutar `supabase/snippets/0002_multitenant_rollout.sql` y asignar tenants.
+2. Importar los datos históricos mediante una exportación autorizada.
+3. Sustituir IA, extracción de archivos y mensajería por Edge Functions.
+4. Migrar imágenes/documentos externos al bucket `app-files`.
+5. Reemplazar progresivamente `base44Client` por módulos nativos.
+6. Crear políticas específicas por tenant y probar cada rol.
+7. Configurar dominio de prueba y pruebas de aceptación.
+
+No se elimina Base44 ni se modifican datos productivos hasta validar cada módulo.
