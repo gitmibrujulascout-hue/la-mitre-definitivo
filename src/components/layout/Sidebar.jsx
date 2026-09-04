@@ -9,7 +9,7 @@ import { useAvisosPendientes } from '@/hooks/useAvisosPendientes';
 import { useAuth } from '@/lib/AuthContext';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/app', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/beneficiarios', label: 'Beneficiarios', icon: Users },
   { path: '/pagos', label: 'Pagos', icon: CreditCard },
   { path: '/gastos', label: 'Gastos', icon: Receipt },

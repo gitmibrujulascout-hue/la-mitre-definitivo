@@ -16,11 +16,19 @@ pública de estado de cuenta.
 
 ## Resultado esperado
 
-- Una persona sin sesión que visita `/` ve la portada de Mi Brújula Scout.
-- `Ingresar` abre `/login`.
+- Toda persona que visita `/`, tenga o no una sesión guardada, ve primero la
+  portada pública de Brújula.
+- La portada replica únicamente la identidad visual pública verde, crema y
+  naranja de Brújula. No importa layouts, navegación ni módulos internos de la
+  aplicación anterior.
+- `Ingresar` abre `/login`, que mantiene la misma identidad visual pública y
+  permite autenticarse con email y contraseña.
+- Una sesión administrativa ya activa que abre `/login` continúa directamente
+  al dashboard nuevo.
 - `Consultar estado de cuenta` abre `/estado-cuenta`.
-- Un administrador autenticado continúa viendo el dashboard actual en `/`.
-- La ruta heredada `/app/administracion/inicio` redirige a `/` para evitar que
+- Un administrador autenticado ve el dashboard actual en `/app`; su diseño,
+  menú lateral y módulos no cambian.
+- La ruta heredada `/app/administracion/inicio` redirige a `/app` para evitar que
   marcadores de la plataforma anterior mezclen ambas aplicaciones.
 - Una sesión vencida o un error al recuperar el perfil no bloquean la portada
   ni el login; las rutas operativas continúan protegidas.

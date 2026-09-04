@@ -1,112 +1,142 @@
-import { ArrowRight, CalendarDays, ShieldCheck, TreePine, Users, WalletCards } from 'lucide-react';
+import {
+  ArrowRight,
+  BarChart3,
+  CalendarDays,
+  CheckSquare2,
+  CreditCard,
+  HeartHandshake,
+  Monitor,
+  ShieldCheck,
+  Users,
+  WalletCards,
+  Zap
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { CompassSeal, CompassWatermark } from '@/components/public/BrujulaBrand';
+import PublicHeader from '@/components/public/PublicHeader';
 
-const features = [
+const quickAccess = [
+  { icon: CreditCard, label: 'Cuotas' },
+  { icon: BarChart3, label: 'Pagos' },
+  { icon: HeartHandshake, label: 'Becas' },
+  { icon: CheckSquare2, label: 'Asistencia' },
+  { icon: CalendarDays, label: 'Calendario' }
+];
+
+const platformHighlights = [
   {
     icon: Users,
     title: 'Personas y familias',
-    description: 'Legajos, ramas, contactos y toda la información del grupo en un mismo lugar.'
+    description: 'La información del grupo, organizada en un mismo espacio.'
   },
   {
     icon: WalletCards,
     title: 'Finanzas claras',
-    description: 'Cuotas, pagos, gastos, caja y banco con información ordenada y trazable.'
+    description: 'Cuotas, pagos, gastos, caja y banco con trazabilidad.'
   },
   {
-    icon: CalendarDays,
-    title: 'Vida del grupo',
-    description: 'Campamentos, actividades y organización cotidiana disponibles para el equipo.'
+    icon: ShieldCheck,
+    title: 'Cada grupo protegido',
+    description: 'Espacios separados por organización y permisos por rol.'
   }
 ];
 
 export default function Landing() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
-          <Link to="/" className="flex items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground">
-              <TreePine className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <span>
-              <strong className="block text-sm font-bold leading-tight">Mi Brújula Scout</strong>
-              <span className="text-xs text-muted-foreground">Gestión para grupos scouts</span>
-            </span>
-          </Link>
-          <Link
-            to="/login"
-            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            Ingresar
-          </Link>
-        </div>
-      </header>
+    <main className="brujula-public min-h-screen">
+      <PublicHeader />
 
-      <section className="relative overflow-hidden border-b border-border bg-sidebar text-sidebar-foreground">
-        <div className="absolute -right-28 -top-28 h-96 w-96 rounded-full bg-sidebar-primary/15 blur-3xl" aria-hidden="true" />
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 py-20 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:py-28">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">Plataforma de gestión scout</p>
-            <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-tight text-sidebar-primary-foreground sm:text-5xl lg:text-6xl">
-              Tu grupo organizado, conectado y listo para crecer.
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-sidebar-foreground/75">
-              Mi Brújula Scout reúne personas, finanzas, actividades y campamentos en una plataforma simple para administrar el día a día.
+      <section className="brujula-hero relative overflow-hidden">
+        <CompassWatermark className="-right-52 top-1/2 hidden h-[760px] w-[760px] -translate-y-1/2 opacity-[0.055] lg:block" />
+        <div className="relative z-10 mx-auto grid min-h-[calc(100svh-3.5rem)] max-w-7xl items-center gap-10 px-5 py-12 sm:px-10 lg:grid-cols-[1.08fr_0.92fr] lg:gap-14 lg:py-9">
+          <div className="max-w-3xl">
+            <p className="brujula-eyebrow inline-flex items-center gap-2.5">
+              <span className="h-px w-4 bg-current" aria-hidden="true" />
+              Plataforma para grupos scouts · Argentina
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                to="/login"
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-primary px-6 font-semibold text-primary-foreground transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-              >
+
+            <h1 className="brujula-hero-heading mt-5 max-w-2xl text-5xl font-semibold leading-[0.98] sm:text-6xl">
+              Ordena, conecta y <span className="brujula-emphasis">hace crecer</span> a tu grupo.
+            </h1>
+
+            <p className="brujula-hero-lead mt-6 max-w-xl text-lg font-semibold leading-7 sm:text-xl">
+              Brújula reúne la administración, las finanzas y el día a día de tu grupo scout en un solo lugar.
+            </p>
+            <p className="brujula-hero-copy mt-4 max-w-lg text-sm leading-6 sm:text-base">
+              Administración clara, finanzas transparentes y herramientas pensadas para fortalecer a la comunidad.
+            </p>
+
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link className="brujula-primary-action min-h-12 px-5" to="/login">
                 Iniciar sesión
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
               <Link
-                to="/estado-cuenta"
-                className="inline-flex min-h-12 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent px-6 font-semibold text-sidebar-accent-foreground transition hover:bg-sidebar-accent/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                className="brujula-secondary-action min-h-12 px-5"
+                to="/login?accion=registrar-grupo"
+                title="Ingresá con una cuenta autorizada para registrar el grupo"
               >
-                Consultar estado de cuenta
+                Registrar grupo
               </Link>
+            </div>
+
+            <div id="vista" className="brujula-quick-access mt-7 border-t pt-5">
+              <p className="brujula-quick-label mb-3 inline-flex items-center gap-2">
+                <Zap className="h-3.5 w-3.5" aria-hidden="true" />
+                Accesos directos · un toque
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {quickAccess.map(({ icon: Icon, label }) => (
+                  <Link key={label} className="brujula-quick-link" to="/login">
+                    <span className="brujula-quick-icon">
+                      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                    </span>
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            <div className="brujula-trust mt-5 flex flex-wrap gap-x-7 gap-y-3 border-t pt-5 text-sm">
+              <span className="inline-flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                Datos protegidos por diseño
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Monitor className="h-4 w-4" aria-hidden="true" />
+                Cada grupo en su propio espacio
+              </span>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-sidebar-border bg-sidebar-accent/70 p-6 shadow-2xl sm:p-8">
-            <div className="flex items-center gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent text-accent-foreground">
-                <ShieldCheck className="h-6 w-6" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="font-bold text-sidebar-primary-foreground">Un espacio para cada grupo</p>
-                <p className="text-sm text-sidebar-foreground/65">Información separada y protegida por tenant.</p>
-              </div>
-            </div>
-            <div className="mt-7 grid gap-3">
-              {['Configuración guiada', 'Roles y permisos', 'Carga progresiva de información'].map((item) => (
-                <div key={item} className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar/50 px-4 py-3 text-sm font-medium">
-                  <span className="h-2 w-2 rounded-full bg-accent" aria-hidden="true" />
-                  {item}
-                </div>
-              ))}
+          <div className="flex justify-center">
+            <div className="relative h-[260px] w-[260px] max-w-full sm:h-[330px] sm:w-[330px] lg:h-[380px] lg:w-[380px]">
+              <span className="brujula-emblem-glow absolute -inset-10 rounded-full" aria-hidden="true" />
+              <span className="brujula-coordinate absolute -left-5 top-2">34°36′ S</span>
+              <CompassSeal className="relative z-10 drop-shadow-2xl" />
+              <span className="brujula-coordinate absolute -bottom-1 -right-6">58°22′ O</span>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:py-20" aria-labelledby="landing-features-title">
-        <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Todo en un mismo lugar</p>
-          <h2 id="landing-features-title" className="mt-3 text-3xl font-extrabold sm:text-4xl">Una base sólida para empezar a trabajar.</h2>
-        </div>
-        <div className="mt-9 grid gap-5 md:grid-cols-3">
-          {features.map(({ icon: Icon, title, description }) => (
-            <article key={title} className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-secondary text-primary">
-                <Icon className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <h3 className="mt-5 text-lg font-bold">{title}</h3>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
-            </article>
-          ))}
+      <section id="fondo" className="brujula-public-summary px-5 py-16 sm:px-10" aria-labelledby="public-summary-title">
+        <div className="mx-auto max-w-7xl">
+          <p className="brujula-summary-eyebrow">Vista rápida</p>
+          <h2 id="public-summary-title" className="mt-3 max-w-2xl text-3xl font-extrabold sm:text-4xl">
+            Una base sólida para organizar el grupo.
+          </h2>
+          <div className="mt-9 grid gap-5 md:grid-cols-3">
+            {platformHighlights.map(({ icon: Icon, title, description }) => (
+              <article key={title} className="brujula-summary-card p-6">
+                <span className="brujula-summary-icon">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <h3 className="mt-5 text-lg font-bold">{title}</h3>
+                <p className="brujula-summary-copy mt-2 text-sm leading-6">{description}</p>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
     </main>

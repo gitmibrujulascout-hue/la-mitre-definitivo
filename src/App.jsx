@@ -42,43 +42,19 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Public entry points must remain reachable even when a stale session cannot
-  // load its profile. Protected paths keep the explicit access error.
   if (authError && !user) {
-    return (
-      <Routes>
-        <Route path="/app/administracion/inicio" element={<Navigate to="/" replace />} />
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/estado-cuenta" element={<EstadoCuenta />} />
-        <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
-        <Route path="/campamento/:codigo" element={<CampamentoPublico />} />
-        <Route path="*" element={<UserNotRegisteredError />} />
-      </Routes>
-    );
+    return <UserNotRegisteredError />;
   }
 
-  // Non-admins AND unauthenticated visitors: only public pages (estado-cuenta, ficha-emergencia, campamento)
-  if (!user || user.role !== 'admin') {
-    return (
-      <Routes>
-        <Route path="/app/administracion/inicio" element={<Navigate to="/" replace />} />
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/estado-cuenta" element={<EstadoCuenta />} />
-        <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
-        <Route path="/campamento/:codigo" element={<CampamentoPublico />} />
-        <Route path="*" element={<PageNotFound />} />
-      </Routes>
-    );
-  }
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'admin') return <UserNotRegisteredError />;
 
   // Render the main app (admin only)
   return (
     <Routes>
-      <Route path="/app/administracion/inicio" element={<Navigate to="/" replace />} />
+      <Route path="/app/administracion/inicio" element={<Navigate to="/app" replace />} />
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/app" element={<Dashboard />} />
         <Route path="/beneficiarios" element={<Beneficiarios />} />
         <Route path="/pagos" element={<Pagos />} />
         <Route path="/gastos" element={<Gastos />} />
@@ -97,9 +73,6 @@ const AuthenticatedApp = () => {
         <Route path="/consultas-familias" element={<ConsultasFamilias />} />
         <Route path="/super-admin" element={<SuperAdmin />} />
       </Route>
-      <Route path="/estado-cuenta" element={<EstadoCuenta />} />
-      <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
-      <Route path="/campamento/:codigo" element={<CampamentoPublico />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
@@ -113,6 +86,10 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/estado-cuenta" element={<EstadoCuenta />} />
+            <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
             <Route path="/campamento/:codigo" element={<CampamentoPublico />} />
             <Route path="/*" element={<AuthenticatedApp />} />
           </Routes>
