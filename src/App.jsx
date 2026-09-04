@@ -28,6 +28,7 @@ import FichaEmergencia from '@/pages/FichaEmergencia.jsx';
 import CampamentoPublico from '@/pages/CampamentoPublico';
 import Login from '@/pages/Login';
 import SuperAdmin from '@/pages/SuperAdmin';
+import Landing from '@/pages/Landing';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, user } = useAuth();
@@ -48,11 +49,12 @@ const AuthenticatedApp = () => {
   if (!user || user.role !== 'admin') {
     return (
       <Routes>
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/estado-cuenta" element={<EstadoCuenta />} />
         <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
         <Route path="/campamento/:codigo" element={<CampamentoPublico />} />
-        <Route path="*" element={<EstadoCuenta />} />
+        <Route path="*" element={<PageNotFound />} />
       </Routes>
     );
   }
