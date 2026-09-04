@@ -24,3 +24,5 @@ pública de estado de cuenta.
   marcadores de la plataforma anterior mezclen ambas aplicaciones.
 - Una sesión vencida o un error al recuperar el perfil no bloquean la portada
   ni el login; las rutas operativas continúan protegidas.
+- Vercel reescribe las rutas internas hacia `index.html`, permitiendo abrir o
+  actualizar enlaces profundos sin recibir un error 404.
