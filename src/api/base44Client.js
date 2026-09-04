@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { uploadFile } from './supabaseStorage';
 
 const snake = value => value.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase();
 const normalize = value => Array.isArray(value) ? value.map(normalize) : (!value || typeof value !== 'object' ? value : Object.fromEntries(Object.entries(value).map(([key, val]) => [snake(key), normalize(val)])));
@@ -17,7 +18,14 @@ const names = ['AccesoCampamento','ActividadEconomica','Afiliacion','Beneficiari
 export const base44 = {
   entities: Object.fromEntries(names.map(name => [name, entity(name)])),
   auth: { me: async () => { const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Not authenticated'); const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(); return { ...user, ...(profile || {}) }; }, logout: () => supabase.auth.signOut(), redirectToLogin: () => window.location.assign('/login') },
-  functions: { invoke: async () => { throw new Error('Esta función debe migrarse a Supabase Edge Functions.'); } },
-  integrations: { Core: { UploadFile: async () => { throw new Error('La carga de archivos debe migrarse a Supabase Storage.'); }, InvokeLLM: async () => { throw new Error('La integración de IA debe migrarse a una Edge Function.'); }, ExtractDataFromUploadedFile: async () => { throw new Error('La extracción de archivos debe migrarse a una Edge Function.'); } } },
+  functions: { invoke: async (name, body = {}) => {
+    if (name === 'validar_clave_admin') {
+      const { data: config, error } = await supabase.from('config_general').select('clave_admin').limit(1).maybeSingle();
+      if (error) throw error;
+      return { valido: Boolean(config?.clave_admin && config.clave_admin === body.clave), sinClave: !config?.clave_admin };
+    }
+    throw new Error(`La función ${name} todavía debe migrarse a Supabase Edge Functions.`);
+  } },
+  integrations: { Core: { UploadFile: uploadFile, InvokeLLM: async () => { throw new Error('La integración de IA debe migrarse a una Edge Function.'); }, ExtractDataFromUploadedFile: async () => { throw new Error('La extracción de archivos debe migrarse a una Edge Function.'); } } },
   agents: { getWhatsAppConnectURL: () => '/login' }
 };
