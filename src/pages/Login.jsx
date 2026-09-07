@@ -5,13 +5,14 @@ import { useAuth } from '@/lib/AuthContext';
 import { getAuthenticatedHome } from '@/services/access/authDestination';
 
 export default function Login() {
-  const { user, login, isLoadingAuth } = useAuth();
+  const { user, login, loginWithGoogle, isLoadingAuth } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const registrationRequested = searchParams.get('accion') === 'registrar-grupo';
 
   if (isLoadingAuth) {
@@ -42,6 +43,17 @@ export default function Login() {
     }
   };
 
+  const continueWithGoogle = async () => {
+    setGoogleLoading(true);
+    setError('');
+    try {
+      await loginWithGoogle(`${window.location.origin}/familias`);
+    } catch {
+      setError('No pudimos iniciar el acceso con Google. Intentá nuevamente.');
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <main className="brujula-public min-h-screen">
       <PublicHeader />
@@ -49,6 +61,19 @@ export default function Login() {
         <div className="brujula-auth-card w-full max-w-md p-5 sm:p-7">
           <h1 className="text-2xl font-extrabold">Ingresar a Brújula</h1>
           <p className="brujula-auth-copy mt-2 text-sm">Ingresá con tu cuenta del grupo scout.</p>
+
+          <button
+            type="button"
+            className="brujula-secondary-action mt-6 min-h-12 w-full"
+            onClick={continueWithGoogle}
+            disabled={googleLoading}
+          >
+            {googleLoading ? 'Conectando con Google…' : 'Continuar con Google'}
+          </button>
+
+          <div className="mt-5 flex items-center gap-3 text-xs text-slate-400" aria-hidden="true">
+            <span className="h-px flex-1 bg-current" /><span>o ingresá con email</span><span className="h-px flex-1 bg-current" />
+          </div>
 
           {registrationRequested && (
             <div className="brujula-auth-notice mt-5 text-sm leading-5" role="status">

@@ -113,6 +113,13 @@ export const AuthProvider = ({ children }) => {
     setUser(authenticatedUser);
     return authenticatedUser;
   };
+  const loginWithGoogle = async (redirectTo = `${window.location.origin}/familias`) => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo }
+    });
+    if (error) throw error;
+  };
   const refreshUser = useCallback(async () => {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     const refreshedUser = await loadProfile(authUser);
@@ -127,7 +134,7 @@ export const AuthProvider = ({ children }) => {
   };
   const navigateToLogin = () => window.location.assign('/login');
 
-  return <AuthContext.Provider value={{ user, isAuthenticated: Boolean(user), isLoadingAuth, isLoadingPublicSettings: false, authError, authChecked: !isLoadingAuth, login, logout, refreshUser, navigateToLogin, checkUserAuth: async () => {}, checkAppState: async () => {} }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, isAuthenticated: Boolean(user), isLoadingAuth, isLoadingPublicSettings: false, authError, authChecked: !isLoadingAuth, login, loginWithGoogle, logout, refreshUser, navigateToLogin, checkUserAuth: async () => {}, checkAppState: async () => {} }}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

@@ -33,6 +33,7 @@ import Landing from '@/pages/Landing';
 import AcceptInvitation from '@/pages/AcceptInvitation';
 import NoAccess from '@/pages/NoAccess';
 import UsersPermissions from '@/pages/UsersPermissions';
+import FamilyPortal from '@/pages/FamilyPortal';
 import PermissionRoute from '@/components/access/PermissionRoute';
 import { canAccessAdministration, getAuthenticatedHome } from '@/services/access/authDestination';
 import { PERMISSIONS } from '@/services/access/permissions';
@@ -100,6 +101,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/aceptar-invitacion" element={<AcceptInvitation />} />
             <Route path="/sin-acceso" element={<NoAccess />} />
+            <Route path="/familias" element={<FamilyPortal />} />
             <Route path="/estado-cuenta" element={<EstadoCuenta />} />
             <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
             <Route path="/campamento/:codigo" element={<CampamentoPublico />} />
