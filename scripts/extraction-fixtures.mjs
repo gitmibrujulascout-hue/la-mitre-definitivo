@@ -1,0 +1,15 @@
+import XLSX from 'xlsx';
+import { fileURLToPath } from 'node:url';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { writeFileSync, mkdirSync } from 'node:fs';
+const destination = new URL('../test-artifacts/', import.meta.url);
+mkdirSync(destination, { recursive: true });
+const rows = [['Nombre', 'Documento', 'Fecha Nacimiento', 'Rama'], ['PRUEBA FICTICIA ALFA', '99000001', '2014-05-12', 'Tropa'], ['PRUEBA FICTICIA BETA', '99000002', '2015-07-20', 'Tropa']];
+const book = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(rows), 'Prueba');
+XLSX.writeFile(book, fileURLToPath(new URL('import-test.xlsx', destination)));
+const pdf = await PDFDocument.create();
+const page = pdf.addPage([650, 400]);
+const font = await pdf.embedFont(StandardFonts.Helvetica);
+rows.forEach((row, index) => page.drawText(row.join(' | '), { x: 20, y: 350 - index * 30, size: 11, font }));
+writeFileSync(new URL('import-test.pdf', destination), await pdf.save());

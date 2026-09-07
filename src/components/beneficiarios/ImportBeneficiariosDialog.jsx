@@ -152,6 +152,7 @@ function DuplicadoCard({ dup, camposSeleccionados, onToggleCampo, onSeleccionarT
 
 export default function ImportBeneficiariosDialog({ open, onClose }) {
   const [file, setFile] = useState(null);
+  const [importError, setImportError] = useState('');
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState('upload'); // 'upload' | 'duplicados' | 'nuevos' | 'confirmar'
 
@@ -169,11 +170,14 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
 
   const handleUpload = async () => {
     if (!file) return;
+    setImportError('');
+    let stage = 'cargar el archivo';
     setLoading(true);
     try {
     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('La importación tardó demasiado. Verificá el archivo e intentá nuevamente.')), 90000));
     const operation = (async () => {
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    stage = 'extraer los datos';
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `Tenés un archivo Excel o PDF de un grupo scout. Si es Excel, sus columnas pueden ser: Tipo Documento, Documento (DNI), Nombre, Sexo, Fecha Nacimiento, Provincia, Localidad, Calle, Codigo Postal, Estado Civil, Telefono, Email, Religion, Religion Descripcion, Estudios, Titulo, Empresa, Discapacidad, Detalle Discapacidad, Nacionalidad, Funcion, Categoria, Rama, Zona, Distrito, Código, Organismo, Fecha Primer Afiliacion. Si es PDF, extraé las personas y los campos disponibles sin inventar datos.
 Extraé TODAS las filas de datos (ignorá la fila de encabezados).
@@ -212,8 +216,10 @@ Devolvé un JSON con el array "personas".`,
     return result;
     })();
     const result = await Promise.race([operation, timeout]);
+    stage = 'preparar la vista previa';
 
     if (!result?.personas?.length) {
+      setImportError('No se encontraron personas. Revisá las columnas y probá nuevamente.');
       toast.error('No se pudieron extraer los datos. Verificá el formato.');
       return;
     }
@@ -275,7 +281,8 @@ Devolvé un JSON con el array "personas".`,
 
     setStep(dups.length > 0 ? 'duplicados' : 'nuevos');
     } catch (error) {
-      toast.error(error?.message || 'No se pudo procesar el archivo. Intentá nuevamente.');
+      const status = Number(error?.context?.status || error?.statusCode || error?.status);
+      setImportError(`No se pudo ${stage}${Number.isInteger(status) && status >= 400 && status <= 599 ? ` (código ${status})` : ''}. Intentá nuevamente o contactá al administrador.`);
     } finally {
       setLoading(false);
     }
@@ -364,6 +371,7 @@ Devolvé un JSON con el array "personas".`,
         <DialogHeader>
           <DialogTitle>Importar desde Excel</DialogTitle>
         </DialogHeader>
+        {importError && <p role="alert" className="text-sm">{importError}</p>}
 
         <div className="py-4 space-y-4">
 
