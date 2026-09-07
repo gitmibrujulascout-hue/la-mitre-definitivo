@@ -254,7 +254,7 @@ as $$
 declare
   normalized_email text := lower(trim(invitation_email));
   normalized_name text := trim(invitation_full_name);
-  raw_token text := encode(gen_random_bytes(32), 'hex');
+  raw_token text := encode(extensions.gen_random_bytes(32), 'hex');
   saved_invitation public.tenant_invitations%rowtype;
 begin
   if not public.can_manage_tenant_users(target_tenant_id) then
@@ -278,7 +278,7 @@ begin
   update public.tenant_invitations invitation
   set full_name = normalized_name,
       roles = array(select distinct unnest(invitation_roles)),
-      token_hash = encode(digest(raw_token, 'sha256'), 'hex'),
+      token_hash = encode(extensions.digest(raw_token, 'sha256'), 'hex'),
       status = 'pending',
       invited_by = auth.uid(),
       accepted_user_id = null,
@@ -303,7 +303,7 @@ begin
       normalized_email,
       normalized_name,
       array(select distinct unnest(invitation_roles)),
-      encode(digest(raw_token, 'sha256'), 'hex'),
+      encode(extensions.digest(raw_token, 'sha256'), 'hex'),
       auth.uid()
     )
     returning * into saved_invitation;
@@ -354,7 +354,7 @@ as $$
     invitation.expires_at
   from public.tenant_invitations invitation
   join public.tenants tenant on tenant.id = invitation.tenant_id
-  where invitation.token_hash = encode(digest(invitation_token, 'sha256'), 'hex')
+  where invitation.token_hash = encode(extensions.digest(invitation_token, 'sha256'), 'hex')
   limit 1;
 $$;
 
@@ -374,7 +374,7 @@ begin
 
   select * into invitation
   from public.tenant_invitations candidate
-  where candidate.token_hash = encode(digest(invitation_token, 'sha256'), 'hex')
+  where candidate.token_hash = encode(extensions.digest(invitation_token, 'sha256'), 'hex')
   for update;
 
   if invitation.id is null
