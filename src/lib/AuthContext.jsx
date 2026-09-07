@@ -56,8 +56,11 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     setAuthError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    const authenticatedUser = await loadProfile(data.user);
+    setUser(authenticatedUser);
+    return authenticatedUser;
   };
   const logout = async () => { await supabase.auth.signOut(); setUser(null); setAuthError(null); };
   const navigateToLogin = () => window.location.assign('/login');

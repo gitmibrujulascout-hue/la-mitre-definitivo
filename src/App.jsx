@@ -6,6 +6,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AppLayout from '@/components/layout/AppLayout';
+import SuperAdminLayout from '@/components/layout/SuperAdminLayout';
 import Dashboard from '@/pages/Dashboard';
 import Beneficiarios from '@/pages/Beneficiarios';
 import Pagos from '@/pages/Pagos';
@@ -29,6 +30,7 @@ import CampamentoPublico from '@/pages/CampamentoPublico';
 import Login from '@/pages/Login';
 import SuperAdmin from '@/pages/SuperAdmin';
 import Landing from '@/pages/Landing';
+import { canAccessAdministration, getAuthenticatedHome } from '@/services/access/authDestination';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, user } = useAuth();
@@ -47,12 +49,12 @@ const AuthenticatedApp = () => {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== 'admin') return <UserNotRegisteredError />;
+  if (!canAccessAdministration(user)) return <UserNotRegisteredError />;
 
   // Render the main app (admin only)
   return (
     <Routes>
-      <Route path="/app/administracion/inicio" element={<Navigate to="/app" replace />} />
+      <Route path="/app/administracion/inicio" element={<Navigate to={getAuthenticatedHome(user)} replace />} />
       <Route element={<AppLayout />}>
         <Route path="/app" element={<Dashboard />} />
         <Route path="/beneficiarios" element={<Beneficiarios />} />
@@ -71,6 +73,8 @@ const AuthenticatedApp = () => {
         <Route path="/reporte-beneficiarios" element={<ReporteBeneficiarios />} />
         <Route path="/directorio-emergencias" element={<DirectorioEmergencias />} />
         <Route path="/consultas-familias" element={<ConsultasFamilias />} />
+      </Route>
+      <Route element={user.is_super_admin ? <SuperAdminLayout /> : <Navigate to="/app" replace />}>
         <Route path="/super-admin" element={<SuperAdmin />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

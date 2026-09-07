@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import PublicHeader from '@/components/public/PublicHeader';
 import { useAuth } from '@/lib/AuthContext';
+import { getAuthenticatedHome } from '@/services/access/authDestination';
 
 export default function Login() {
   const { user, login, isLoadingAuth } = useAuth();
@@ -24,7 +25,7 @@ export default function Login() {
     );
   }
 
-  if (user) return <Navigate to="/app" replace />;
+  if (user) return <Navigate to={getAuthenticatedHome(user)} replace />;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -32,8 +33,8 @@ export default function Login() {
     setError('');
 
     try {
-      await login(email.trim(), password);
-      navigate('/app', { replace: true });
+      const authenticatedUser = await login(email.trim(), password);
+      navigate(getAuthenticatedHome(authenticatedUser), { replace: true });
     } catch {
       setError('No pudimos iniciar sesión. Revisá el email y la contraseña e intentá nuevamente.');
     } finally {
