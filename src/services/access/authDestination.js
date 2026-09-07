@@ -1,7 +1,10 @@
+import { canAccessTenantWorkspace } from './permissions.js';
+
 export const AUTH_PATHS = Object.freeze({
   login: '/login',
   superAdmin: '/super-admin',
-  tenantAdmin: '/app'
+  tenantAdmin: '/app',
+  noAccess: '/sin-acceso'
 });
 
 export function isSuperAdmin(user) {
@@ -9,10 +12,11 @@ export function isSuperAdmin(user) {
 }
 
 export function canAccessAdministration(user) {
-  return Boolean(user && (isSuperAdmin(user) || user.role === 'admin'));
+  return Boolean(user && (isSuperAdmin(user) || canAccessTenantWorkspace(user)));
 }
 
 export function getAuthenticatedHome(user) {
   if (!user) return AUTH_PATHS.login;
-  return isSuperAdmin(user) ? AUTH_PATHS.superAdmin : AUTH_PATHS.tenantAdmin;
+  if (isSuperAdmin(user)) return AUTH_PATHS.superAdmin;
+  return canAccessTenantWorkspace(user) ? AUTH_PATHS.tenantAdmin : AUTH_PATHS.noAccess;
 }

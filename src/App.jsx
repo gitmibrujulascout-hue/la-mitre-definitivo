@@ -30,7 +30,12 @@ import CampamentoPublico from '@/pages/CampamentoPublico';
 import Login from '@/pages/Login';
 import SuperAdmin from '@/pages/SuperAdmin';
 import Landing from '@/pages/Landing';
+import AcceptInvitation from '@/pages/AcceptInvitation';
+import NoAccess from '@/pages/NoAccess';
+import UsersPermissions from '@/pages/UsersPermissions';
+import PermissionRoute from '@/components/access/PermissionRoute';
 import { canAccessAdministration, getAuthenticatedHome } from '@/services/access/authDestination';
+import { PERMISSIONS } from '@/services/access/permissions';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, user } = useAuth();
@@ -49,30 +54,31 @@ const AuthenticatedApp = () => {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-  if (!canAccessAdministration(user)) return <UserNotRegisteredError />;
+  if (!canAccessAdministration(user)) return <Navigate to="/sin-acceso" replace />;
 
   // Render the main app (admin only)
   return (
     <Routes>
       <Route path="/app/administracion/inicio" element={<Navigate to={getAuthenticatedHome(user)} replace />} />
       <Route element={<AppLayout />}>
-        <Route path="/app" element={<Dashboard />} />
-        <Route path="/beneficiarios" element={<Beneficiarios />} />
-        <Route path="/pagos" element={<Pagos />} />
-        <Route path="/gastos" element={<Gastos />} />
-        <Route path="/campamentos" element={<Campamentos />} />
-        <Route path="/cuenta-corriente" element={<CuentaCorriente />} />
-        <Route path="/caja" element={<Caja />} />
-        <Route path="/tienda" element={<Tienda />} />
-        <Route path="/config-cuotas" element={<ConfiguracionCuotas />} />
-        <Route path="/actividades" element={<ActividadesEconomicas />} />
-        <Route path="/reporte-pagos" element={<ReportePagos />} />
-        <Route path="/reporte-creditos" element={<ReporteCreditos />} />
-        <Route path="/afiliaciones" element={<Afiliaciones />} />
-        <Route path="/agente-scout" element={<AgenteScout />} />
-        <Route path="/reporte-beneficiarios" element={<ReporteBeneficiarios />} />
-        <Route path="/directorio-emergencias" element={<DirectorioEmergencias />} />
-        <Route path="/consultas-familias" element={<ConsultasFamilias />} />
+        <Route path="/app" element={<PermissionRoute permission={PERMISSIONS.dashboardView}><Dashboard /></PermissionRoute>} />
+        <Route path="/beneficiarios" element={<PermissionRoute permission={PERMISSIONS.membersManage}><Beneficiarios /></PermissionRoute>} />
+        <Route path="/pagos" element={<PermissionRoute permission={PERMISSIONS.paymentsManage}><Pagos /></PermissionRoute>} />
+        <Route path="/gastos" element={<PermissionRoute permission={PERMISSIONS.expensesManage}><Gastos /></PermissionRoute>} />
+        <Route path="/campamentos" element={<PermissionRoute permission={PERMISSIONS.campsManage}><Campamentos /></PermissionRoute>} />
+        <Route path="/cuenta-corriente" element={<PermissionRoute permission={PERMISSIONS.accountsManage}><CuentaCorriente /></PermissionRoute>} />
+        <Route path="/caja" element={<PermissionRoute permission={PERMISSIONS.cashManage}><Caja /></PermissionRoute>} />
+        <Route path="/tienda" element={<PermissionRoute permission={PERMISSIONS.storeManage}><Tienda /></PermissionRoute>} />
+        <Route path="/config-cuotas" element={<PermissionRoute permission={PERMISSIONS.feesManage}><ConfiguracionCuotas /></PermissionRoute>} />
+        <Route path="/actividades" element={<PermissionRoute permission={PERMISSIONS.fundraisingManage}><ActividadesEconomicas /></PermissionRoute>} />
+        <Route path="/reporte-pagos" element={<PermissionRoute permission={PERMISSIONS.reportsView}><ReportePagos /></PermissionRoute>} />
+        <Route path="/reporte-creditos" element={<PermissionRoute permission={PERMISSIONS.reportsView}><ReporteCreditos /></PermissionRoute>} />
+        <Route path="/afiliaciones" element={<PermissionRoute permission={PERMISSIONS.affiliationsManage}><Afiliaciones /></PermissionRoute>} />
+        <Route path="/agente-scout" element={<PermissionRoute permission={PERMISSIONS.assistantUse}><AgenteScout /></PermissionRoute>} />
+        <Route path="/reporte-beneficiarios" element={<PermissionRoute permission={PERMISSIONS.reportsView}><ReporteBeneficiarios /></PermissionRoute>} />
+        <Route path="/directorio-emergencias" element={<PermissionRoute permission={PERMISSIONS.emergencyView}><DirectorioEmergencias /></PermissionRoute>} />
+        <Route path="/consultas-familias" element={<PermissionRoute permission={PERMISSIONS.familyQueriesView}><ConsultasFamilias /></PermissionRoute>} />
+        <Route path="/usuarios" element={<PermissionRoute permission={PERMISSIONS.usersManage}><UsersPermissions /></PermissionRoute>} />
       </Route>
       <Route element={user.is_super_admin ? <SuperAdminLayout /> : <Navigate to="/app" replace />}>
         <Route path="/super-admin" element={<SuperAdmin />} />
@@ -92,6 +98,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/aceptar-invitacion" element={<AcceptInvitation />} />
+            <Route path="/sin-acceso" element={<NoAccess />} />
             <Route path="/estado-cuenta" element={<EstadoCuenta />} />
             <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
             <Route path="/campamento/:codigo" element={<CampamentoPublico />} />

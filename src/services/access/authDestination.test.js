@@ -8,7 +8,7 @@ import {
 } from './authDestination.js';
 
 test('a superadmin with a tenant role enters the global console', () => {
-  const user = { role: 'admin', is_super_admin: true, tenant_id: 'tenant-1' };
+  const user = { tenant_roles: ['tenant_admin'], is_super_admin: true, tenant_id: 'tenant-1' };
 
   assert.equal(isSuperAdmin(user), true);
   assert.equal(canAccessAdministration(user), true);
@@ -16,7 +16,7 @@ test('a superadmin with a tenant role enters the global console', () => {
 });
 
 test('a tenant admin without global privileges enters the tenant dashboard', () => {
-  const user = { role: 'admin', is_super_admin: false, tenant_id: 'tenant-1' };
+  const user = { tenant_roles: ['tenant_admin'], is_super_admin: false, tenant_id: 'tenant-1' };
 
   assert.equal(isSuperAdmin(user), false);
   assert.equal(canAccessAdministration(user), true);
@@ -24,9 +24,10 @@ test('a tenant admin without global privileges enters the tenant dashboard', () 
 });
 
 test('a non-admin account cannot access administration', () => {
-  const user = { role: 'member', is_super_admin: false };
+  const user = { tenant_roles: ['family'], is_super_admin: false, tenant_id: 'tenant-1' };
 
   assert.equal(canAccessAdministration(user), false);
+  assert.equal(getAuthenticatedHome(user), AUTH_PATHS.noAccess);
 });
 
 test('an anonymous visitor is sent to login', () => {

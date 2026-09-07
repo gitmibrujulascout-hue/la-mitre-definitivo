@@ -7,25 +7,27 @@ import {
 import { cn } from '@/lib/utils';
 import { useAvisosPendientes } from '@/hooks/useAvisosPendientes';
 import { useAuth } from '@/lib/AuthContext';
+import { hasPermission, PERMISSIONS, roleLabels } from '@/services/access/permissions';
 
 const navItems = [
-  { path: '/app', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/beneficiarios', label: 'Beneficiarios', icon: Users },
-  { path: '/pagos', label: 'Pagos', icon: CreditCard },
-  { path: '/gastos', label: 'Gastos', icon: Receipt },
-  { path: '/campamentos', label: 'Campamentos', icon: Tent },
-  { path: '/cuenta-corriente', label: 'Cta. Corriente', icon: BookOpen },
-  { path: '/caja', label: 'Caja y Banco', icon: Landmark },
-  { path: '/config-cuotas', label: 'Config. Cuotas', icon: Calendar },
-  { path: '/tienda', label: 'Tienda', icon: ShoppingBag },
-  { path: '/actividades', label: 'Act. Económicas', icon: TrendingUp },
-  { path: '/reporte-pagos', label: 'Reporte de Pagos', icon: FileText },
-  { path: '/reporte-creditos', label: 'Créditos usados', icon: Coins },
-  { path: '/reporte-beneficiarios', label: 'Reporte Miembros', icon: Users },
-  { path: '/afiliaciones', label: 'Afiliaciones', icon: ShieldCheck },
-  { path: '/agente-scout', label: 'Agente WhatsApp', icon: MessageCircle },
-  { path: '/directorio-emergencias', label: 'Directorio Emergencias', icon: HeartPulse },
-  { path: '/consultas-familias', label: 'Consultas Familias', icon: Eye },
+  { path: '/app', label: 'Dashboard', icon: LayoutDashboard, permission: PERMISSIONS.dashboardView },
+  { path: '/beneficiarios', label: 'Beneficiarios', icon: Users, permission: PERMISSIONS.membersManage },
+  { path: '/pagos', label: 'Pagos', icon: CreditCard, permission: PERMISSIONS.paymentsManage },
+  { path: '/gastos', label: 'Gastos', icon: Receipt, permission: PERMISSIONS.expensesManage },
+  { path: '/campamentos', label: 'Campamentos', icon: Tent, permission: PERMISSIONS.campsManage },
+  { path: '/cuenta-corriente', label: 'Cta. Corriente', icon: BookOpen, permission: PERMISSIONS.accountsManage },
+  { path: '/caja', label: 'Caja y Banco', icon: Landmark, permission: PERMISSIONS.cashManage },
+  { path: '/config-cuotas', label: 'Config. Cuotas', icon: Calendar, permission: PERMISSIONS.feesManage },
+  { path: '/tienda', label: 'Tienda', icon: ShoppingBag, permission: PERMISSIONS.storeManage },
+  { path: '/actividades', label: 'Act. Económicas', icon: TrendingUp, permission: PERMISSIONS.fundraisingManage },
+  { path: '/reporte-pagos', label: 'Reporte de Pagos', icon: FileText, permission: PERMISSIONS.reportsView },
+  { path: '/reporte-creditos', label: 'Créditos usados', icon: Coins, permission: PERMISSIONS.reportsView },
+  { path: '/reporte-beneficiarios', label: 'Reporte Miembros', icon: Users, permission: PERMISSIONS.reportsView },
+  { path: '/afiliaciones', label: 'Afiliaciones', icon: ShieldCheck, permission: PERMISSIONS.affiliationsManage },
+  { path: '/agente-scout', label: 'Agente WhatsApp', icon: MessageCircle, permission: PERMISSIONS.assistantUse },
+  { path: '/directorio-emergencias', label: 'Directorio Emergencias', icon: HeartPulse, permission: PERMISSIONS.emergencyView },
+  { path: '/consultas-familias', label: 'Consultas Familias', icon: Eye, permission: PERMISSIONS.familyQueriesView },
+  { path: '/usuarios', label: 'Usuarios y permisos', icon: ShieldCheck, permission: PERMISSIONS.usersManage },
 ];
 
 export default function Sidebar() {
@@ -33,7 +35,8 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { encargosPendientes, solicitudesSaludPendientes } = useAvisosPendientes();
   const { user } = useAuth();
-  const visibleNavItems = user?.is_super_admin ? [...navItems, { path: '/super-admin', label: 'Super admin', icon: ShieldCheck }] : navItems;
+  const allowedNavItems = navItems.filter((item) => hasPermission(user, item.permission));
+  const visibleNavItems = user?.is_super_admin ? [...allowedNavItems, { path: '/super-admin', label: 'Super admin', icon: ShieldCheck }] : allowedNavItems;
   const avisosPorPath = {
     '/tienda': encargosPendientes,
     '/beneficiarios': solicitudesSaludPendientes,
@@ -71,9 +74,9 @@ export default function Sidebar() {
             </div>
             <div>
               <h1 className="font-bold text-sm text-sidebar-primary-foreground leading-tight">
-                Scout Bartolomé Mitre
+                {user?.tenant?.name || 'Brújula Scout'}
               </h1>
-              <p className="text-xs text-sidebar-foreground/60">Tesorería</p>
+              <p className="line-clamp-1 text-xs text-sidebar-foreground/60">{roleLabels(user?.tenant_roles)}</p>
             </div>
           </div>
         </div>
@@ -129,7 +132,7 @@ export default function Sidebar() {
         {/* Footer */}
         <div className="p-4 border-t border-sidebar-border">
           <p className="text-xs text-sidebar-foreground/40 text-center">
-            Villa Carlos Paz · Córdoba
+            {user?.email || 'Sesión del tenant'}
           </p>
         </div>
       </aside>
