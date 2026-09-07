@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Users, CreditCard, Receipt, TrendingUp, TrendingDown, Wallet, Landmark } from 'lucide-react';
+import { Users, CreditCard, Receipt, Wallet, Landmark } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
@@ -84,17 +84,17 @@ export default function Dashboard() {
               {isLoadingFondos && <span className="text-xs text-muted-foreground animate-pulse">cargando...</span>}
             </div>
             <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="bg-green-50 rounded-lg p-2">
+              <div className="rounded-lg bg-forest/10 p-2">
                 <p className="text-xs text-muted-foreground">Ingresos</p>
-                <p className="font-bold text-green-700 text-sm">{isLoadingFondos ? '—' : formatMoney(data.ingresos)}</p>
+                <p className="text-sm font-bold text-forest-deep">{isLoadingFondos ? '—' : formatMoney(data.ingresos)}</p>
               </div>
-              <div className="bg-red-50 rounded-lg p-2">
+              <div className="rounded-lg bg-destructive/10 p-2">
                 <p className="text-xs text-muted-foreground">Egresos</p>
-                <p className="font-bold text-red-600 text-sm">{isLoadingFondos ? '—' : formatMoney(data.egresos)}</p>
+                <p className="text-sm font-bold text-destructive">{isLoadingFondos ? '—' : formatMoney(data.egresos)}</p>
               </div>
-              <div className={cn('rounded-lg p-2', data.saldo >= 0 ? 'bg-blue-50' : 'bg-red-50')}>
+              <div className={cn('rounded-lg p-2', data.saldo >= 0 ? 'bg-primary/10' : 'bg-destructive/10')}>
                 <p className="text-xs text-muted-foreground">Saldo</p>
-                <p className={cn('font-bold text-sm', data.saldo >= 0 ? 'text-blue-700' : 'text-red-600')}>{isLoadingFondos ? '—' : formatMoney(data.saldo)}</p>
+                <p className={cn('text-sm font-bold', data.saldo >= 0 ? 'text-primary' : 'text-destructive')}>{isLoadingFondos ? '—' : formatMoney(data.saldo)}</p>
               </div>
             </div>
           </Card>
@@ -118,7 +118,7 @@ export default function Dashboard() {
                     <p className="text-sm font-medium">{p.beneficiario_nombre}</p>
                     <p className="text-xs text-muted-foreground">{p.mes} {p.anio} · {p.forma_pago}</p>
                   </div>
-                  <p className="text-sm font-semibold text-green-600">{formatMoney(p.monto)}</p>
+                  <p className="text-sm font-semibold text-forest">{formatMoney(p.monto)}</p>
                 </div>
             )}
             </div>
@@ -140,7 +140,7 @@ export default function Dashboard() {
                     <p className="text-sm font-medium">{g.descripcion}</p>
                     <p className="text-xs text-muted-foreground">{g.categoria} · {g.fecha}</p>
                   </div>
-                  <p className="text-sm font-semibold text-red-500">{formatMoney(g.monto)}</p>
+                  <p className="text-sm font-semibold text-destructive">{formatMoney(g.monto)}</p>
                 </div>
             )}
             </div>

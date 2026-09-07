@@ -1,3 +1,22 @@
+const paletteScale = (token) => ({
+	50: `hsl(var(--${token}-50) / <alpha-value>)`,
+	100: `hsl(var(--${token}-100) / <alpha-value>)`,
+	200: `hsl(var(--${token}-200) / <alpha-value>)`,
+	300: `hsl(var(--${token}-300) / <alpha-value>)`,
+	400: `hsl(var(--${token}-400) / <alpha-value>)`,
+	500: `hsl(var(--${token}-500) / <alpha-value>)`,
+	600: `hsl(var(--${token}-600) / <alpha-value>)`,
+	700: `hsl(var(--${token}-700) / <alpha-value>)`,
+	800: `hsl(var(--${token}-800) / <alpha-value>)`,
+	900: `hsl(var(--${token}-900) / <alpha-value>)`,
+});
+
+const forestScale = paletteScale('forest');
+const sageScale = paletteScale('sage');
+const emberScale = paletteScale('ember');
+const warmScale = paletteScale('warm');
+const dangerScale = paletteScale('danger');
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
     darkMode: ["class"],
@@ -13,9 +32,56 @@ module.exports = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
-  			background: 'hsl(var(--background))',
-  			foreground: 'hsl(var(--foreground))',
-  			card: {
+			white: 'hsl(38 52% 96% / <alpha-value>)',
+			black: 'hsl(159 67% 7% / <alpha-value>)',
+			green: forestScale,
+			emerald: forestScale,
+			teal: forestScale,
+			lime: forestScale,
+			blue: sageScale,
+			cyan: sageScale,
+			sky: sageScale,
+			yellow: emberScale,
+			amber: emberScale,
+			orange: emberScale,
+			indigo: emberScale,
+			violet: emberScale,
+			purple: emberScale,
+			fuchsia: emberScale,
+			pink: emberScale,
+			red: dangerScale,
+			rose: dangerScale,
+			slate: warmScale,
+			gray: warmScale,
+			zinc: warmScale,
+			neutral: warmScale,
+			stone: warmScale,
+			background: 'hsl(var(--background))',
+			foreground: 'hsl(var(--foreground))',
+			forest: {
+				DEFAULT: 'hsl(var(--forest) / <alpha-value>)',
+				deep: 'hsl(var(--forest-deep) / <alpha-value>)',
+				soft: 'hsl(var(--forest-soft) / <alpha-value>)'
+			},
+			ember: {
+				DEFAULT: 'hsl(var(--ember) / <alpha-value>)',
+				hover: 'hsl(var(--ember-hover) / <alpha-value>)',
+				soft: 'hsl(var(--ember-soft) / <alpha-value>)'
+			},
+			cream: {
+				DEFAULT: 'hsl(var(--cream) / <alpha-value>)',
+				surface: 'hsl(var(--cream-surface) / <alpha-value>)',
+				muted: 'hsl(var(--cream-muted) / <alpha-value>)'
+			},
+			rama: {
+				lobatos: 'hsl(var(--rama-lobatos) / <alpha-value>)',
+				tropa: 'hsl(var(--rama-tropa) / <alpha-value>)',
+				km: 'hsl(var(--rama-km) / <alpha-value>)',
+				rovers: 'hsl(var(--rama-rovers) / <alpha-value>)',
+				adultos: 'hsl(var(--rama-adultos) / <alpha-value>)',
+				educador: 'hsl(var(--rama-educador) / <alpha-value>)'
+			},
+			card: {
   				DEFAULT: 'hsl(var(--card))',
   				foreground: 'hsl(var(--card-foreground))'
   			},

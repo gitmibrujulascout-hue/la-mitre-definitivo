@@ -67,11 +67,11 @@ export default function CalendarioDashboard({ actividades, campamentos, benefici
     actividades.forEach((a) => {
       if (a.fecha) {
         const f = new Date(a.fecha + 'T12:00:00');
-        evs.push({ dia: f.getDate(), mes: f.getMonth(), anio: f.getFullYear(), titulo: a.nombre, color: 'bg-green-500' });
+        evs.push({ dia: f.getDate(), mes: f.getMonth(), anio: f.getFullYear(), titulo: a.nombre, color: 'bg-forest' });
       }
       if (a.fecha_cierre_pedidos) {
         const f = new Date(a.fecha_cierre_pedidos + 'T12:00:00');
-        evs.push({ dia: f.getDate(), mes: f.getMonth(), anio: f.getFullYear(), titulo: `Cierre: ${a.nombre}`, color: 'bg-amber-500' });
+        evs.push({ dia: f.getDate(), mes: f.getMonth(), anio: f.getFullYear(), titulo: `Cierre: ${a.nombre}`, color: 'bg-ember' });
       }
     });
     // Campamentos: rango de fechas
@@ -80,7 +80,7 @@ export default function CalendarioDashboard({ actividades, campamentos, benefici
       const fIni = new Date(c.fecha_inicio + 'T12:00:00');
       const fFin = c.fecha_fin ? new Date(c.fecha_fin + 'T12:00:00') : fIni;
       for (let d = new Date(fIni); d <= fFin; d.setDate(d.getDate() + 1)) {
-        evs.push({ dia: d.getDate(), mes: d.getMonth(), anio: d.getFullYear(), titulo: c.nombre, color: 'bg-blue-500' });
+        evs.push({ dia: d.getDate(), mes: d.getMonth(), anio: d.getFullYear(), titulo: c.nombre, color: 'bg-rama-km' });
       }
     });
     // Eventos del calendario (coloreados por rama)
@@ -111,10 +111,10 @@ export default function CalendarioDashboard({ actividades, campamentos, benefici
   }, [eventosCalendario]);
 
   const legendItems = [
-    { color: 'bg-green-500', label: 'Actividad económica' },
-    { color: 'bg-amber-500', label: 'Cierre pedidos' },
-    { color: 'bg-blue-500', label: 'Campamento' },
-    { color: 'bg-indigo-500', label: 'Evento grupal' },
+    { color: 'bg-forest', label: 'Actividad económica' },
+    { color: 'bg-ember', label: 'Cierre pedidos' },
+    { color: 'bg-rama-km', label: 'Campamento' },
+    { color: 'bg-rama-rovers', label: 'Evento grupal' },
   ];
 
   const handleSubmit = (data) => {

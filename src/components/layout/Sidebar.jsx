@@ -102,7 +102,7 @@ export default function Sidebar() {
                     "inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold",
                     isActive
                       ? "bg-sidebar-primary-foreground/20 text-sidebar-primary-foreground"
-                      : "bg-amber-500 text-white"
+                      : "bg-ember text-white"
                   )}>
                     {avisos}
                   </span>

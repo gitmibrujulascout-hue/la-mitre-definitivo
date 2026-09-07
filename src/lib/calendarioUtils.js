@@ -1,20 +1,20 @@
 // Colores de fondo para eventos de calendario, alineados con RAMA_CONFIG del dashboard.
 const EVENTO_RAMA_COLOR = {
-  Lobatos: 'bg-yellow-400',
-  Tropa: 'bg-green-500',
-  KM: 'bg-blue-400',
-  Rovers: 'bg-red-500',
-  Adultos: 'bg-purple-500',
+  Lobatos: 'bg-rama-lobatos',
+  Tropa: 'bg-rama-tropa',
+  KM: 'bg-rama-km',
+  Rovers: 'bg-rama-rovers',
+  Adultos: 'bg-rama-adultos',
 };
 
-const GRUPO_COLOR = 'bg-indigo-500';
-const NEUTRO_COLOR = 'bg-slate-400';
+const GRUPO_COLOR = 'bg-ember';
+const NEUTRO_COLOR = 'bg-rama-educador';
 
 /**
  * Devuelve { bg, dots } para un evento de calendario.
- * - todo_el_grupo → indigo
+ * - todo_el_grupo → naranja Brújula
  * - una sola rama → color de esa rama
- * - múltiples ramas → indigo con dots de cada rama
+ * - múltiples ramas → naranja Brújula con puntos de cada rama
  */
 export function getEventoColor(ev) {
   if (ev.todo_el_grupo) return { bg: GRUPO_COLOR, dots: [] };

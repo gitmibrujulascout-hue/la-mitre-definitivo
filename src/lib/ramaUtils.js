@@ -2,12 +2,12 @@ export const RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 export const TODOS_LOS_ROLES = ['Lobatos', 'Tropa', 'KM', 'Rovers', 'Voluntario', 'Educador'];
 
 export const RAMA_CONFIG = {
-  Lobatos:    { color: 'bg-yellow-400', text: 'text-yellow-900', border: 'border-yellow-400', badge: 'bg-yellow-100 text-yellow-800 border-yellow-300', dot: 'bg-yellow-400', edad: '7-9 años' },
-  Tropa:      { color: 'bg-green-500',  text: 'text-green-900',  border: 'border-green-500',  badge: 'bg-green-100 text-green-800 border-green-300',   dot: 'bg-green-500',  edad: '10-13 años' },
-  KM:         { color: 'bg-blue-400',   text: 'text-blue-900',   border: 'border-blue-400',   badge: 'bg-blue-100 text-blue-800 border-blue-300',     dot: 'bg-blue-400',   edad: '14-17 años' },
-  Rovers:     { color: 'bg-red-500',    text: 'text-red-900',    border: 'border-red-500',    badge: 'bg-red-100 text-red-800 border-red-300',        dot: 'bg-red-500',    edad: '18-21 años' },
-  Voluntario: { color: 'bg-purple-500', text: 'text-purple-900', border: 'border-purple-500', badge: 'bg-purple-100 text-purple-800 border-purple-300', dot: 'bg-purple-500', edad: '22+ años' },
-  Educador:   { color: 'bg-slate-500',  text: 'text-slate-900',  border: 'border-slate-500',  badge: 'bg-slate-100 text-slate-700 border-slate-300',   dot: 'bg-slate-500',  edad: 'Educador' },
+  Lobatos:    { color: 'bg-rama-lobatos', text: 'text-forest-deep', border: 'border-rama-lobatos', badge: 'bg-rama-lobatos/10 text-forest-deep border-rama-lobatos/40', dot: 'bg-rama-lobatos', edad: '7-9 años' },
+  Tropa:      { color: 'bg-rama-tropa', text: 'text-forest-deep', border: 'border-rama-tropa', badge: 'bg-rama-tropa/10 text-forest-deep border-rama-tropa/40', dot: 'bg-rama-tropa', edad: '10-13 años' },
+  KM:         { color: 'bg-rama-km', text: 'text-forest-deep', border: 'border-rama-km', badge: 'bg-rama-km/10 text-forest-deep border-rama-km/40', dot: 'bg-rama-km', edad: '14-17 años' },
+  Rovers:     { color: 'bg-rama-rovers', text: 'text-forest-deep', border: 'border-rama-rovers', badge: 'bg-rama-rovers/10 text-forest-deep border-rama-rovers/40', dot: 'bg-rama-rovers', edad: '18-21 años' },
+  Voluntario: { color: 'bg-rama-adultos', text: 'text-forest-deep', border: 'border-rama-adultos', badge: 'bg-rama-adultos/10 text-forest-deep border-rama-adultos/40', dot: 'bg-rama-adultos', edad: '22+ años' },
+  Educador:   { color: 'bg-rama-educador', text: 'text-forest-deep', border: 'border-rama-educador', badge: 'bg-rama-educador/10 text-forest-deep border-rama-educador/40', dot: 'bg-rama-educador', edad: 'Educador' },
 };
 
 export const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];

@@ -26,8 +26,9 @@ pública de estado de cuenta.
 - Una sesión administrativa ya activa que abre `/login` continúa directamente
   al dashboard nuevo.
 - `Consultar estado de cuenta` abre `/estado-cuenta`.
-- Un administrador autenticado ve el dashboard actual en `/app`; su diseño,
-  menú lateral y módulos no cambian.
+- Un administrador autenticado ve el dashboard actual en `/app`; conserva su
+  estructura, menú lateral y módulos, y comparte la colorimetría global de
+  Brújula definida en `COLORIMETRIA_GLOBAL.md`.
 - La ruta heredada `/app/administracion/inicio` redirige a `/app` para evitar que
   marcadores de la plataforma anterior mezclen ambas aplicaciones.
 - Una sesión vencida o un error al recuperar el perfil no bloquean la portada
