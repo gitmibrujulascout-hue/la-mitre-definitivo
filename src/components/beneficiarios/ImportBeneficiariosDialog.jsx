@@ -170,9 +170,12 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
   const handleUpload = async () => {
     if (!file) return;
     setLoading(true);
+    try {
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('La importación tardó demasiado. Verificá el archivo e intentá nuevamente.')), 90000));
+    const operation = (async () => {
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Tenés un archivo Excel de un grupo scout con las siguientes columnas: Tipo Documento, Documento (DNI), Nombre, Sexo, Fecha Nacimiento, Provincia, Localidad, Calle, Codigo Postal, Estado Civil, Telefono, Email, Religion, Religion Descripcion, Estudios, Titulo, Empresa, Discapacidad, Detalle Discapacidad, Nacionalidad, Funcion, Categoria, Rama, Zona, Distrito, Código, Organismo, Fecha Primer Afiliacion.
+      prompt: `Tenés un archivo Excel o PDF de un grupo scout. Si es Excel, sus columnas pueden ser: Tipo Documento, Documento (DNI), Nombre, Sexo, Fecha Nacimiento, Provincia, Localidad, Calle, Codigo Postal, Estado Civil, Telefono, Email, Religion, Religion Descripcion, Estudios, Titulo, Empresa, Discapacidad, Detalle Discapacidad, Nacionalidad, Funcion, Categoria, Rama, Zona, Distrito, Código, Organismo, Fecha Primer Afiliacion. Si es PDF, extraé las personas y los campos disponibles sin inventar datos.
 Extraé TODAS las filas de datos (ignorá la fila de encabezados).
 Para las fechas (Fecha Nacimiento y Fecha Primer Afiliacion), convertilas EXACTAMENTE al formato YYYY-MM-DD, sin alterar el día. Si la celda está vacía, devolvé string vacío.
 Para el campo sexo: normalizalo siempre a "Masculino" o "Femenino" (con mayúscula inicial). Cualquier variante como "M", "m", "MASCULINO", "masculino", "Varón", "Hombre", "H" → "Masculino". Cualquier variante como "F", "f", "FEMENINO", "femenino", "Mujer", "Dama" → "Femenino". Si está vacío o es desconocido, devolvé string vacío.
@@ -206,10 +209,12 @@ Devolvé un JSON con el array "personas".`,
         }
       }
     });
+    return result;
+    })();
+    const result = await Promise.race([operation, timeout]);
 
     if (!result?.personas?.length) {
       toast.error('No se pudieron extraer los datos. Verificá el formato.');
-      setLoading(false);
       return;
     }
 
@@ -268,8 +273,12 @@ Devolvé un JSON con el array "personas".`,
     });
     setCamposAActualizar(campos);
 
-    setLoading(false);
     setStep(dups.length > 0 ? 'duplicados' : 'nuevos');
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo procesar el archivo. Intentá nuevamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleCampo = (dni, campo) => {

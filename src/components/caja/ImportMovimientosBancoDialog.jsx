@@ -24,6 +24,8 @@ export default function ImportMovimientosBancoDialog({ open, onClose }) {
     e.target.value = '';
     setLoading(true);
     try {
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('El PDF tardó demasiado en procesarse. Verificá que sea legible e intentá nuevamente.')), 90000));
+      const operation = (async () => {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
       const result = await base44.integrations.Core.InvokeLLM({
@@ -59,6 +61,9 @@ Incluí transferencias, pagos de impuestos, y cualquier otro movimiento relevant
         }
       });
 
+      return result;
+      })();
+      const result = await Promise.race([operation, timeout]);
       setMovimientos(result.movimientos || []);
       setStep('preview');
     } catch (err) {
