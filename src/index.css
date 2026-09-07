@@ -167,6 +167,32 @@
 }
 
 @layer components {
+  .brujula-workspace {
+    isolation: isolate;
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(hsl(var(--forest-deep) / 0.05) 1px, transparent 1.5px);
+    background-size: 26px 26px;
+  }
+
+  .brujula-map-watermark {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 0;
+    height: 100vh;
+    contain: paint;
+    pointer-events: none;
+    background: url('/brand/argentina-map-watermark.jfif') center center / cover no-repeat;
+    opacity: 0.14;
+    mix-blend-mode: multiply;
+    transition: opacity 240ms ease, filter 240ms ease;
+  }
+
+  .dark .brujula-map-watermark {
+    opacity: 0.1;
+    mix-blend-mode: screen;
+    filter: invert(1) hue-rotate(180deg) saturate(0.4);
+  }
+
   .brujula-public {
     --brujula-bg: 243 236 225;
     --brujula-surface: 250 246 239;

@@ -12,6 +12,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { setActiveTenantId } from '@/api/tenantContext';
 import { cn } from '@/lib/utils';
+import WorkspaceWatermark from '@/components/shared/WorkspaceWatermark';
 
 export default function SuperAdminLayout() {
   const { user, logout } = useAuth();
@@ -128,8 +129,9 @@ export default function SuperAdminLayout() {
         </div>
       </aside>
 
-      <main className="min-h-screen lg:ml-64">
-        <div className="mx-auto max-w-7xl p-4 pt-20 sm:p-6 sm:pt-20 lg:p-8">
+      <main className="brujula-workspace relative min-h-screen lg:ml-64">
+        <WorkspaceWatermark />
+        <div className="relative z-10 mx-auto max-w-7xl p-4 pt-20 sm:p-6 sm:pt-20 lg:p-8">
           <Outlet />
         </div>
       </main>
