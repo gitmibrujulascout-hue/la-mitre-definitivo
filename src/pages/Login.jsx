@@ -116,7 +116,7 @@ export default function Login() {
 
           <div className="mt-5 flex items-center justify-between gap-4 text-sm font-semibold">
             <Link className="brujula-auth-link" to="/login?accion=registrar-grupo">Registrar grupo</Link>
-            <Link className="brujula-auth-link" to="/">Volver al inicio</Link>
+            <Link className="brujula-auth-link" to="/restablecer-contrasena">Recuperar contraseña</Link>
           </div>
 
           <div className="brujula-auth-family mt-6 border-t pt-5 text-center">
