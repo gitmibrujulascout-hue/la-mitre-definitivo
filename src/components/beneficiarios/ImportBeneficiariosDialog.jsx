@@ -27,19 +27,28 @@ const CAMPOS_COMPARACION = [
   { key: 'codigo', label: 'Código' },
   { key: 'organismo', label: 'Organismo' },
   { key: 'religion', label: 'Religión' },
+  { key: 'sexo', label: 'Sexo' },
+  { key: 'estado_civil', label: 'Estado civil' },
+  { key: 'religion_descripcion', label: 'Detalle religión' },
   { key: 'provincia', label: 'Provincia' },
   { key: 'localidad', label: 'Localidad' },
   { key: 'calle', label: 'Dirección' },
+  { key: 'codigo_postal', label: 'Código postal' },
   { key: 'nacionalidad', label: 'Nacionalidad' },
   { key: 'estudios', label: 'Estudios' },
+  { key: 'titulo', label: 'Título' },
   { key: 'discapacidad', label: 'Discapacidad' },
+  { key: 'detalle_discapacidad', label: 'Detalle discapacidad' },
   { key: 'fecha_primer_afiliacion', label: 'Primera afiliación' },
 ];
 
 function parseFecha(str) {
   if (!str) return '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-  const d = new Date(str);
+  const texto = String(str).trim();
+  const argentina = texto.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (argentina) return `${argentina[3]}-${String(argentina[2]).padStart(2, '0')}-${String(argentina[1]).padStart(2, '0')}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return texto;
+  const d = new Date(texto);
   if (isNaN(d)) return str;
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, '0');
@@ -199,8 +208,12 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
     const enriched = result.personas.map(p => {
       const fecha = parseFecha(p.fecha_nacimiento);
       const fechaAfil = parseFecha(p.fecha_primer_afiliacion);
-      const ramaCalculada = p.rama || ramaDesdeEdad(fecha);
-      const tipo = ramaCalculada === 'Voluntario' ? 'Voluntario' : 'Beneficiario';
+      const funcion = String(p.funcion || '').trim().toLowerCase();
+      const ramaTexto = String(p.rama || '').trim();
+      const ramasValidas = ['Lobatos', 'Tropa', 'KM', 'Rovers', 'Voluntario', 'Educador'];
+      const ramaCalculada = ramasValidas.find(r => r.toLowerCase() === ramaTexto.toLowerCase())
+        || (/educador|dirigente|responsable|jefe|coordinador/.test(funcion) ? 'Educador' : ramaDesdeEdad(fecha));
+      const tipo = ['Voluntario', 'Educador'].includes(ramaCalculada) ? 'Voluntario' : 'Beneficiario';
       return {
         ...p,
         sexo: normalizarSexo(p.sexo),
