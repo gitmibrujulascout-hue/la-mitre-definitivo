@@ -9,6 +9,8 @@ import { ramaDesdeEdad } from '@/lib/ramaUtils';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { extractMembers } from '@/services/access/memberImport';
+import { allExistingMembers } from '@/services/access/memberExisting';
 
 // Solo se muestran para resolver conflictos los campos donde AMBOS tienen valor y son diferentes.
 // Si el campo está vacío en la BD → se rellena automáticamente sin preguntar.
@@ -153,6 +155,7 @@ function DuplicadoCard({ dup, camposSeleccionados, onToggleCampo, onSeleccionarT
 export default function ImportBeneficiariosDialog({ open, onClose }) {
   const [file, setFile] = useState(null);
   const [importError, setImportError] = useState('');
+  const [progress, setProgress] = useState('');
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState('upload'); // 'upload' | 'duplicados' | 'nuevos' | 'confirmar'
 
@@ -171,51 +174,12 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
   const handleUpload = async () => {
     if (!file) return;
     setImportError('');
+    setProgress('Leyendo archivo…');
     let stage = 'cargar el archivo';
     setLoading(true);
     try {
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('La importación tardó demasiado. Verificá el archivo e intentá nuevamente.')), 90000));
-    const operation = (async () => {
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
     stage = 'extraer los datos';
-    const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Tenés un archivo Excel o PDF de un grupo scout. Si es Excel, sus columnas pueden ser: Tipo Documento, Documento (DNI), Nombre, Sexo, Fecha Nacimiento, Provincia, Localidad, Calle, Codigo Postal, Estado Civil, Telefono, Email, Religion, Religion Descripcion, Estudios, Titulo, Empresa, Discapacidad, Detalle Discapacidad, Nacionalidad, Funcion, Categoria, Rama, Zona, Distrito, Código, Organismo, Fecha Primer Afiliacion. Si es PDF, extraé las personas y los campos disponibles sin inventar datos.
-Extraé TODAS las filas de datos (ignorá la fila de encabezados).
-Para las fechas (Fecha Nacimiento y Fecha Primer Afiliacion), convertilas EXACTAMENTE al formato YYYY-MM-DD, sin alterar el día. Si la celda está vacía, devolvé string vacío.
-Para el campo sexo: normalizalo siempre a "Masculino" o "Femenino" (con mayúscula inicial). Cualquier variante como "M", "m", "MASCULINO", "masculino", "Varón", "Hombre", "H" → "Masculino". Cualquier variante como "F", "f", "FEMENINO", "femenino", "Mujer", "Dama" → "Femenino". Si está vacío o es desconocido, devolvé string vacío.
-Devolvé un JSON con el array "personas".`,
-      file_urls: [file_url],
-      response_json_schema: {
-        type: "object",
-        properties: {
-          personas: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                nombre: { type: "string" }, dni: { type: "string" },
-                telefono_contacto: { type: "string" }, email_contacto: { type: "string" },
-                sexo: { type: "string" }, estado_civil: { type: "string" },
-                funcion: { type: "string" }, categoria: { type: "string" },
-                zona: { type: "string" }, distrito: { type: "string" },
-                codigo: { type: "string" }, organismo: { type: "string" },
-                fecha_nacimiento: { type: "string" }, religion: { type: "string" },
-                religion_descripcion: { type: "string" }, rama: { type: "string" },
-                fecha_primer_afiliacion: { type: "string" },
-                provincia: { type: "string" }, localidad: { type: "string" },
-                calle: { type: "string" }, codigo_postal: { type: "string" },
-                nacionalidad: { type: "string" }, estudios: { type: "string" },
-                titulo: { type: "string" }, discapacidad: { type: "string" },
-                detalle_discapacidad: { type: "string" },
-              }
-            }
-          }
-        }
-      }
-    });
-    return result;
-    })();
-    const result = await Promise.race([operation, timeout]);
+    const result = { personas: await extractMembers(file, base44.integrations.Core.InvokeLLM, setProgress) };
     stage = 'preparar la vista previa';
 
     if (!result?.personas?.length) {
@@ -249,7 +213,7 @@ Devolvé un JSON con el array "personas".`,
       };
     });
 
-    const existentes = await base44.entities.Beneficiario.list();
+    const existentes = await allExistingMembers();
     const mapDni = {};
     existentes.forEach(b => { if (b.dni) mapDni[b.dni.toString().trim()] = b; });
 
@@ -271,11 +235,7 @@ Devolvé un JSON con el array "personas".`,
     // Por defecto: seleccionar todos los campos con conflicto real para reemplazar
     const campos = {};
     dups.forEach(d => {
-      campos[d.nuevo.dni] = CAMPOS_COMPARACION.filter(c =>
-        (d.nuevo[c.key] || '') !== '' &&
-        (d.existente[c.key] || '') !== '' &&
-        (d.nuevo[c.key] || '') !== (d.existente[c.key] || '')
-      ).map(c => c.key);
+      campos[d.nuevo.dni] = [];
     });
     setCamposAActualizar(campos);
 
@@ -306,6 +266,8 @@ Devolvé un JSON con el array "personas".`,
 
   const handleImport = async () => {
     setLoading(true);
+    setImportError('');
+    try {
 
     // Crear nuevos seleccionados
     const nuevosAImportar = nuevos.filter((_, i) => selNuevos.has(i));
@@ -343,6 +305,12 @@ Devolvé un JSON con el array "personas".`,
     toast.success(msg);
     setLoading(false);
     onClose();
+    } catch {
+      setImportError('No se pudo completar el guardado. Cerrá y volvé a analizar el archivo para comprobar qué personas ya se guardaron antes de reintentar.');
+      queryClient.invalidateQueries({ queryKey: ['beneficiarios'] });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Resumen para confirmar
@@ -372,6 +340,7 @@ Devolvé un JSON con el array "personas".`,
           <DialogTitle>Importar desde Excel</DialogTitle>
         </DialogHeader>
         {importError && <p role="alert" className="text-sm">{importError}</p>}
+        {progress && <p role="status" className="text-sm">{progress}</p>}
 
         <div className="py-4 space-y-4">
 
