@@ -95,11 +95,20 @@ export async function extractMembers(file, invoke, progress) {
   const rows = pdfRows(lines);
   if (rows.length > 3000) throw new Error('El PDF supera las 3000 personas.');
   const result = [];
-  for (let start = 0; start < rows.length; start += 5) {
-    const batch = rows.slice(start, start + 5);
-    progress(`PDF: ${start} de ${rows.length} personas verificadas`);
-    const response = await invoke({ prompt: `Extraé exactamente ${batch.length} personas del listado, una por fila. No inventes datos. Fechas YYYY-MM-DD; datos ausentes cadena vacía. DNI sin puntos. Las columnas del archivo son: ${lines[0]}. Filas:\n${batch.map(row => row.line).join('\n')}`, response_json_schema: memberSchema });
-    result.push(...validateMembers(response?.personas, batch.map(row => row.id)));
+  for (let start = 0; start < rows.length; start += 15) {
+    progress(`PDF: ${result.length} de ${rows.length} personas verificadas`);
+    const batches = [0, 5, 10].map(offset => rows.slice(start + offset, start + offset + 5)).filter(batch => batch.length);
+    const completed = await Promise.all(batches.map(async batch => {
+      let timer;
+      try {
+        const response = await Promise.race([
+          invoke({ prompt: `Extraé exactamente ${batch.length} personas del listado, una por fila. No inventes datos. Fechas YYYY-MM-DD; datos ausentes cadena vacía. DNI sin puntos. Las columnas del archivo son: ${lines[0]}. Filas:\n${batch.map(row => row.line).join('\n')}`, response_json_schema: memberSchema }),
+          new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('La extracción tardó demasiado. Probá con el Excel original.')), 90000); }),
+        ]);
+        return validateMembers(response?.personas, batch.map(row => row.id));
+      } finally { clearTimeout(timer); }
+    }));
+    result.push(...completed.flat());
   }
   progress(`${result.length} de ${rows.length} personas verificadas`);
   return validateMembers(result, rows.map(row => row.id));

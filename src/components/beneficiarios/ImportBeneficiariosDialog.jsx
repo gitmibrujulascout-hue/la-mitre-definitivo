@@ -232,7 +232,7 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
     setNuevos(nuevosArr);
     setSelNuevos(new Set(nuevosArr.map((_, i) => i)));
 
-    // Por defecto: seleccionar todos los campos con conflicto real para reemplazar
+    // Las sobrescrituras requieren selección explícita.
     const campos = {};
     dups.forEach(d => {
       campos[d.nuevo.dni] = [];
@@ -337,7 +337,7 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Importar desde Excel</DialogTitle>
+          <DialogTitle>Importar miembros</DialogTitle>
         </DialogHeader>
         {importError && <p role="alert" className="text-sm">{importError}</p>}
         {progress && <p role="status" className="text-sm">{progress}</p>}
@@ -355,9 +355,10 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
               </div>
               <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
                 <FileSpreadsheet className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <input type="file" accept=".csv,.xlsx,.xls,.pdf" onChange={e => setFile(e.target.files[0])} className="hidden" id="import-file" />
+                <input type="file" accept=".xlsx,.pdf" onChange={e => setFile(e.target.files[0])} className="hidden" id="import-file" />
                 <label htmlFor="import-file" className="cursor-pointer">
-                  <p className="text-sm font-medium text-primary">Seleccionar archivo Excel, CSV o PDF</p>
+                  <p className="text-sm font-medium text-primary">Seleccionar Excel (.xlsx) o PDF con texto</p>
+                  <p className="text-xs">Hasta 10 MB y 3000 personas. Excel es la opción más rápida.</p>
                   <p className="text-xs text-muted-foreground mt-1">Se detectarán automáticamente duplicados por DNI</p>
                 </label>
                 {file && <p className="text-sm mt-3 font-medium">{file.name}</p>}
