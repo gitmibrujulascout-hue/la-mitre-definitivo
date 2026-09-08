@@ -1,5 +1,7 @@
 # Importación completa de miembros
 
+Validación adicional: el PDF conserva coordenadas de columnas. Se agrega lectura directa de tablas reconocibles y separación de celdas DNI/nombre fusionadas por el generador. Ambos archivos adjuntos producen 144 registros, con 144 DNI y nombres coincidentes. La IA queda como alternativa para texto no tabular reconocido. En producción el XLSX mostró 144 leídos, 16 existentes y 128 nuevos; no se confirmó el guardado.
+
 Problema verificado: los dos archivos del usuario contienen 144 DNI distintos; la llamada única a IA puede devolver solo cinco y la UI acepta ese resultado.
 
 Leer XLSX localmente con ExcelJS, sin usar el lector xlsx vulnerable. Leer texto PDF con pdfjs-dist; agrupar por documento y procesar bloques acotados con IA. Comprobar correspondencia exacta de DNI por bloque y rechazar respuestas incompletas. PDF sin texto debe pedir Excel o PDF con texto por ahora, sin simular éxito. Agregar límites de tamaño y filas, validación de nombre y DNI, duplicados y progreso. No registrar contenido personal ni subir archivos originales para este flujo.

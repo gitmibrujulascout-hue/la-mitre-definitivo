@@ -51,6 +51,39 @@ export function pdfRows(lines) {
   return result;
 }
 
+export function pdfTable(items) {
+  const groups = new Map();
+  for (const item of items) {
+    if (!('str' in item) || !item.str.trim()) continue;
+    const y = Math.round(item.transform[5] * 2) / 2;
+    if (!groups.has(y)) groups.set(y, []);
+    groups.get(y).push(item);
+  }
+  const lines = [...groups.entries()].sort((a, b) => b[0] - a[0]).map(([, row]) => row.sort((a,b) => a.transform[4] - b.transform[4]));
+  const header = lines.find(row => row.some(item => key(item.str) === 'documento') && row.some(item => key(item.str) === 'nombre'));
+  if (!header) return null;
+  const records = lines.slice(lines.indexOf(header) + 1).filter(row => /^DNI\s/i.test(row.map(item=>item.str).join(' '))).map(row => {
+    const cells = header.map(()=>'');
+    for (const item of row) {
+      let column = -1;
+      for (let i=0; i<header.length; i++) if (item.transform[4] >= header[i].transform[4] - 1) column = i;
+      if (column >= 0 && key(header[column].str) === 'documento') {
+        const merged = item.str.match(/^([\d.]{7,10})\s*(.+)$/);
+        if (merged) {
+          cells[column] = merged[1];
+          const nameColumn = header.findIndex(item=>key(item.str)==='nombre');
+          cells[nameColumn] = merged[2];
+          continue;
+        }
+      }
+      if (column >= 0) cells[column] += (cells[column] ? ' ' : '') + item.str;
+    }
+    return cells;
+  });
+  if (!records.length) return null;
+  try { return rowsToMembers([header.map(item=>item.str), ...records]); } catch { return null; }
+}
+
 export async function extractMembers(file, invoke, progress) {
   if (!file || file.size > 10 * 1024 * 1024) throw new Error('Elegí un archivo de hasta 10 MB.');
   const bytes = await file.arrayBuffer();
@@ -77,11 +110,15 @@ export async function extractMembers(file, invoke, progress) {
   const task = pdfjs.getDocument({ data: bytes, isEvalSupported: false });
   const pdf = await task.promise;
   const lines = [];
+  const tableRecords = [];
+  let allPagesHaveTables = true;
   try {
     if (pdf.numPages > 100) throw new Error('El PDF supera las 100 páginas.');
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
+      const table = pdfTable(content.items);
+      if (table) tableRecords.push(...table); else allPagesHaveTables = false;
       const groups = new Map();
       for (const item of content.items) {
         if (!('str' in item)) continue;
@@ -94,6 +131,11 @@ export async function extractMembers(file, invoke, progress) {
   } finally { await task.destroy(); }
   const rows = pdfRows(lines);
   if (rows.length > 3000) throw new Error('El PDF supera las 3000 personas.');
+  if (allPagesHaveTables) {
+    const verified = validateMembers(tableRecords, rows.map(row=>row.id));
+    progress(`${verified.length} de ${rows.length} personas leídas de la tabla PDF`);
+    return verified;
+  }
   const result = [];
   for (let start = 0; start < rows.length; start += 15) {
     progress(`PDF: ${result.length} de ${rows.length} personas verificadas`);
