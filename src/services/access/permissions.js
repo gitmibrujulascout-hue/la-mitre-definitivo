@@ -40,7 +40,7 @@ export const TENANT_ROLE_OPTIONS = Object.freeze([
     value: TENANT_ROLES.branchLeader,
     label: 'Responsable de rama',
     shortLabel: 'Rama',
-    description: 'Rol reservado para las próximas pantallas específicas de rama.'
+    description: 'Ve personas y contactos de emergencia únicamente de las ramas asignadas. Sin historia médica ni finanzas.'
   },
   {
     value: TENANT_ROLES.support,
@@ -75,6 +75,8 @@ export const TENANT_ROLE_OPTIONS = Object.freeze([
 ]);
 
 export const PERMISSIONS = Object.freeze({
+  branchView: 'branch.view',
+  financialReportsView: 'financial-reports.view',
   dashboardView: 'dashboard.view',
   membersManage: 'members.manage',
   paymentsManage: 'payments.manage',
@@ -110,7 +112,6 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     PERMISSIONS.dashboardView,
     PERMISSIONS.membersManage,
     PERMISSIONS.campsManage,
-    PERMISSIONS.accountsManage,
     PERMISSIONS.feesManage,
     PERMISSIONS.reportsView,
     PERMISSIONS.affiliationsManage,
@@ -120,6 +121,7 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     PERMISSIONS.usersManage
   ]),
   [TENANT_ROLES.treasury]: Object.freeze([
+    PERMISSIONS.financialReportsView,
     PERMISSIONS.dashboardView,
     PERMISSIONS.paymentsManage,
     PERMISSIONS.expensesManage,
@@ -134,7 +136,7 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     PERMISSIONS.assistantUse,
     PERMISSIONS.familyQueriesView
   ]),
-  [TENANT_ROLES.branchLeader]: Object.freeze([]),
+  [TENANT_ROLES.branchLeader]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.branchView]),
   [TENANT_ROLES.support]: Object.freeze([]),
   [TENANT_ROLES.institutional]: Object.freeze([]),
   [TENANT_ROLES.family]: Object.freeze([]),
@@ -149,6 +151,7 @@ const LEGACY_ROLE_MAP = Object.freeze({
 });
 
 export const ROUTE_PERMISSIONS = Object.freeze({
+  '/mi-rama': PERMISSIONS.branchView,
   '/app': PERMISSIONS.dashboardView,
   '/beneficiarios': PERMISSIONS.membersManage,
   '/pagos': PERMISSIONS.paymentsManage,
@@ -159,8 +162,8 @@ export const ROUTE_PERMISSIONS = Object.freeze({
   '/tienda': PERMISSIONS.storeManage,
   '/config-cuotas': PERMISSIONS.feesManage,
   '/actividades': PERMISSIONS.fundraisingManage,
-  '/reporte-pagos': PERMISSIONS.reportsView,
-  '/reporte-creditos': PERMISSIONS.reportsView,
+  '/reporte-pagos': PERMISSIONS.financialReportsView,
+  '/reporte-creditos': PERMISSIONS.financialReportsView,
   '/reporte-beneficiarios': PERMISSIONS.reportsView,
   '/afiliaciones': PERMISSIONS.affiliationsManage,
   '/agente-scout': PERMISSIONS.assistantUse,
@@ -193,9 +196,7 @@ export function permissionsForRoles(roles = [], isSuperAdmin = false) {
 export function hasPermission(user, permission) {
   if (!user || !permission) return false;
   if (user.is_super_admin) return true;
-  const permissions = Array.isArray(user.permissions)
-    ? user.permissions
-    : permissionsForRoles(normalizeTenantRoles(user.tenant_roles, user.role), false);
+  const permissions = permissionsForRoles(normalizeTenantRoles(user.tenant_roles), false);
   return permissions.includes(permission);
 }
 

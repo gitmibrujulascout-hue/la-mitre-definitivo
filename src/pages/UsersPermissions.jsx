@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import RoleSelector from '@/features/users/RoleSelector';
+import BranchScopeSelector from '@/features/users/BranchScopeSelector';
 import TenantInvitationsPanel from '@/features/users/TenantInvitationsPanel';
 import TenantMembersPanel from '@/features/users/TenantMembersPanel';
 import { useAuth } from '@/lib/AuthContext';
@@ -20,6 +21,7 @@ import {
   cancelTenantInvitation,
   createTenantInvitation,
   listTenantAccess,
+  listInvitablePeople,
   updateTenantMemberRoles,
   updateTenantMemberStatus
 } from '@/services/users/tenantAccessService';
@@ -45,6 +47,9 @@ export default function UsersPermissions() {
   const [shareUrl, setShareUrl] = useState('');
   const [editingMember, setEditingMember] = useState(null);
   const [editingRoles, setEditingRoles] = useState([]);
+  const [editingBranches, setEditingBranches] = useState([]);
+  const [people,setPeople] = useState([]);
+  const [peopleError,setPeopleError] = useState('');
   const [busyUserId, setBusyUserId] = useState('');
   const [busyInvitationId, setBusyInvitationId] = useState('');
 
@@ -61,6 +66,8 @@ export default function UsersPermissions() {
       setMembers(result.members);
       setInvitations(result.invitations);
       setSetupRequired(result.setupRequired);
+      try { setPeople(await listInvitablePeople(user.tenant_id)); setPeopleError(''); }
+      catch { setPeople([]); setPeopleError('No pudimos recuperar el padrón. Podés escribir los datos de la invitación.'); }
     } catch {
       setLoadError('No pudimos cargar los accesos. Revisá la conexión e intentá nuevamente.');
     } finally {
@@ -102,7 +109,7 @@ export default function UsersPermissions() {
   const saveMemberRoles = async () => {
     if (!editingMember) return;
     setBusyUserId(editingMember.userId);
-    const result = await updateTenantMemberRoles(user.tenant_id, editingMember.userId, editingRoles);
+    const result = await updateTenantMemberRoles(user.tenant_id, editingMember.userId, editingRoles, editingBranches);
     setBusyUserId('');
     if (!result.ok) {
       setStatus({ type: 'error', text: result.message || 'No pudimos actualizar los roles.' });
@@ -193,6 +200,13 @@ export default function UsersPermissions() {
             </CardHeader>
             <CardContent>
               <form className="space-y-5" onSubmit={submitInvitation} noValidate>
+                <label className="block text-sm font-semibold">Usar una persona del padrón
+                  <select className="mt-2 min-h-11 w-full rounded border bg-background p-2" defaultValue="" onChange={event => { const person = people.find(item => item.id===event.target.value); if(person) setForm(current => ({...current,fullName:person.nombre || '',email:person.email_contacto || ''})); }}>
+                    <option value="">Seleccionar adulto o completar manualmente</option>{people.map(person => <option key={person.id} value={person.id}>{person.nombre}</option>)}
+                  </select>
+                </label>
+                {peopleError && <p role="status" className="text-sm">{peopleError}</p>}
+                <p className="text-sm text-muted-foreground">Se reutilizan nombre y email; el acceso se otorga solo al aceptar la invitación. Revisá el email si es compartido por una familia.</p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field
                     id="invitation-name"
@@ -218,6 +232,7 @@ export default function UsersPermissions() {
                   disabled={creating}
                 />
                 {fieldErrors.roles && <p className="text-sm text-destructive">{fieldErrors.roles}</p>}
+                {form.roles.includes('branch_leader') && <p className="text-sm">Una vez aceptada la invitación, asignale sus ramas en “Editar roles”. Hasta entonces no podrá consultar personas.</p>}
                 <Button type="submit" className="min-h-11" disabled={creating || setupRequired}>
                   <Send aria-hidden="true" />
                   {creating ? 'Creando…' : 'Crear invitación'}
@@ -248,6 +263,7 @@ export default function UsersPermissions() {
                 onEdit={(member) => {
                   setEditingMember(member);
                   setEditingRoles(member.roles);
+                  setEditingBranches(member.branches || []);
                 }}
                 onStatusChange={changeMemberStatus}
               />
@@ -267,9 +283,10 @@ export default function UsersPermissions() {
             <DialogTitle>Editar roles de {editingMember?.fullName}</DialogTitle>
           </DialogHeader>
           <RoleSelector idPrefix="member-role" roles={editingRoles} onChange={setEditingRoles} />
+          {editingRoles.includes('branch_leader') && <BranchScopeSelector branches={editingBranches} onChange={setEditingBranches} />}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingMember(null)}>Cancelar</Button>
-            <Button onClick={saveMemberRoles} disabled={!editingRoles.length || Boolean(busyUserId)}>
+            <Button onClick={saveMemberRoles} disabled={setupRequired || !editingRoles.length || Boolean(busyUserId) || (editingRoles.includes('branch_leader') && !editingBranches.length)}>
               {busyUserId ? 'Guardando…' : 'Guardar roles'}
             </Button>
           </DialogFooter>
@@ -307,4 +324,3 @@ function AccessSkeleton() {
     </div>
   );
 }
-

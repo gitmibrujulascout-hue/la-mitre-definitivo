@@ -1,5 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/api/supabaseClient';
+import { queryClientInstance } from '@/lib/query-client';
 import {
   clearTenantContext,
   getStoredActiveTenantId,
@@ -30,7 +31,14 @@ async function loadTenantMemberships(userId) {
 }
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, updateUser] = useState(null);
+  const accessSignature = useRef('');
+  const setUser = useCallback(next => {
+    const signature = JSON.stringify([next?.id,next?.tenant_id,next?.tenant_roles,next?.branch_scopes,next?.is_super_admin]);
+    if (signature !== accessSignature.current) queryClientInstance.clear();
+    accessSignature.current = signature;
+    updateUser(next);
+  }, []);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState(null);
 
@@ -46,7 +54,7 @@ export const AuthProvider = ({ children }) => {
 
     const profile = profileResult.error ? null : profileResult.data;
     const isSuperAdmin = superAdminResult.error ? false : Boolean(superAdminResult.data);
-    const memberships = (membershipsResult.data || []).filter((membership) => membership.status !== 'suspended');
+    const memberships = (membershipsResult.data || []).filter((membership) => membership.status === 'active' && membership.tenants?.active === true);
     const rolesResult = memberships.length
       ? await supabase
         .from('tenant_membership_roles')
@@ -54,6 +62,7 @@ export const AuthProvider = ({ children }) => {
         .eq('user_id', authUser.id)
       : { data: [], error: null };
     const rolesByTenant = new Map();
+    if (rolesResult.error) throw new Error('No pudimos verificar tus permisos. Volvé a intentar.');
 
     if (!rolesResult.error) {
       for (const row of rolesResult.data || []) {
@@ -65,13 +74,18 @@ export const AuthProvider = ({ children }) => {
 
     const accessMemberships = memberships.map((membership) => ({
       ...membership,
-      roles: normalizeTenantRoles(rolesByTenant.get(membership.tenant_id), membership.role)
+      roles: normalizeTenantRoles(rolesByTenant.get(membership.tenant_id))
     }));
     const storedTenantId = getStoredActiveTenantId();
     const membership = accessMemberships.find((item) => item.tenant_id === storedTenantId)
       || accessMemberships[0]
       || null;
     const tenantRoles = membership?.roles || [];
+    const scopesResult = membership?.tenant_id
+      ? await supabase.from('tenant_branch_scopes').select('branch').eq('tenant_id', membership.tenant_id).eq('user_id', authUser.id)
+      : { data: [], error: null };
+    if (scopesResult.error) throw new Error('No pudimos verificar tus ramas asignadas. Volvé a intentar.');
+    const branchScopes = (scopesResult.data || []).map(row => row.branch).sort();
 
     if (membership?.tenant_id) trustActiveTenantId(authUser.id, membership.tenant_id);
     else if (!isSuperAdmin) clearTenantContext();
@@ -80,10 +94,11 @@ export const AuthProvider = ({ children }) => {
       ...authUser,
       ...(profile || {}),
       role: profile?.role || membership?.role || 'user',
-      is_super_admin: Boolean(profile?.is_super_admin || isSuperAdmin),
+      is_super_admin: isSuperAdmin,
       tenant_id: membership?.tenant_id || null,
       tenant_role: tenantRoles[0] || null,
       tenant_roles: tenantRoles,
+      branch_scopes: branchScopes,
       permissions: permissionsForRoles(tenantRoles, isSuperAdmin),
       memberships: accessMemberships,
       tenant: membership?.tenants || null
@@ -94,16 +109,31 @@ export const AuthProvider = ({ children }) => {
     let mounted = true;
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       try { if (mounted) { setUser(await loadProfile(session?.user)); setAuthError(null); } }
-      catch (error) { if (mounted) setAuthError(error); }
+      catch (error) { if (mounted) { setUser(null); queryClientInstance.clear(); setAuthError(error); } }
       finally { if (mounted) setIsLoadingAuth(false); }
     });
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try { if (mounted) { setUser(await loadProfile(session?.user)); setAuthError(null); } }
-      catch (error) { if (mounted) setAuthError(error); }
+      catch (error) { if (mounted) { setUser(null); queryClientInstance.clear(); setAuthError(error); } }
       finally { if (mounted) setIsLoadingAuth(false); }
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, [loadProfile]);
+
+  useEffect(() => {
+    let live = true;
+    const refresh = async () => {
+      try {
+        const { data: { user: current } } = await supabase.auth.getUser();
+        const next = await loadProfile(current);
+        if(!live) return;
+        setUser(next);
+      } catch { if(live) { setUser(null);queryClientInstance.clear();setAuthError(new Error('No pudimos verificar tus permisos. Volvé a ingresar.')); } }
+    };
+    window.addEventListener('focus',refresh);
+    const timer = window.setInterval(refresh,60000);
+    return () => { live=false;window.removeEventListener('focus',refresh);window.clearInterval(timer); };
+  },[loadProfile]);
 
   const login = async (email, password) => {
     setAuthError(null);
@@ -127,6 +157,7 @@ export const AuthProvider = ({ children }) => {
     return refreshedUser;
   }, [loadProfile]);
   const logout = async () => {
+    queryClientInstance.clear();
     await supabase.auth.signOut();
     clearTenantContext();
     setUser(null);

@@ -1,4 +1,6 @@
 import { supabase } from '@/api/supabaseClient';
+import { z } from 'zod';
+import { policySchema } from '@/services/access/scholarships';
 import { normalizeTenantRoles } from '@/services/access/permissions';
 import {
   invitationInputSchema,
@@ -14,10 +16,11 @@ export async function listTenantAccess(tenantId) {
 
   const memberships = membershipResult.data || [];
   const userIds = memberships.map((membership) => membership.user_id);
-  const [rolesResult, profilesResult, invitationsResult] = await Promise.all([
+  const [rolesResult, profilesResult, invitationsResult, scopesResult] = await Promise.all([
     loadRoles(tenantId),
     loadProfiles(userIds),
-    loadInvitations(tenantId)
+    loadInvitations(tenantId),
+    supabase.from('tenant_branch_scopes').select('user_id,branch').eq('tenant_id',tenantId)
   ]);
 
   const rolesByUser = new Map();
@@ -40,6 +43,7 @@ export async function listTenantAccess(tenantId) {
       email: profile.email || '',
       status: membership.status || 'active',
       roles: normalizeTenantRoles(rolesByUser.get(membership.user_id), membership.role),
+      branches: (scopesResult.data || []).filter(scope => scope.user_id === membership.user_id).map(scope => scope.branch),
       createdAt: membership.created_at
     };
   });
@@ -47,7 +51,7 @@ export async function listTenantAccess(tenantId) {
   return {
     members,
     invitations: invitationsResult.error ? [] : (invitationsResult.data || []).map(mapInvitation),
-    setupRequired: Boolean(rolesResult.error || invitationsResult.error)
+    setupRequired: Boolean(rolesResult.error || invitationsResult.error || scopesResult.error)
   };
 }
 
@@ -78,18 +82,27 @@ export async function createTenantInvitation(tenantId, input, origin = window.lo
   };
 }
 
-export async function updateTenantMemberRoles(tenantId, userId, roles) {
+export async function updateTenantMemberRoles(tenantId, userId, roles, branches = []) {
   const parsed = roleUpdateSchema.safeParse(roles);
   if (!parsed.success) return { ok: false, validationError: parsed.error };
 
-  const { error } = await supabase.rpc('set_tenant_member_roles', {
+  const branchResult = policySchema.safeParse(branches);
+  if (!branchResult.success || (roles.includes('branch_leader') && !branches.length)) return { ok:false, message:'Elegí al menos una rama para el responsable.' };
+  const { error } = await supabase.rpc('set_tenant_member_access', {
     target_tenant_id: tenantId,
     target_user_id: userId,
-    requested_roles: parsed.data
+    requested_roles: parsed.data,
+    requested_branches: roles.includes('branch_leader') ? branchResult.data : []
   });
   return error
     ? { ok: false, message: accessErrorMessage(error) }
     : { ok: true };
+}
+
+export async function listInvitablePeople(tenantId) {
+  const { data,error } = await supabase.rpc('list_invitable_people',{ target_tenant_id:tenantId });
+  if(error) throw new Error('No pudimos cargar las personas del padrón. Podés completar la invitación manualmente.');
+  return z.array(z.object({id:z.string().uuid(),nombre:z.string().nullable(),email_contacto:z.string().nullable()})).parse(data);
 }
 
 export async function updateTenantMemberStatus(tenantId, userId, status) {
@@ -233,4 +246,3 @@ function accessErrorMessage(error) {
   }
   return 'No pudimos completar la operación. Intentá nuevamente.';
 }
-

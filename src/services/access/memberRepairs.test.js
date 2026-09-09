@@ -41,7 +41,7 @@ test('actualización masiva limita tenant e IDs y permite falso', async () => {
   const calls = []; const client = { from(table) { calls.push(table); return this; }, update(patch) { calls.push(patch); return this; }, eq(...args) { calls.push(args); return this; }, in(...args) { calls.push(args); return this; }, select() { return { data: [{ id }], error: null }; } };
   assert.equal(await saveMemberBulkEdit(client, 'tenant-a', [id], ['becado'], { becado: false }), 1);
   assert.deepEqual(calls[2], ['tenant_id', 'tenant-a']); assert.deepEqual(calls[3], ['id', [id]]);
-  assert.equal(calls[1].becado, false);
+  assert.equal(calls[1].beca_override, false);
 });
 test('actualización masiva deniega sin tenant, incompleta o rechazada por RLS', async () => {
   await assert.rejects(saveMemberBulkEdit({}, null, [id], ['becado'], { becado: true }));

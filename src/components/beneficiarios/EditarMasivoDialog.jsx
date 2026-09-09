@@ -18,7 +18,7 @@ const FIELDS = [
   { key: 'tipo', label: 'Tipo', type: 'select', options: ['Beneficiario', 'Voluntario'] },
   { key: 'funcion', label: 'Función', type: 'text' },
   { key: 'estado_panuelo', label: 'Pañuelo', type: 'select', options: ['', 'Promesa', 'Investidura', 'Paturuzú'] },
-  { key: 'becado', label: 'Becado', type: 'checkbox' },
+  { key: 'beca_override', label: 'Beca', type: 'scholarship' },
   { key: 'activo', label: 'Activo', type: 'checkbox' },
   { key: 'zona', label: 'Zona', type: 'text' },
   { key: 'distrito', label: 'Distrito', type: 'text' },
@@ -100,6 +100,7 @@ export default function EditarMasivoDialog({ open, onClose, selectedIds, benefic
                 </div>
                 {isSelected && (
                   <div className="pl-6">
+                    {field.type === 'scholarship' && <Select value={values[field.key] === undefined ? '' : values[field.key] === null ? 'inherit' : String(values[field.key])} onValueChange={value => setFieldValue(field.key,value === 'inherit' ? null : value === 'true')}><SelectTrigger aria-label="Beca"><SelectValue placeholder="Elegir regla o excepción" /></SelectTrigger><SelectContent><SelectItem value="inherit">Usar regla del grupo</SelectItem><SelectItem value="true">Beca individual</SelectItem><SelectItem value="false">Paga cuota (excepción)</SelectItem></SelectContent></Select>}
                     {field.type === 'select' && (
                       <Select value={values[field.key] ?? ''} onValueChange={v => setFieldValue(field.key, v)}>
                         <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>

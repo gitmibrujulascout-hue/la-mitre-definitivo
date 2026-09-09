@@ -272,7 +272,7 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
     // Crear nuevos seleccionados
     const nuevosAImportar = nuevos.filter((_, i) => selNuevos.has(i));
     if (nuevosAImportar.length > 0) {
-      await base44.entities.Beneficiario.bulkCreate(nuevosAImportar.map(p => ({ activo: true, becado: false, ...p })));
+      await base44.entities.Beneficiario.bulkCreate(nuevosAImportar.map(p => ({ activo: true, ...p })));
     }
 
     // Actualizar duplicados campo a campo
@@ -490,7 +490,7 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
                 <p className="text-sm">Entre las personas nuevas seleccionadas: {nuevos.filter((p, i) => selNuevos.has(i) && p.becado === true).length} con beca, {nuevos.filter((p, i) => selNuevos.has(i) && p.activo === false).length} inactivas y {nuevos.filter((p, i) => selNuevos.has(i) && p.grupo_familiar).length} con grupo familiar informado.</p>
                 <p className="text-sm">Las ramas del archivo se respetan. Las becas y bajas de personas existentes solo cambian con tu selección.</p>
                 <p className="text-sm">Revisá la configuración de cuotas antes de operar: donde no hay un importe por mes, la aplicación usa sus valores predeterminados. El padrón no acredita pagos ni saldos iniciales.</p>
-                <a href="/ConfiguracionCuotas" target="_blank" rel="noreferrer" className="text-sm underline focus-visible:outline">Revisar cuotas en otra pestaña</a>
+                <a href="/config-cuotas" target="_blank" rel="noreferrer" className="text-sm underline focus-visible:outline">Revisar cuotas en otra pestaña</a>
               </div>
             </div>
           )}

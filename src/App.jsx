@@ -7,7 +7,8 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AppLayout from '@/components/layout/AppLayout';
 import SuperAdminLayout from '@/components/layout/SuperAdminLayout';
-import Dashboard from '@/pages/Dashboard';
+import WorkspaceHome from '@/components/access/WorkspaceHome';
+import BranchWorkspace from '@/pages/BranchWorkspace';
 import Beneficiarios from '@/pages/Beneficiarios';
 import Pagos from '@/pages/Pagos';
 import Gastos from '@/pages/Gastos';
@@ -63,7 +64,8 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route path="/app/administracion/inicio" element={<Navigate to={getAuthenticatedHome(user)} replace />} />
       <Route element={<AppLayout />}>
-        <Route path="/app" element={<PermissionRoute permission={PERMISSIONS.dashboardView}><Dashboard /></PermissionRoute>} />
+        <Route path="/app" element={<PermissionRoute permission={PERMISSIONS.dashboardView}><WorkspaceHome /></PermissionRoute>} />
+        <Route path="/mi-rama" element={<PermissionRoute permission={PERMISSIONS.branchView}><BranchWorkspace /></PermissionRoute>} />
         <Route path="/beneficiarios" element={<PermissionRoute permission={PERMISSIONS.membersManage}><Beneficiarios /></PermissionRoute>} />
         <Route path="/pagos" element={<PermissionRoute permission={PERMISSIONS.paymentsManage}><Pagos /></PermissionRoute>} />
         <Route path="/gastos" element={<PermissionRoute permission={PERMISSIONS.expensesManage}><Gastos /></PermissionRoute>} />
@@ -73,8 +75,8 @@ const AuthenticatedApp = () => {
         <Route path="/tienda" element={<PermissionRoute permission={PERMISSIONS.storeManage}><Tienda /></PermissionRoute>} />
         <Route path="/config-cuotas" element={<PermissionRoute permission={PERMISSIONS.feesManage}><ConfiguracionCuotas /></PermissionRoute>} />
         <Route path="/actividades" element={<PermissionRoute permission={PERMISSIONS.fundraisingManage}><ActividadesEconomicas /></PermissionRoute>} />
-        <Route path="/reporte-pagos" element={<PermissionRoute permission={PERMISSIONS.reportsView}><ReportePagos /></PermissionRoute>} />
-        <Route path="/reporte-creditos" element={<PermissionRoute permission={PERMISSIONS.reportsView}><ReporteCreditos /></PermissionRoute>} />
+        <Route path="/reporte-pagos" element={<PermissionRoute permission={PERMISSIONS.financialReportsView}><ReportePagos /></PermissionRoute>} />
+        <Route path="/reporte-creditos" element={<PermissionRoute permission={PERMISSIONS.financialReportsView}><ReporteCreditos /></PermissionRoute>} />
         <Route path="/afiliaciones" element={<PermissionRoute permission={PERMISSIONS.affiliationsManage}><Afiliaciones /></PermissionRoute>} />
         <Route path="/agente-scout" element={<PermissionRoute permission={PERMISSIONS.assistantUse}><AgenteScout /></PermissionRoute>} />
         <Route path="/reporte-beneficiarios" element={<PermissionRoute permission={PERMISSIONS.reportsView}><ReporteBeneficiarios /></PermissionRoute>} />

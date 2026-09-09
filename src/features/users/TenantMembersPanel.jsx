@@ -45,6 +45,7 @@ export default function TenantMembersPanel({
                         {member.email || 'Email no disponible hasta actualizar la base'}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
+                        {(member.branches || []).map(branch => <Badge key={branch} variant="secondary">{branch}</Badge>)}
                         {member.roles.map((role) => (
                           <Badge key={role} variant="outline">{roleLabel(role)}</Badge>
                         ))}
@@ -87,4 +88,3 @@ export default function TenantMembersPanel({
     </Card>
   );
 }
-

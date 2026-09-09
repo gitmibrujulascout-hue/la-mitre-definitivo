@@ -11,10 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import PageHeader from '@/components/shared/PageHeader';
 import ConfigAfiliacionPanel from '@/components/afiliaciones/ConfigAfiliacionPanel';
+import ScholarshipPolicyCard from '@/components/afiliaciones/ScholarshipPolicyCard';
+import { useAuth } from '@/lib/AuthContext';
+import { hasPermission, PERMISSIONS } from '@/services/access/permissions';
 import { MESES, MESES_SIN_CUOTA, formatMoney, esBeneficiarioConCuota, calcularMesesQueGeneranDeuda, getCuotaBaseMes, getMesesBonificadosCredito, getCreditoMesBeneficiario, getLabelCreditoMes, getMontoCreditoMes } from '@/lib/ramaUtils';
 import { DollarSign, Save, Trash2, Gift, CheckCircle2, AlertCircle, Lock } from 'lucide-react';
 
 export default function ConfiguracionCuotas() {
+  const { user } = useAuth();
+  const canManageCredits = hasPermission(user, PERMISSIONS.cashManage);
   const [anioFiltro, setAnioFiltro] = useState(new Date().getFullYear());
   const [editValues, setEditValues] = useState({});
   const queryClient = useQueryClient();
@@ -31,6 +36,7 @@ export default function ConfiguracionCuotas() {
 
   const { data: pagos = [] } = useQuery({
     queryKey: ['pagos'],
+    enabled: canManageCredits,
     queryFn: () => base44.entities.Pago.list('-created_date', 500),
   });
 
@@ -41,6 +47,7 @@ export default function ConfiguracionCuotas() {
 
   const { data: creditos = [] } = useQuery({
     queryKey: ['creditos'],
+    enabled: canManageCredits,
     queryFn: () => base44.entities.CreditoBeneficiario.list(),
   });
 
@@ -249,6 +256,7 @@ export default function ConfiguracionCuotas() {
           </SelectContent>
         </Select>
       </PageHeader>
+      <ScholarshipPolicyCard />
 
       {/* Configuración de afiliaciones */}
       <ConfigAfiliacionPanel anio={Number(anioFiltro)} />
@@ -291,7 +299,7 @@ export default function ConfiguracionCuotas() {
       </Card>
 
       {/* Generación de créditos para meses bonificados */}
-      {creditosData.length > 0 && (
+      {canManageCredits && creditosData.length > 0 && (
         <div className="space-y-3 mb-6">
           {creditosData.map(({ mes, label, yaGenerados, pendientes, totalElegibles }) => {
             const montoCred = getMontoCreditoMes(mes, Number(anioFiltro), configCuotas);

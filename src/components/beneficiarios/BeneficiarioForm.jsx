@@ -15,7 +15,7 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
     nombre: '', dni: '', telefono_contacto: '', telefono_contacto_2: '', fecha_nacimiento: '',
     funcion: '', categoria: '', zona: '', distrito: '', codigo: '', organismo: '',
     religion: '', religion_descripcion: '', estado_panuelo: '',
-    rama: '', tipo: 'Beneficiario', becado: false, email_contacto: '', activo: true,
+    rama: '', tipo: 'Beneficiario', becado: false, beca_override: null, email_contacto: '', activo: true,
     grupo_familiar: '', fecha_primer_afiliacion: '',
     provincia: '', localidad: '', calle: '', codigo_postal: '', nacionalidad: '',
     sexo: '', estado_civil: '', estudios: '', titulo: '', discapacidad: '', detalle_discapacidad: '',
@@ -332,7 +332,7 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
               )}
             </div>
             {form.tipo === 'Beneficiario' && (
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg bg-muted">
                 <div>
                   <p className="text-sm font-medium">Becado</p>
                   <p className="text-xs text-muted-foreground">
@@ -340,11 +340,10 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                     {' · Se aplica según la decisión del grupo.'}
                   </p>
                 </div>
-                <Switch
-                  checked={form.becado}
-                  onCheckedChange={v => update('becado', v)}
-                  aria-label="Beca de cuota mensual"
-                />
+                <Select value={form.beca_override == null ? 'inherit' : String(form.beca_override)} onValueChange={value => update('beca_override',value === 'inherit' ? null : value === 'true')}>
+                  <SelectTrigger aria-label="Beca de cuota mensual" className="w-full sm:w-56"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="inherit">Usar regla del grupo</SelectItem><SelectItem value="true">Beca individual</SelectItem><SelectItem value="false">Paga cuota (excepción)</SelectItem></SelectContent>
+                </Select>
               </div>
             )}
 

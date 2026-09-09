@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { hasPermission, PERMISSIONS, roleLabels } from '@/services/access/permissions';
 
 const navItems = [
+  { path: '/mi-rama', label: 'Mis ramas', icon: Users, permission: PERMISSIONS.branchView },
   { path: '/app', label: 'Dashboard', icon: LayoutDashboard, permission: PERMISSIONS.dashboardView },
   { path: '/beneficiarios', label: 'Beneficiarios', icon: Users, permission: PERMISSIONS.membersManage },
   { path: '/pagos', label: 'Pagos', icon: CreditCard, permission: PERMISSIONS.paymentsManage },
@@ -20,8 +21,8 @@ const navItems = [
   { path: '/config-cuotas', label: 'Config. Cuotas', icon: Calendar, permission: PERMISSIONS.feesManage },
   { path: '/tienda', label: 'Tienda', icon: ShoppingBag, permission: PERMISSIONS.storeManage },
   { path: '/actividades', label: 'Act. Económicas', icon: TrendingUp, permission: PERMISSIONS.fundraisingManage },
-  { path: '/reporte-pagos', label: 'Reporte de Pagos', icon: FileText, permission: PERMISSIONS.reportsView },
-  { path: '/reporte-creditos', label: 'Créditos usados', icon: Coins, permission: PERMISSIONS.reportsView },
+  { path: '/reporte-pagos', label: 'Reporte de Pagos', icon: FileText, permission: PERMISSIONS.financialReportsView },
+  { path: '/reporte-creditos', label: 'Créditos usados', icon: Coins, permission: PERMISSIONS.financialReportsView },
   { path: '/reporte-beneficiarios', label: 'Reporte Miembros', icon: Users, permission: PERMISSIONS.reportsView },
   { path: '/afiliaciones', label: 'Afiliaciones', icon: ShieldCheck, permission: PERMISSIONS.affiliationsManage },
   { path: '/agente-scout', label: 'Agente WhatsApp', icon: MessageCircle, permission: PERMISSIONS.assistantUse },
