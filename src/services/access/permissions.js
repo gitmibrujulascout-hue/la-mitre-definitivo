@@ -40,19 +40,19 @@ export const TENANT_ROLE_OPTIONS = Object.freeze([
     value: TENANT_ROLES.branchLeader,
     label: 'Responsable de rama',
     shortLabel: 'Rama',
-    description: 'Ve personas y contactos de emergencia únicamente de las ramas asignadas. Sin historia médica ni finanzas.'
+    description: 'Gestiona la consulta de sus ramas y puede leer fichas médicas y contactos de todo el grupo en Emergencias. Sin finanzas.'
   },
   {
     value: TENANT_ROLES.support,
     label: 'Equipo de apoyo',
     shortLabel: 'Apoyo',
-    description: 'Rol reservado para las próximas herramientas del equipo de apoyo.'
+    description: 'Colaboradores autorizados: consultan fichas médicas y contactos de emergencia del grupo, sin editar personas.'
   },
   {
     value: TENANT_ROLES.institutional,
     label: 'Relaciones institucionales',
     shortLabel: 'Institucional',
-    description: 'Rol reservado para el futuro módulo institucional.'
+    description: 'Colaboradores institucionales: pueden consultar las fichas y contactos de emergencia del grupo.'
   },
   {
     value: TENANT_ROLES.family,
@@ -121,6 +121,7 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     PERMISSIONS.usersManage
   ]),
   [TENANT_ROLES.treasury]: Object.freeze([
+    PERMISSIONS.emergencyView,
     PERMISSIONS.financialReportsView,
     PERMISSIONS.dashboardView,
     PERMISSIONS.paymentsManage,
@@ -136,9 +137,9 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     PERMISSIONS.assistantUse,
     PERMISSIONS.familyQueriesView
   ]),
-  [TENANT_ROLES.branchLeader]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.branchView]),
-  [TENANT_ROLES.support]: Object.freeze([]),
-  [TENANT_ROLES.institutional]: Object.freeze([]),
+  [TENANT_ROLES.branchLeader]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.branchView, PERMISSIONS.emergencyView]),
+  [TENANT_ROLES.support]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.emergencyView]),
+  [TENANT_ROLES.institutional]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.emergencyView]),
   [TENANT_ROLES.family]: Object.freeze([]),
   [TENANT_ROLES.youth]: Object.freeze([]),
   [TENANT_ROLES.viewer]: Object.freeze([])
@@ -168,6 +169,7 @@ export const ROUTE_PERMISSIONS = Object.freeze({
   '/afiliaciones': PERMISSIONS.affiliationsManage,
   '/agente-scout': PERMISSIONS.assistantUse,
   '/directorio-emergencias': PERMISSIONS.emergencyView,
+  '/ficha-emergencia': PERMISSIONS.emergencyView,
   '/consultas-familias': PERMISSIONS.familyQueriesView,
   '/usuarios': PERMISSIONS.usersManage
 });

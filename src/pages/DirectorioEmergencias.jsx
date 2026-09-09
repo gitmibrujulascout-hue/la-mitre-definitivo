@@ -1,6 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
+import { useAuth } from '@/lib/AuthContext';
+import { readEmergencyPeople } from '@/services/access/tenantPeople';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -52,12 +55,16 @@ function calcEdad(fecha) {
 function BeneficiarioCard({ b, onClick }) {
   const edad = calcEdad(b.fecha_nacimiento);
   const tieneAlerta = b.alergias || b.condicion_medica || b.medicacion_habitual;
-  const tel1 = b.telefono_contacto;
+  const tel1 = b.contacto_emergencia_telefono || b.telefono_contacto;
   const tel2 = b.telefono_contacto_2;
 
   return (
     <Card
       onClick={onClick}
+      role="button"
+      tabIndex={0}
+      aria-label={`Ver ficha de ${b.nombre}`}
+      onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); onClick(); } }}
       className="cursor-pointer hover:shadow-md hover:border-primary/40 transition-all duration-200 group"
     >
       <CardContent className="p-4">
@@ -158,7 +165,8 @@ function BeneficiarioDetalleModal({ b, onClose }) {
     );
   };
 
-  const hasHealthData = SALUD_FIELDS.some(f => b[f.key] != null && b[f.key] !== '');
+  const medicalFields = SALUD_FIELDS.filter(f => !f.key.startsWith('contacto_emergencia_'));
+  const hasHealthData = medicalFields.some(f => b[f.key] != null && b[f.key] !== '');
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -189,14 +197,15 @@ function BeneficiarioDetalleModal({ b, onClose }) {
         <div className="space-y-4 mt-2">
 
           {/* Alerta médica — todos los campos de salud con valor */}
-          {SALUD_FIELDS.some(f => b[f.key] != null && b[f.key] !== '') && (
+          {['alergias', 'condicion_medica', 'medicacion_habitual'].some(key => b[key]) && (
             <div className="rounded-lg border-2 border-amber-400 bg-amber-50 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-5 h-5 text-amber-600" />
-                <h3 className="font-bold text-amber-800">Datos de salud</h3>
+                <h3 className="font-bold text-amber-800">Alertas de salud</h3>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {SALUD_FIELDS
+                  .filter(f => ['alergias', 'condicion_medica', 'medicacion_habitual'].includes(f.key))
                   .filter(f => b[f.key] != null && b[f.key] !== '')
                   .map(f => (
                     <div key={f.key}>
@@ -319,7 +328,7 @@ function BeneficiarioDetalleModal({ b, onClose }) {
           {hasHealthData && (
             <Section icon={Activity} title="Salud y cobertura" highlight={!!(b.alergias || b.condicion_medica)}>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {SALUD_FIELDS
+                {medicalFields
                   .filter(f => b[f.key] != null && b[f.key] !== '')
                   .map(f => (
                     <Field key={f.key} label={f.label} value={String(b[f.key])} />
@@ -329,6 +338,8 @@ function BeneficiarioDetalleModal({ b, onClose }) {
             </Section>
           )}
 
+          {!hasHealthData && <p className="text-sm text-muted-foreground">No hay datos médicos cargados. Consultá al contacto de emergencia y pedile al administrador que complete la ficha.</p>}
+
         </div>
       </DialogContent>
     </Dialog>
@@ -337,13 +348,19 @@ function BeneficiarioDetalleModal({ b, onClose }) {
 
 // ——— Página principal ———
 export default function DirectorioEmergencias() {
+  const { user } = useAuth();
   const [busqueda, setBusqueda] = useState('');
   const [ramaFiltro, setRamaFiltro] = useState('Todas');
   const [seleccionado, setSeleccionado] = useState(null);
 
-  const { data: beneficiarios = [], isLoading } = useQuery({
-    queryKey: ['beneficiarios'],
-    queryFn: () => base44.entities.Beneficiario.list(),
+  const { data: beneficiarios = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ['emergency-people', user?.tenant_id, user?.id, user?.tenant_roles],
+    queryFn: () => readEmergencyPeople(supabase, user?.tenant_id),
+    enabled: Boolean(user?.tenant_id),
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: 'always',
+    refetchInterval: 60000,
   });
 
   const filtrados = useMemo(() => {
@@ -372,13 +389,13 @@ export default function DirectorioEmergencias() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Directorio de Emergencias</h1>
-            <p className="text-sm text-muted-foreground">Consulta de contactos y datos médicos del grupo</p>
+            <p className="text-sm text-muted-foreground">Fichas médicas y contactos de todas las ramas del grupo. Solo lectura.</p>
           </div>
         </div>
       </div>
 
       {/* Alerta resumen */}
-      {conAlerta.length > 0 && (
+      {!isError && conAlerta.length > 0 && (
         <div className="mb-5 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 flex-shrink-0" />
           <span>
@@ -393,6 +410,7 @@ export default function DirectorioEmergencias() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
+            aria-label="Buscar por nombre o DNI"
             placeholder="Buscar por nombre o DNI..."
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)}
@@ -400,7 +418,7 @@ export default function DirectorioEmergencias() {
           />
         </div>
         <Select value={ramaFiltro} onValueChange={setRamaFiltro}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger aria-label="Filtrar por rama" className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -414,10 +432,12 @@ export default function DirectorioEmergencias() {
       </div>
 
       {/* Grilla */}
-      {isLoading ? (
+      {isError ? (
+        <div role="alert" className="p-5 rounded border space-y-3"><p>No pudimos cargar las fichas. Revisá tu conexión o pedile al administrador que verifique tu acceso.</p><Button onClick={() => refetch()}>Reintentar</Button></div>
+      ) : isLoading ? (
         <div className="text-center py-16 text-muted-foreground">Cargando...</div>
       ) : filtrados.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">No se encontraron miembros</div>
+        <div className="text-center py-16 text-muted-foreground">No se encontraron miembros. Probá otro nombre o seleccioná todas las ramas.</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtrados.map(b => (
@@ -427,8 +447,8 @@ export default function DirectorioEmergencias() {
       )}
 
       {/* Modal detalle */}
-      {seleccionado && (
-        <BeneficiarioDetalleModal b={seleccionado} onClose={() => setSeleccionado(null)} />
+      {!isError && seleccionado && beneficiarios.some(person => person.id === seleccionado.id) && (
+        <BeneficiarioDetalleModal b={beneficiarios.find(person => person.id === seleccionado.id)} onClose={() => setSeleccionado(null)} />
       )}
     </div>
   );

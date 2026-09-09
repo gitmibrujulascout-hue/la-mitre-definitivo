@@ -83,4 +83,33 @@ assert.equal((await db.query('select * from tenant_branch_scopes')).rows.length,
 await db.exec(migration); // idempotencia: no convertir becas heredadas en individuales.
 assert.equal((await db.query('select beca_override from beneficiario where id=$1',[p1])).rows[0].beca_override,null);
 console.log('PostgreSQL OK: migración idempotente, RLS restrictiva, dos tenants, ramas y contactos, finanzas sin salud, revocación y excepciones de beca.');
+const emergencyMigration=await readFile('supabase/migrations/202609090003_group_emergency_access.sql','utf8');
+await db.exec(emergencyMigration);
+await db.exec(emergencyMigration);
+await db.exec(`insert into beneficiario(id,tenant_id,nombre,tipo,rama,activo,alergias) values('00000000-0000-4000-8000-000000000024','${tenantA}','Adulto de prueba','Voluntario','Educador',true,'salud privada adulto');`);
+await asUser(admin);
+for(const role of ['branch_leader','support','institutional','treasury','administration','group_leadership']) {
+  await asUser(admin);
+  await db.query('select set_tenant_member_access($1,$2,$3,$4)',[tenantA,branch,[role],role==='branch_leader'?['Rovers']:[]]);
+  await asUser(branch);
+  const people=(await db.query('select list_tenant_emergency_people($1) as people',[tenantA])).rows[0].people;
+  assert.equal(people.length,2,role);
+  assert.equal(people.find(p=>p.id===p2).alergias,'otro dato');
+  assert.equal(people.find(p=>p.id===p2).contacto_emergencia_telefono,'otro contacto');
+  assert.equal(people.some(p=>Object.hasOwn(p,'becado')),false);
+  await assert.rejects(db.query('select list_tenant_emergency_people($1)',[tenantB]));
+  if(['branch_leader','support','institutional','treasury'].includes(role)) assert.equal((await db.query('update beneficiario set becado=false returning id')).rows.length,0);
+}
+for(const role of ['family','youth','viewer']) {
+  await asUser(admin);
+  await db.query('select set_tenant_member_access($1,$2,$3,$4)',[tenantA,branch,[role],[]]);
+  await asUser(branch);
+  await assert.rejects(db.query('select list_tenant_emergency_people($1)',[tenantA]));
+}
+await db.exec(`reset role;update tenant_membership_roles set role='support' where user_id='${branch}';update tenant_memberships set status='suspended' where user_id='${branch}';`);
+await asUser(branch);
+await assert.rejects(db.query('select list_tenant_emergency_people($1)',[tenantA]));
+await db.exec('reset role;set role anon');
+await assert.rejects(db.query('select list_tenant_emergency_people($1)',[tenantA]));
+console.log('Emergencias OK: equipo adulto multirrama, sin finanzas ni nueva escritura; familias, suspendidos, anónimos y otro tenant denegados.');
 await db.close();

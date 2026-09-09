@@ -26,7 +26,6 @@ import ReporteBeneficiarios from '@/pages/ReporteBeneficiarios';
 import DirectorioEmergencias from '@/pages/DirectorioEmergencias';
 import ConsultasFamilias from '@/pages/ConsultasFamilias';
 import ReporteCreditos from '@/pages/ReporteCreditos';
-import FichaEmergencia from '@/pages/FichaEmergencia.jsx';
 import CampamentoPublico from '@/pages/CampamentoPublico';
 import Login from '@/pages/Login';
 import SuperAdmin from '@/pages/SuperAdmin';
@@ -107,7 +106,7 @@ function App() {
             <Route path="/familias" element={<FamilyPortal />} />
             <Route path="/restablecer-contrasena" element={<ResetPassword />} />
             <Route path="/estado-cuenta" element={<EstadoCuenta />} />
-            <Route path="/ficha-emergencia" element={<FichaEmergencia />} />
+            <Route path="/ficha-emergencia" element={<Navigate to="/directorio-emergencias" replace />} />
             <Route path="/campamento/:codigo" element={<CampamentoPublico />} />
             <Route path="/*" element={<AuthenticatedApp />} />
           </Routes>

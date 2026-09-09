@@ -16,14 +16,15 @@ test('becas por grupo con excepciones explícitas y sin regla Rover global', () 
   assert.throws(() => scholarshipWrite({ beca_override: 'false' }));
 });
 
-test('rama permite su espacio y deniega salud, finanzas y usuarios aunque el perfil los declare', () => {
+test('rama permite su espacio y emergencias, pero deniega gestión, finanzas y usuarios', () => {
   const user = { tenant_roles: ['branch_leader'], permissions: Object.values(PERMISSIONS), role: 'admin' };
   assert.equal(hasPermission(user, PERMISSIONS.branchView), true);
-  for (const permission of [PERMISSIONS.emergencyView, PERMISSIONS.membersManage, PERMISSIONS.cashManage, PERMISSIONS.usersManage]) assert.equal(hasPermission(user, permission), false);
+  assert.equal(hasPermission(user, PERMISSIONS.emergencyView), true);
+  for (const permission of [PERMISSIONS.membersManage, PERMISSIONS.cashManage, PERMISSIONS.usersManage]) assert.equal(hasPermission(user, permission), false);
   const multiple = { tenant_roles: ['branch_leader', 'treasury'] };
   assert.equal(hasPermission(multiple, PERMISSIONS.branchView), true);
   assert.equal(hasPermission(multiple, PERMISSIONS.cashManage), true);
-  assert.equal(hasPermission(multiple, PERMISSIONS.emergencyView), false);
+  assert.equal(hasPermission(multiple, PERMISSIONS.emergencyView), true);
 });
 
 test('lectura rechaza datos cruzados y no recurre a tablas completas si falla la proyección', async () => {
