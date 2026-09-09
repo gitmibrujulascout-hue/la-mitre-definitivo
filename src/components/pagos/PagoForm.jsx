@@ -336,7 +336,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
     if (creditoSeleccionado && montoFinal > 0) {
       setMontoCreditoAplicar(Math.min(creditoSeleccionado.monto_disponible, montoFinal).toString());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [formaPago, montoFinal, creditosDisponibles, creditoId]);
 
   const toggleMes = (mes) => {

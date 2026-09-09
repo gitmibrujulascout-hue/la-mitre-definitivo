@@ -1,9 +1,10 @@
+import { receiptSchema, receiptDraft, validReceipt } from '@/services/access/receiptExtraction';
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, Loader2, CheckCircle2, Sparkles, X, Plus, AlertTriangle } from 'lucide-react';
+import { FileText, Loader2, CheckCircle2, Sparkles, X, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,20 +52,10 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
         const { file_url } = await base44.integrations.Core.UploadFile({ file });
         const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
           file_url,
-          json_schema: {
-            type: "object",
-            properties: {
-              descripcion: { type: "string" },
-              monto_total: { type: "number" },
-              fecha: { type: "string", description: "YYYY-MM-DD" },
-              proveedor: { type: "string" },
-              numero_factura: { type: "string" },
-              categoria: { type: "string", enum: CATEGORIAS }
-            }
-          }
+          json_schema: receiptSchema
         });
         if (result.status === 'success' && result.output) {
-          const d = result.output;
+          const d = receiptDraft(result.output);
           const numFactura = (d.numero_factura || '').trim();
           let duplicadoEn = null;
           if (numFactura) {
@@ -79,8 +70,8 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
           resultados.push({
             archivo: file.name,
             descripcion: d.descripcion || file.name,
-            monto: d.monto_total || 0,
-            fecha: d.fecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
+            monto: d.monto_total ?? '',
+            fecha: d.fecha || '',
             proveedor: d.proveedor || '',
             numero_factura: numFactura,
             categoria: d.categoria || 'Otro',
@@ -90,10 +81,10 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
             duplicado: duplicadoEn,
           });
         } else {
-          resultados.push({ archivo: file.name, ok: false, descripcion: file.name, monto: 0, fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }), categoria: 'Otro' });
+          resultados.push({ archivo: file.name, ok: false, descripcion: file.name, monto: 0, fecha: '', categoria: 'Otro' });
         }
       } catch {
-        resultados.push({ archivo: file.name, ok: false, descripcion: file.name, monto: 0, fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }), categoria: 'Otro' });
+        resultados.push({ archivo: file.name, ok: false, descripcion: file.name, monto: 0, fecha: '', categoria: 'Otro' });
       }
       setProgreso(Math.round(((i + 1) / archivos.length) * 100));
     }
@@ -102,7 +93,7 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
   };
 
   const actualizarCampo = (idx, campo, valor) => {
-    setProcesados(prev => prev.map((p, i) => i === idx ? { ...p, [campo]: valor } : p));
+    setProcesados(prev => prev.map((p, i) => i === idx ? { ...p, [campo]: valor, revisado: campo === 'revisado' ? valor : false } : p));
   };
 
   const quitarProcesado = (idx) => {
@@ -110,8 +101,12 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
   };
 
   const importarTodos = async () => {
-    setProcesando(true);
     const gastosAImportar = procesados.filter(p => !p.duplicado);
+    if (!gastosAImportar.length || gastosAImportar.some(p => !validReceipt(p) || !p.revisado)) {
+      toast.error('Revisá cada comprobante y completá descripción, monto y fecha antes de importar.'); return;
+    }
+    setProcesando(true);
+    try {
     const gastos = gastosAImportar.map(p => {
       const campamento = campamentos.find(c => c.id === p.campamento_id);
       const actividad = actividades.find(a => a.id === p.actividad_id);
@@ -136,6 +131,8 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
     toast.success(`${gastos.length} gastos importados correctamente`);
     setProcesando(false);
     onClose();
+    } catch { toast.error('No pudimos guardar los gastos. Revisá el listado antes de reintentar.'); }
+    finally { setProcesando(false); }
   };
 
   return (
@@ -264,6 +261,7 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
                     </select>
                   </div>
                 </div>
+                <label className="flex items-center gap-2 py-3 text-sm"><input type="checkbox" checked={Boolean(p.revisado)} onChange={e => actualizarCampo(i, 'revisado', e.target.checked)} />Revisé importe, fecha y forma de pago contra el comprobante.</label>
                 <div className="flex justify-end mt-2">
                   <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => quitarProcesado(i)}>
                     <X className="w-3.5 h-3.5 mr-1" /> Quitar

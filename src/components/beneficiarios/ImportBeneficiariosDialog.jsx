@@ -1,20 +1,30 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { FileSpreadsheet, Loader2, CheckCircle2, Users, UserCog, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
-import { ramaDesdeEdad } from '@/lib/ramaUtils';
+import { normalizeMember, hasImportValue } from '@/services/access/memberNormalization';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { extractMembers } from '@/services/access/memberImport';
 import { allExistingMembers } from '@/services/access/memberExisting';
+const displayValue = value => typeof value === 'boolean' ? (value ? 'Sí' : 'No') : String(value ?? '');
 
 // Solo se muestran para resolver conflictos los campos donde AMBOS tienen valor y son diferentes.
 // Si el campo está vacío en la BD → se rellena automáticamente sin preguntar.
 const CAMPOS_COMPARACION = [
+  { key: 'tipo_documento', label: 'Tipo de documento' },
+  { key: 'empresa', label: 'Empresa' },
+  { key: 'becado', label: 'Becado' },
+  { key: 'activo', label: 'Activo' },
+  { key: 'fecha_baja', label: 'Fecha de baja' },
+  { key: 'fecha_reingreso', label: 'Fecha de reingreso' },
+  { key: 'grupo_familiar', label: 'Grupo familiar' },
+  { key: 'tipo', label: 'Tipo de miembro' },
+  { key: 'rama_educador', label: 'Rama del educador' },
   { key: 'nombre', label: 'Nombre' },
   { key: 'telefono_contacto', label: 'Teléfono' },
   { key: 'email_contacto', label: 'Email' },
@@ -42,19 +52,6 @@ const CAMPOS_COMPARACION = [
   { key: 'fecha_primer_afiliacion', label: 'Primera afiliación' },
 ];
 
-function parseFecha(str) {
-  if (!str) return '';
-  const texto = String(str).trim();
-  const argentina = texto.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
-  if (argentina) return `${argentina[3]}-${String(argentina[2]).padStart(2, '0')}-${String(argentina[1]).padStart(2, '0')}`;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return texto;
-  const d = new Date(texto);
-  if (isNaN(d)) return str;
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
 // Card de un duplicado: muestra los campos que difieren campo a campo con toggle mantener/reemplazar
 function DuplicadoCard({ dup, camposSeleccionados, onToggleCampo, onSeleccionarTodo, onMantenerTodo }) {
@@ -63,13 +60,13 @@ function DuplicadoCard({ dup, camposSeleccionados, onToggleCampo, onSeleccionarT
   // Solo mostrar campos donde AMBOS tienen valor y son distintos (conflicto real)
   // Los que la BD tiene vacío y el archivo tiene valor → se aplican automáticamente
   const camposDiferentes = CAMPOS_COMPARACION.filter(c =>
-    (dup.nuevo[c.key] || '') !== '' &&       // el archivo trae valor
-    (dup.existente[c.key] || '') !== '' &&   // la BD también tiene valor
-    (dup.nuevo[c.key] || '') !== (dup.existente[c.key] || '') // y son distintos
+    hasImportValue(dup.nuevo[c.key]) &&       // el archivo trae valor
+    hasImportValue(dup.existente[c.key]) &&   // la BD también tiene valor
+    dup.nuevo[c.key] !== dup.existente[c.key] // y son distintos
   );
   const camposAutoRelleno = CAMPOS_COMPARACION.filter(c =>
-    (dup.nuevo[c.key] || '') !== '' &&
-    (dup.existente[c.key] || '') === ''
+    hasImportValue(dup.nuevo[c.key]) &&
+    !hasImportValue(dup.existente[c.key])
   );
 
   const camposSelDni = camposSeleccionados[dup.nuevo.dni] || [];
@@ -119,7 +116,7 @@ function DuplicadoCard({ dup, camposSeleccionados, onToggleCampo, onSeleccionarT
                   'px-2 py-1 rounded truncate border text-center',
                   !usarNuevo ? 'bg-blue-50 border-blue-300 text-blue-800 font-semibold ring-2 ring-blue-400' : 'bg-muted border-border text-muted-foreground line-through'
                 )}>
-                  {dup.existente[c.key]}
+                  {displayValue(dup.existente[c.key])}
                 </div>
                 <button
                   onClick={() => onToggleCampo(dup.nuevo.dni, c.key)}
@@ -134,7 +131,7 @@ function DuplicadoCard({ dup, camposSeleccionados, onToggleCampo, onSeleccionarT
                   'px-2 py-1 rounded truncate border text-center',
                   usarNuevo ? 'bg-green-50 border-green-300 text-green-800 font-semibold ring-2 ring-green-400' : 'bg-muted border-border text-muted-foreground line-through'
                 )}>
-                  {dup.nuevo[c.key]}
+                  {displayValue(dup.nuevo[c.key])}
                 </div>
               </div>
             );
@@ -149,7 +146,7 @@ function DuplicadoCard({ dup, camposSeleccionados, onToggleCampo, onSeleccionarT
               <div className="flex flex-wrap gap-1.5">
                 {camposAutoRelleno.map(c => (
                   <span key={c.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-100 border border-green-300 text-[10px] text-green-800">
-                    <span className="font-medium">{c.label}:</span> {dup.nuevo[c.key]}
+                    <span className="font-medium">{c.label}:</span> {displayValue(dup.nuevo[c.key])}
                   </span>
                 ))}
               </div>
@@ -205,26 +202,16 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
       return '';
     };
 
-    const enriched = result.personas.map(p => {
-      const fecha = parseFecha(p.fecha_nacimiento);
-      const fechaAfil = parseFecha(p.fecha_primer_afiliacion);
-      const funcion = String(p.funcion || '').trim().toLowerCase();
-      const ramaTexto = String(p.rama || '').trim();
-      const ramasValidas = ['Lobatos', 'Tropa', 'KM', 'Rovers', 'Voluntario', 'Educador'];
-      const ramaCalculada = ramasValidas.find(r => r.toLowerCase() === ramaTexto.toLowerCase())
-        || (/educador|dirigente|responsable|jefe|coordinador/.test(funcion) ? 'Educador' : ramaDesdeEdad(fecha));
-      const tipo = ['Voluntario', 'Educador'].includes(ramaCalculada) ? 'Voluntario' : 'Beneficiario';
+    let enriched;
+    try { enriched = result.personas.map(p => {
       return {
-        ...p,
+        ...normalizeMember(p),
         sexo: normalizarSexo(p.sexo),
-        fecha_nacimiento: fecha,
-        fecha_primer_afiliacion: fechaAfil || '',
-        rama: ramaCalculada,
-        tipo,
-        activo: true,
-        becado: false,
       };
-    });
+    }); } catch {
+      setImportError('Revisá Rama o Categoría, las fechas y los valores de Activo y Becado. No se guardaron personas.');
+      return;
+    }
 
     const existentes = await allExistingMembers();
     const mapDni = {};
@@ -285,7 +272,7 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
     // Crear nuevos seleccionados
     const nuevosAImportar = nuevos.filter((_, i) => selNuevos.has(i));
     if (nuevosAImportar.length > 0) {
-      await base44.entities.Beneficiario.bulkCreate(nuevosAImportar);
+      await base44.entities.Beneficiario.bulkCreate(nuevosAImportar.map(p => ({ activo: true, becado: false, ...p })));
     }
 
     // Actualizar duplicados campo a campo
@@ -293,7 +280,7 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
       const camposConflicto = camposAActualizar[dup.nuevo.dni] || [];
       // Campos vacíos en BD con valor nuevo → siempre se aplican automáticamente
       const camposAutoRelleno = CAMPOS_COMPARACION.filter(c =>
-        (dup.nuevo[c.key] || '') !== '' && (dup.existente[c.key] || '') === ''
+        hasImportValue(dup.nuevo[c.key]) && !hasImportValue(dup.existente[c.key])
       ).map(c => c.key);
 
       const todosCampos = [...new Set([...camposConflicto, ...camposAutoRelleno])];
@@ -309,7 +296,7 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
     const actualizados = duplicados.filter(d => {
       const conflicto = (camposAActualizar[d.nuevo.dni] || []).length;
       const auto = CAMPOS_COMPARACION.filter(c =>
-        (d.nuevo[c.key] || '') !== '' && (d.existente[c.key] || '') === ''
+        hasImportValue(d.nuevo[c.key]) && !hasImportValue(d.existente[c.key])
       ).length;
       return conflicto > 0 || auto > 0;
     }).length;
@@ -332,7 +319,7 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
   // Campos de auto-relleno (vacíos en BD) por duplicado
   const camposAutoRellenoPorDni = (dup) =>
     CAMPOS_COMPARACION.filter(c =>
-      (dup.nuevo[c.key] || '') !== '' && (dup.existente[c.key] || '') === ''
+      hasImportValue(dup.nuevo[c.key]) && !hasImportValue(dup.existente[c.key])
     ).map(c => c.key);
 
   const totalActualizar = duplicados.filter(d => {
@@ -368,10 +355,11 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
               </div>
               <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
                 <FileSpreadsheet className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <input type="file" accept=".xlsx,.pdf" onChange={e => setFile(e.target.files[0])} className="hidden" id="import-file" />
+                <input type="file" accept=".csv,.xlsx,.pdf" onChange={e => setFile(e.target.files[0])} className="hidden" id="import-file" />
                 <label htmlFor="import-file" className="cursor-pointer">
-                  <p className="text-sm font-medium text-primary">Seleccionar Excel (.xlsx) o PDF con texto</p>
+                  <p className="text-sm font-medium text-primary">Seleccionar CSV, Excel (.xlsx) o PDF con texto</p>
                   <p className="text-xs">Hasta 10 MB y 3000 personas. Excel es la opción más rápida.</p>
+                  <p className="text-xs text-muted-foreground">También: Becado, Activo, Fecha baja y Grupo familiar. Los vínculos deben venir explícitos. No se crean cuentas ni pagos.</p>
                   <p className="text-xs text-muted-foreground mt-1">Se detectarán automáticamente duplicados por DNI</p>
                 </label>
                 {file && <p className="text-sm mt-3 font-medium">{file.name}</p>}
@@ -401,7 +389,7 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
                     const todos = {};
                     duplicados.forEach(d => {
                       todos[d.nuevo.dni] = CAMPOS_COMPARACION
-                        .filter(c => (d.nuevo[c.key] || '') !== (d.existente[c.key] || '') && (d.nuevo[c.key] || '') !== '')
+                        .filter(c => (d.nuevo[c.key] || '') !== (d.existente[c.key] || '') && hasImportValue(d.nuevo[c.key]))
                         .map(c => c.key);
                     });
                     setCamposAActualizar(todos);
@@ -499,6 +487,10 @@ export default function ImportBeneficiariosDialog({ open, onClose }) {
                 {duplicados.length - totalActualizar > 0 && (
                   <p className="text-xs text-muted-foreground">{duplicados.length - totalActualizar} duplicados serán ignorados.</p>
                 )}
+                <p className="text-sm">Entre las personas nuevas seleccionadas: {nuevos.filter((p, i) => selNuevos.has(i) && p.becado === true).length} con beca, {nuevos.filter((p, i) => selNuevos.has(i) && p.activo === false).length} inactivas y {nuevos.filter((p, i) => selNuevos.has(i) && p.grupo_familiar).length} con grupo familiar informado.</p>
+                <p className="text-sm">Las ramas del archivo se respetan. Las becas y bajas de personas existentes solo cambian con tu selección.</p>
+                <p className="text-sm">Revisá la configuración de cuotas antes de operar: donde no hay un importe por mes, la aplicación usa sus valores predeterminados. El padrón no acredita pagos ni saldos iniciales.</p>
+                <a href="/ConfiguracionCuotas" target="_blank" rel="noreferrer" className="text-sm underline focus-visible:outline">Revisar cuotas en otra pestaña</a>
               </div>
             </div>
           )}

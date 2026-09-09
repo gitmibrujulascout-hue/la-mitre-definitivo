@@ -9,7 +9,7 @@ import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, estaAlDia, calcularMesesQueGeneranDeuda, getCreditoJulioBeneficiario, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
-import { Users, X, CheckSquare, Square } from 'lucide-react';
+import { Users, CheckSquare, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { registrarPagos } from '@/lib/registros';
 

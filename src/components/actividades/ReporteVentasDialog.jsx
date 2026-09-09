@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Printer, FileSpreadsheet, PackageCheck, Package, CheckCircle2, AlertCircle, Clock, HandCoins, Eye, EyeOff } from 'lucide-react';
+import { Printer, FileSpreadsheet, PackageCheck, Package, HandCoins, Eye, EyeOff } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 
 // Helper: extraer apellido para ordenar (última palabra del nombre)

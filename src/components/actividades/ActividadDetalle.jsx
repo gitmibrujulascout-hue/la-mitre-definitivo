@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Pencil, Plus, Trash2, TrendingUp, DollarSign, Gift, CheckCircle2, PackageCheck, Package, FileText, Banknote, MessageCircle, HandCoins } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 import VentaForm from '@/components/actividades/VentaForm';
 import GastoActividadForm from '@/components/actividades/GastoActividadForm';
 import DistribuirCreditosDialog from '@/components/actividades/DistribuirCreditosDialog';

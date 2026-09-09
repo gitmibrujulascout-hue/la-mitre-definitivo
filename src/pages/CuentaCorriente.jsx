@@ -6,14 +6,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, CheckCircle2, AlertCircle, Award, User, Plus, UserX, Gift, LayoutGrid, List, CalendarDays } from 'lucide-react';
+import { Search, CheckCircle2, AlertCircle, Award, Plus, UserX, Gift, LayoutGrid, List, CalendarDays } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import CuentaDetalle from '@/components/cuenta/CuentaDetalle';
 import ResumenDeudas from '@/components/cuenta/ResumenDeudas';
 import GrillaCuotasMensuales from '@/components/cuenta/GrillaCuotasMensuales';
 import PagoForm from '@/components/pagos/PagoForm';
-import { RAMAS, TODOS_LOS_ROLES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado, calcularMesesQueGeneranDeuda, calcularMontoPorMes, calcularEsperadoPorMes } from '@/lib/ramaUtils';
+import { TODOS_LOS_ROLES, CUOTA_EFECTIVO, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, marzoEsBonificado, calcularMesesQueGeneranDeuda, calcularMontoPorMes, calcularEsperadoPorMes } from '@/lib/ramaUtils';
 import { getMontoSeguro } from '@/lib/afiliacionUtils';
 
 const CUOTA_EFECTIVO_REF = CUOTA_EFECTIVO;

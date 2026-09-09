@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, XCircle, Gift, Star, Minus, CalendarDays, Filter, X, AlertCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Gift, Star, Minus, X, AlertCircle } from 'lucide-react';
 import { MESES, MESES_SIN_CUOTA, TODOS_LOS_ROLES, formatMoney } from '@/lib/ramaUtils';
 import RamaBadge from '@/components/shared/RamaBadge';
 

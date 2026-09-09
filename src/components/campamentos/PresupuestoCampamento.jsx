@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatMoney, RAMA_CONFIG } from '@/lib/ramaUtils';
-import { Calculator, TrendingUp, TrendingDown, Users, Calendar, Utensils, Bus, Truck, MapPin, Package, Pill, Plus, AlertTriangle, Printer, Save, Check, Coins } from 'lucide-react';
+import { formatMoney } from '@/lib/ramaUtils';
+import { Calculator, TrendingUp, TrendingDown, Users, Utensils, Bus, Truck, MapPin, Package, Pill, Plus, AlertTriangle, Printer, Save, Check, Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, Scale, AlertCircle } from 'lucide-react';
+import { TrendingDown, Scale } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';

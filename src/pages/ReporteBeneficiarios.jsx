@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Download, Filter, Users, FileSpreadsheet, FileText } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
-import { RAMAS, TODOS_LOS_ROLES, formatMoney } from '@/lib/ramaUtils';
+import { TODOS_LOS_ROLES, formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 

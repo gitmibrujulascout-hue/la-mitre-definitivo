@@ -6,9 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { TODOS_LOS_ROLES, ramaDesdeEdad, esBeneficiarioConCuota } from '@/lib/ramaUtils';
+import { TODOS_LOS_ROLES, ramaDesdeEdad } from '@/lib/ramaUtils';
 import { AlertTriangle, ArrowRight, Users, Search, X } from 'lucide-react';
 
 export default function BeneficiarioForm({ open, onClose, onSave, initialData, todosBeneficiarios = [] }) {
@@ -36,9 +35,7 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
       const ramaAuto = ramaDesdeEdad(form.fecha_nacimiento);
       if (ramaAuto) {
         const tipo = ramaAuto === 'Voluntario' ? 'Voluntario' : 'Beneficiario';
-        // Rovers => becado automático (solo abonan campamentos)
-        const becado = ramaAuto === 'Rovers' ? true : false;
-        setForm(prev => ({ ...prev, rama: ramaAuto, tipo, becado }));
+        setForm(prev => prev.rama ? prev : ({ ...prev, rama: ramaAuto, tipo }));
       }
     }
   }, [form.fecha_nacimiento]);
@@ -133,7 +130,7 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
 
   const handlePromoverRama = () => {
     if (!ramaSegunEdad) return;
-    const becado = ramaSegunEdad === 'Rovers' ? true : form.becado;
+    const becado = form.becado;
     const tipo = ramaSegunEdad === 'Voluntario' ? 'Voluntario' : 'Beneficiario';
     update('rama', ramaSegunEdad);
     update('tipo', tipo);
@@ -201,8 +198,8 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
             <div>
               <Label>Rama / Rol</Label>
               <Select value={form.rama} onValueChange={v => {
-                // Si se cambia a Rovers, marcar becado automáticamente
-                const becado = v === 'Rovers' ? true : form.becado;
+                // La beca se conserva al cambiar de rama.
+                const becado = form.becado;
                 update('rama', v);
                 update('becado', becado);
               }}>
@@ -340,13 +337,13 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                   <p className="text-sm font-medium">Becado</p>
                   <p className="text-xs text-muted-foreground">
                     No abona cuota mensual
-                    {form.rama === 'Rovers' && <span className="ml-1 text-amber-600">(Rovers siempre becados)</span>}
+                    {' · Se aplica según la decisión del grupo.'}
                   </p>
                 </div>
                 <Switch
                   checked={form.becado}
                   onCheckedChange={v => update('becado', v)}
-                  disabled={form.rama === 'Rovers'}
+                  aria-label="Beca de cuota mensual"
                 />
               </div>
             )}

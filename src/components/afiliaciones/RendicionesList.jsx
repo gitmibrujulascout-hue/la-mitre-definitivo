@@ -7,7 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Landmark, Download, Trash2, FileText } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 
 export default function RendicionesList({ anio, totalExigidoSA: totalExigidoSAProp }) {
   const queryClient = useQueryClient();

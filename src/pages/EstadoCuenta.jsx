@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
@@ -15,7 +15,7 @@ import RamaBadge from '@/components/shared/RamaBadge';
 import {
   MESES, MESES_SIN_CUOTA,
   CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, esBeneficiarioConCuota, getCuotaBeneficiario, getCuotaBaseMes, getCuotaTransferenciaMes, marzoEsBonificado,
-  estaAlDia, getCuotaMes, calcularMesesQueGeneranDeuda, mesExcluidoPorActividad, calcularMontoPorMes, calcularEsperadoPorMes
+  estaAlDia, calcularMesesQueGeneranDeuda, mesExcluidoPorActividad, calcularMontoPorMes, calcularEsperadoPorMes
 } from '@/lib/ramaUtils';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 import { cn } from '@/lib/utils';

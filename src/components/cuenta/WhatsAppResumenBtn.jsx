@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, ChevronDown } from 'lucide-react';
 import {

@@ -1,3 +1,4 @@
+import { receiptSchema, receiptDraft, validReceipt } from '@/services/access/receiptExtraction';
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { base44 } from '@/api/base44Client';
 import { registrarGasto, actualizarGasto } from '@/lib/registros';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatMoney } from '@/lib/ramaUtils';
 import { Upload, Loader2, Sparkles, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -85,8 +85,9 @@ export default function GastoForm({ open, onClose, initialData }) {
   const handleExtractFromFile = async () => {
     if (!file) return;
     setExtracting(true);
-    let fileUrl = form.archivo_url;
-    if (!fileUrl) {
+    try {
+    let fileUrl;
+    {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       fileUrl = file_url;
       update('archivo_url', fileUrl);
@@ -94,40 +95,32 @@ export default function GastoForm({ open, onClose, initialData }) {
 
     const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
       file_url: fileUrl,
-      json_schema: {
-        type: "object",
-        properties: {
-          descripcion: { type: "string", description: "Descripción del producto o servicio" },
-          monto_total: { type: "number", description: "Monto total del recibo o factura" },
-          fecha: { type: "string", description: "Fecha de la factura en formato YYYY-MM-DD" },
-          proveedor: { type: "string", description: "Nombre del proveedor o comercio" },
-          numero_factura: { type: "string", description: "Número de factura o recibo" },
-          categoria: { type: "string", enum: CATEGORIAS }
-        }
-      }
-    });
+      json_schema: receiptSchema
+        });
 
     if (result.status === 'success' && result.output) {
-      const d = result.output;
+      const d = receiptDraft(result.output);
       setForm(prev => ({
         ...prev,
         descripcion: d.descripcion || prev.descripcion,
-        monto: d.monto_total || prev.monto,
-        fecha: d.fecha || prev.fecha,
+        monto: d.monto_total ?? '',
+        fecha: d.fecha || '',
         proveedor: d.proveedor || prev.proveedor,
         numero_factura: d.numero_factura || prev.numero_factura,
         categoria: d.categoria || prev.categoria,
         archivo_url: fileUrl,
       }));
-      toast.success('Datos extraídos correctamente. Verificá y corregí si es necesario.');
+      toast.info('Borrador leído. Revisá el total y la fecha contra el comprobante antes de guardar.');
     } else {
       toast.error('No se pudieron extraer todos los datos. Completá manualmente.');
     }
-    setExtracting(false);
+    } catch {
+      toast.error('No pudimos leer el comprobante. Probá una imagen más nítida o completá los datos manualmente.');
+    } finally { setExtracting(false); }
   };
 
   const handleSave = async () => {
-    if (!form.descripcion || !form.monto) return;
+    if (!validReceipt(form)) { toast.error('Completá descripción, monto mayor que cero y fecha válida.'); return; }
     let archivoUrl = form.archivo_url;
     if (file) {
       setUploading(true);

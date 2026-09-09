@@ -13,14 +13,13 @@ import { toast } from 'sonner';
 import { differenceInYears, parseISO } from 'date-fns';
 import {
   Users, MapPin, Calendar, AlertTriangle,
-  HeartPulse, Phone, Plus, Trash2, UserPlus, CreditCard, Tent, Printer, FileCheck, Receipt, Gift, FileText
+  HeartPulse, Phone, Plus, Trash2, UserPlus, CreditCard, Tent, Printer, Receipt, Gift, FileText
 } from 'lucide-react';
 import { SALUD_FIELDS } from '@/lib/saludFields';
 import { formatMoney } from '@/lib/ramaUtils';
 import BalanceCampamento from '@/components/campamentos/BalanceCampamento';
 import AutorizacionesPanel from '@/components/campamentos/AutorizacionesPanel';
 import DescargarAutorizacionButton from '@/components/campamentos/DescargarAutorizacionButton';
-import DescargarCircularButton from '@/components/campamentos/DescargarCircularButton';
 import PresupuestoResumenPublico from '@/components/campamentos/PresupuestoResumenPublico';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];

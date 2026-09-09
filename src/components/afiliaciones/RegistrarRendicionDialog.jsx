@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Landmark, Loader2, AlertCircle } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 
 export default function RegistrarRendicionDialog({ open, onClose, anio, totalExigidoSA }) {
   const queryClient = useQueryClient();

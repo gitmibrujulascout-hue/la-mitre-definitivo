@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Search, Phone, MessageCircle, AlertTriangle, Heart,
-  User, MapPin, ShieldCheck, Activity
+  User, MapPin, ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { differenceInYears } from 'date-fns';

@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import PageHeader from '@/components/shared/PageHeader';
 import { Eye, EyeOff, Search, CheckCircle2, XCircle, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';

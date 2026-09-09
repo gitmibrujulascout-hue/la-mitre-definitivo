@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, CheckCircle2, XCircle, Award, Tent, Gift, Zap, ShieldCheck, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import RamaBadge from '@/components/shared/RamaBadge';
-import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, marzoEsBonificado, mesExcluidoPorActividad, getCuotaBeneficiario, calcularMontoPorMes, calcularEsperadoPorMes } from '@/lib/ramaUtils';
+import { MESES, MESES_SIN_CUOTA, formatMoney, marzoEsBonificado, mesExcluidoPorActividad, getCuotaBeneficiario, calcularMontoPorMes, calcularEsperadoPorMes } from '@/lib/ramaUtils';
 import { getMontoSeguro } from '@/lib/afiliacionUtils';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import RamaBadge from '@/components/shared/RamaBadge';
 import EditarSaludDialog from '@/components/beneficiarios/EditarSaludDialog';
-import { MapPin, User, Shield, BookOpen, Award, UserCog, HeartPulse, Pencil, Medal, Crown } from 'lucide-react';
+import { MapPin, User, Shield, BookOpen, Award, UserCog, HeartPulse, Pencil } from 'lucide-react';
 import PanueloIcon from '@/components/shared/PanueloIcon';
 
 function Field({ label, value }) {

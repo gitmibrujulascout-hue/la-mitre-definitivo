@@ -6,9 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Pencil } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
+import { getActiveTenantId } from '@/api/tenantContext';
+import { saveMemberBulkEdit } from '@/services/access/memberBulkEdit';
 import { toast } from 'sonner';
-import PanueloIcon, { PANUELO_OPTIONS } from '@/components/shared/PanueloIcon';
+import PanueloIcon from '@/components/shared/PanueloIcon';
 import { TODOS_LOS_ROLES } from '@/lib/ramaUtils';
 
 const FIELDS = [
@@ -56,15 +58,15 @@ export default function EditarMasivoDialog({ open, onClose, selectedIds, benefic
     });
     setSaving(true);
     try {
-      const updates = selectedIds.map(id => ({ id, ...data }));
-      await base44.entities.Beneficiario.bulkUpdate(updates);
+      await saveMemberBulkEdit(supabase, await getActiveTenantId(), selectedIds, selectedFields, data);
       toast.success(`${selectedIds.length} miembro(s) actualizado(s)`);
       onDone?.();
       onClose();
       setSelectedFields([]);
       setValues({});
     } catch (err) {
-      toast.error('Error al actualizar');
+      toast.error(err instanceof Error ? err.message : 'No pudimos guardar. Intentá nuevamente.');
+      onDone?.();
     } finally {
       setSaving(false);
     }

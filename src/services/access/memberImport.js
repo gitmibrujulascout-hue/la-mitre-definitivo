@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { csvRows } from './csvRows.js';
 
 const fields = {
   documento: 'dni', dni: 'dni', nombre: 'nombre', sexo: 'sexo',
@@ -10,6 +11,10 @@ const fields = {
   nacionalidad: 'nacionalidad', funcion: 'funcion', categoria: 'categoria', rama: 'rama',
   zona: 'zona', distrito: 'distrito', codigo: 'codigo', organismo: 'organismo',
   fechaprimerafiliacion: 'fecha_primer_afiliacion',
+  tipodocumento: 'tipo_documento', empresa: 'empresa', becado: 'becado', beca: 'becado',
+  activo: 'activo', estado: 'activo', fechabaja: 'fecha_baja', fechareingreso: 'fecha_reingreso',
+  grupofamiliar: 'grupo_familiar', idfamilia: 'grupo_familiar',
+  telefonocontacto: 'telefono_contacto', emailcontacto: 'email_contacto',
 };
 const key = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
 export const memberSchema = { type: 'object', properties: { personas: { type: 'array', items: { type: 'object', properties: Object.fromEntries([...new Set(Object.values(fields))].map(name => [name, { type: 'string' }])) } } } };
@@ -40,6 +45,8 @@ export function rowsToMembers(rows) {
     const record = {};
     columns.forEach((field, i) => { if (field) record[field] = cellText(row[i]); });
     record.dni = (record.dni || '').replace(/[.\s-]/g, '');
+    // Una columna vacía no impone un valor ni exige una columna nueva en la base.
+    Object.keys(record).forEach(field => { if (field !== 'nombre' && field !== 'dni' && record[field] === '') delete record[field]; });
     return record;
   });
   return validateMembers(records);
@@ -87,6 +94,14 @@ export function pdfTable(items) {
 export async function extractMembers(file, invoke, progress) {
   if (!file || file.size > 10 * 1024 * 1024) throw new Error('Elegí un archivo de hasta 10 MB.');
   const bytes = await file.arrayBuffer();
+  if (/\.csv$/i.test(file.name)) {
+    let text;
+    try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+    catch { text = new TextDecoder('windows-1252').decode(bytes); }
+    const result = rowsToMembers(csvRows(text));
+    progress(`${result.length} personas leídas del CSV`);
+    return result;
+  }
   if (/\.xlsx$/i.test(file.name)) {
     const { default: ExcelJS } = await import('exceljs');
     const book = new ExcelJS.Workbook();
@@ -103,7 +118,7 @@ export async function extractMembers(file, invoke, progress) {
     progress(`${result.length} personas leídas del Excel`);
     return result;
   }
-  if (!/\.pdf$/i.test(file.name)) throw new Error('Guardá el archivo como XLSX o PDF con texto.');
+  if (!/\.pdf$/i.test(file.name)) throw new Error('Guardá el archivo como CSV, XLSX o PDF con texto.');
   const pdfjs = await import('pdfjs-dist');
   const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
