@@ -9,7 +9,10 @@ import { Upload, Sparkles, FileText, X, CheckCircle, AlertCircle } from 'lucide-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
-import { SALUD_FIELDS as FIELDS, SALUD_SCHEMA, parseSaludForm } from '@/lib/saludFields';
+import { SALUD_FIELDS as FIELDS, parseSaludForm } from '@/lib/saludFields';
+import { supabase } from '@/api/supabaseClient';
+import { getActiveTenantId } from '@/api/tenantContext';
+import { extractHealthFiles, identityProblem, readHealthDraft } from '@/services/access/healthDigitization';
 
 function buildInitialForm(beneficiario) {
   const form = {};
@@ -71,7 +74,7 @@ export default function EditarSaludDialog({ open, onClose, beneficiario, onSaved
   const updateMutation = useMutation({
     mutationFn: (data) => base44.entities.Beneficiario.update(beneficiario.id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['beneficiarios'] });
+      queryClient.invalidateQueries();
       toast.success('Datos de salud guardados correctamente');
       onClose();
       if (onSaved) onSaved();
@@ -93,20 +96,13 @@ export default function EditarSaludDialog({ open, onClose, beneficiario, onSaved
     setExtracting(true);
     setExtracted(null);
 
-    const merged = {};
-    for (const file of files) {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url,
-        json_schema: SALUD_SCHEMA,
-      });
-      if (result.status === 'success' && result.output) {
-        const data = Array.isArray(result.output) ? result.output[0] : result.output;
-        Object.entries(data).forEach(([k, v]) => {
-          if (v && v !== 'null' && v !== 'No' && v !== 'NO') merged[k] = String(v);
-        });
-      }
-    }
+    try {
+    const tenantId = await getActiveTenantId();
+    const draft = await readHealthDraft(supabase, tenantId, beneficiario.id);
+    const result = await extractHealthFiles(supabase, tenantId, beneficiario.id, files);
+    const problem = identityProblem(result, draft);
+    if (problem || !result.readable) throw new Error('No se pudo verificar la ficha.');
+    const merged = Object.fromEntries(Object.entries(result.fields).filter(([, field]) => field.status === 'present' && field.evidence && field.value !== null).map(([key, field]) => [key, field.value]));
 
     setExtracted(merged);
 
@@ -137,7 +133,8 @@ export default function EditarSaludDialog({ open, onClose, beneficiario, onSaved
       toast.success('Datos importados sin conflictos — revisá y guardá.');
     }
 
-    setExtracting(false);
+    } catch { toast.error('No pudimos verificar la ficha. Revisá el nombre, el DNI y la legibilidad, o completá los datos manualmente.'); }
+    finally { setExtracting(false); }
   };
 
   const handleResolveConflict = (key, choice) => {
@@ -261,7 +258,7 @@ export default function EditarSaludDialog({ open, onClose, beneficiario, onSaved
                     type={type || 'text'}
                     value={form[key]}
                     onChange={e => handleChange(key, e.target.value)}
-                    placeholder={toggleable ? (form[key] === '' ? `(vacío = ${toggleLabel})` : placeholder) : placeholder}
+                    placeholder={toggleable && form[key] === '' ? 'Sin dato registrado' : placeholder}
                     className="text-sm flex-1"
                   />
                   {toggleable && form[key] !== '' && (
@@ -269,7 +266,7 @@ export default function EditarSaludDialog({ open, onClose, beneficiario, onSaved
                       type="button"
                       onClick={() => handleChange(key, '')}
                       className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
-                      title={`Limpiar (marcar como ${toggleLabel})`}
+                      title="Limpiar dato"
                     >
                       <X className="w-4 h-4" />
                     </button>

@@ -40,7 +40,7 @@ export const TENANT_ROLE_OPTIONS = Object.freeze([
     value: TENANT_ROLES.branchLeader,
     label: 'Responsable de rama',
     shortLabel: 'Rama',
-    description: 'Gestiona la consulta de sus ramas y puede leer fichas médicas y contactos de todo el grupo en Emergencias. Sin finanzas.'
+    description: 'Digitaliza las fichas médicas de sus ramas. En Emergencias consulta fichas y contactos de todo el grupo. Sin finanzas.'
   },
   {
     value: TENANT_ROLES.support,
@@ -75,6 +75,7 @@ export const TENANT_ROLE_OPTIONS = Object.freeze([
 ]);
 
 export const PERMISSIONS = Object.freeze({
+  healthDigitize: 'health.digitize',
   branchView: 'branch.view',
   financialReportsView: 'financial-reports.view',
   dashboardView: 'dashboard.view',
@@ -100,6 +101,7 @@ const ALL_TENANT_PERMISSIONS = Object.freeze(Object.values(PERMISSIONS));
 const ROLE_PERMISSION_MAP = Object.freeze({
   [TENANT_ROLES.tenantAdmin]: ALL_TENANT_PERMISSIONS,
   [TENANT_ROLES.groupLeadership]: Object.freeze([
+    PERMISSIONS.healthDigitize,
     PERMISSIONS.dashboardView,
     PERMISSIONS.membersManage,
     PERMISSIONS.campsManage,
@@ -109,6 +111,7 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     PERMISSIONS.usersManage
   ]),
   [TENANT_ROLES.administration]: Object.freeze([
+    PERMISSIONS.healthDigitize,
     PERMISSIONS.dashboardView,
     PERMISSIONS.membersManage,
     PERMISSIONS.campsManage,
@@ -137,7 +140,7 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     PERMISSIONS.assistantUse,
     PERMISSIONS.familyQueriesView
   ]),
-  [TENANT_ROLES.branchLeader]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.branchView, PERMISSIONS.emergencyView]),
+  [TENANT_ROLES.branchLeader]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.branchView, PERMISSIONS.emergencyView, PERMISSIONS.healthDigitize]),
   [TENANT_ROLES.support]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.emergencyView]),
   [TENANT_ROLES.institutional]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.emergencyView]),
   [TENANT_ROLES.family]: Object.freeze([]),

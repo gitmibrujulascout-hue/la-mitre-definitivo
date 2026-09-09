@@ -112,4 +112,35 @@ await assert.rejects(db.query('select list_tenant_emergency_people($1)',[tenantA
 await db.exec('reset role;set role anon');
 await assert.rejects(db.query('select list_tenant_emergency_people($1)',[tenantA]));
 console.log('Emergencias OK: equipo adulto multirrama, sin finanzas ni nueva escritura; familias, suspendidos, anónimos y otro tenant denegados.');
+await db.exec('reset role');
+const healthMigration=await readFile('supabase/migrations/202609090004_branch_health_digitization.sql','utf8');
+await db.exec(healthMigration);await db.exec(healthMigration);
+await db.exec(`update tenant_memberships set status='active' where user_id='${branch}'`);
+await asUser(admin);
+await db.query('select set_tenant_member_access($1,$2,$3,$4)',[tenantA,branch,['branch_leader'],['Rovers']]);
+await asUser(branch);
+const draft=(await db.query('select get_member_health_draft($1,$2) as draft',[tenantA,p1])).rows[0].draft;
+await assert.rejects(db.query('select get_member_health_draft($1,$2)',[tenantA,p2]));
+await assert.rejects(db.query('select get_member_health_draft($1,$2)',[tenantB,p3]));
+await assert.rejects(db.query('select member_health_payload($1)',[p2]));
+await assert.rejects(db.query('select save_member_health_digitization($1,$2,$3,$4,$5)',[tenantA,p1,draft.revision,{becado:true},true]));
+await assert.rejects(db.query('select save_member_health_digitization($1,$2,$3,$4,$5)',[tenantA,p1,draft.revision,{talla_m:145},true]));
+await assert.rejects(db.query('select save_member_health_digitization($1,$2,$3,$4,$5)',[tenantA,p1,draft.revision,{peso_kg:30},false]));
+assert.equal((await db.query('select list_health_digitization_queue($1) as queue',[tenantA])).rows[0].queue[0].reviewed_at,null);
+await db.query('select save_member_health_digitization($1,$2,$3,$4,$5)',[tenantA,p1,draft.revision,{peso_kg:30,talla_m:1.45},true]);
+await assert.rejects(db.query('select save_member_health_digitization($1,$2,$3,$4,$5)',[tenantA,p1,draft.revision,{alergias:'obsoleto'},true]));
+const queue=(await db.query('select list_health_digitization_queue($1) as queue',[tenantA])).rows[0].queue;
+assert.equal(queue.length,1);assert.ok(queue[0].reviewed_at);
+const saved=(await db.query('select get_member_health_draft($1,$2) as draft',[tenantA,p1])).rows[0].draft;
+assert.equal(saved.health.alergias,'dato privado');assert.equal(saved.health.peso_kg,30);
+assert.equal((await db.query('update beneficiario set alergias=null returning id')).rows.length,0);
+await asUser(admin);
+await db.query('select set_tenant_member_access($1,$2,$3,$4)',[tenantA,branch,['branch_leader'],['Tropa']]);
+await asUser(branch);
+await assert.rejects(db.query('select save_member_health_digitization($1,$2,$3,$4,$5)',[tenantA,p1,saved.revision,{alergias:'no'},true]));
+for(const role of ['family','support','treasury']) {
+  await asUser(admin);await db.query('select set_tenant_member_access($1,$2,$3,$4)',[tenantA,branch,[role],[]]);await asUser(branch);
+  await assert.rejects(db.query('select get_member_health_draft($1,$2)',[tenantA,p1]));
+}
+console.log('Digitalización OK: rama propia, revisión obligatoria, whitelist, números, preservación, concurrencia, pendientes y revocación.');
 await db.close();
