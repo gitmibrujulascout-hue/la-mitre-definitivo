@@ -9,13 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ShoppingBag, Plus, CheckCircle2, Clock, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
+import { todayInputDate } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 function CajaChicaForm({ open, onClose, inicial }) {
   const [form, setForm] = useState(inicial || {
     monto: '',
-    fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
+    fecha: todayInputDate(),
     concepto: 'Caja chica cocina',
     responsable: '',
     observaciones: '',

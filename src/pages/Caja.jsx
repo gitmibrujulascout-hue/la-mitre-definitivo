@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownLeft, Trash2, Upload, FileText, Gift, Database } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
+import { todayInputDate } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import ImportMovimientosBancoDialog from '@/components/caja/ImportMovimientosBancoDialog';
@@ -24,7 +25,7 @@ import { useFondos, buildMovimientos } from '@/lib/cajaUtils';
 function MovimientoManualDialog({ open, onClose, cuentaDestino }) {
   const [form, setForm] = useState({
     tipo: 'Ingreso', concepto: '', monto: '',
-    fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }), observaciones: '',
+    fecha: todayInputDate(), observaciones: '',
     forma_pago: cuentaDestino === 'Caja' ? 'Efectivo' : 'Transferencia',
   });
   const queryClient = useQueryClient();

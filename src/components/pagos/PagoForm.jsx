@@ -9,6 +9,7 @@ import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, MESES_SIN_CUOTA, formatMoney, getCuotaBeneficiario, marzoEsBonificado, estaAlDia, calcularMesesQueGeneranDeuda, getMesesBonificadosCredito, getCreditoMesBeneficiario, getLabelCreditoMes, getCuotaBaseMes, calcularMontoPorMes, calcularEsperadoPorMes } from '@/lib/ramaUtils';
 import { registrarPagos } from '@/lib/registros';
+import { todayInputDate } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 import { Tent, CreditCard, Users, Wallet, AlertCircle, CheckCircle2 } from 'lucide-react';
 
@@ -52,7 +53,7 @@ async function procesarCreditosMesesBonificados(pagos, beneficiario, pagosExiste
       actividad_nombre: label,
       monto_original: montoCredito,
       monto_disponible: montoCredito,
-      fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
+      fecha: todayInputDate(),
       observaciones: label,
     });
   }
@@ -66,7 +67,7 @@ export default function PagoForm({ open, onClose, beneficiarios, preselectedBenI
   const [campamentoId, setCampamentoId] = useState('');
   const [montoManual, setMontoManual] = useState('');
   const [formaPago, setFormaPago] = useState('Efectivo');
-  const [fechaPago, setFechaPago] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
+  const [fechaPago, setFechaPago] = useState(todayInputDate());
   const [observaciones, setObservaciones] = useState('');
   const [hermanosSeleccionados, setHermanosSeleccionados] = useState([]);
   const [creditoId, setCreditoId] = useState('');

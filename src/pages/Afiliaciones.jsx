@@ -18,6 +18,7 @@ import AsignarTipoAfiliacionDialog from '@/components/afiliaciones/AsignarTipoAf
 import RendicionesList from '@/components/afiliaciones/RendicionesList';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { todayInputDate } from '@/lib/dateUtils';
 import { getMontoSeguro, esPrimeraVezBonificado, buildMovimientoAfiliacion } from '@/lib/afiliacionUtils';
 
 // ——— Dialog para editar tipo de afiliación del beneficiario ———
@@ -37,7 +38,7 @@ function EditarTipoAfiliacionDialog({ open, onClose, beneficiario }) {
   });
 
   const handleSave = () => {
-    const nuevaFecha = tipo === 'primera_vez' ? null : (fecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
+    const nuevaFecha = tipo === 'primera_vez' ? null : (fecha || todayInputDate());
     updateMutation.mutate({
       id: beneficiario.id,
       data: { fecha_primer_afiliacion: nuevaFecha }
@@ -111,7 +112,7 @@ function AfiliacionForm({ open, onClose, beneficiarios, afiliacionesExistentes, 
     beneficiario_id: '',
     monto: MONTO_SEGURO_DEFAULT.toString(),
     monto_pagado: MONTO_SEGURO_DEFAULT.toString(),
-    fecha_pago: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
+    fecha_pago: todayInputDate(),
     forma_pago: 'Efectivo',
     observaciones: '',
   });

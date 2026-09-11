@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { base44 } from '@/api/base44Client';
 import { registrarGasto, actualizarGasto } from '@/lib/registros';
+import { todayInputDate } from '@/lib/dateUtils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Upload, Loader2, Sparkles, FileText } from 'lucide-react';
 import { toast } from 'sonner';
@@ -32,7 +33,7 @@ export default function GastoForm({ open, onClose, initialData }) {
   const [form, setForm] = useState(initialData ? {
     descripcion: initialData.descripcion || '',
     monto: initialData.monto || '',
-    fecha: initialData.fecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
+    fecha: initialData.fecha || todayInputDate(),
     categoria: initialData.categoria || '',
     proveedor: initialData.proveedor || '',
     numero_factura: initialData.numero_factura || '',
@@ -45,7 +46,7 @@ export default function GastoForm({ open, onClose, initialData }) {
     actividad_id: initialData.actividad_id || '',
     actividad_nombre: initialData.actividad_nombre || '',
   } : {
-    descripcion: '', monto: '', fecha: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
+    descripcion: '', monto: '', fecha: todayInputDate(),
     categoria: '', proveedor: '', numero_factura: '', archivo_url: '', observaciones: '',
     forma_pago: 'Efectivo', destino: '', campamento_id: '', campamento_nombre: '',
     actividad_id: '', actividad_nombre: '',
