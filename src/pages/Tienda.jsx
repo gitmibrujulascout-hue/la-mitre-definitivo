@@ -148,8 +148,8 @@ export default function Tienda() {
   const confirmarFamilia = useMutation({
     mutationFn: async (ids) => {
       const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
-      await base44.entities.PreEncargoTienda.bulkUpdate(
-        ids.map(id => ({ id, estado: 'Confirmado', fecha_confirmacion: hoy }))
+      await Promise.all(
+        ids.map(id => base44.entities.PreEncargoTienda.update(id, { estado: 'Confirmado', fecha_confirmacion: hoy }))
       );
     },
     onSuccess: (_data, ids) => {

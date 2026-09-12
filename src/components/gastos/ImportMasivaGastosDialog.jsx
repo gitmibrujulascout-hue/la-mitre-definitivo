@@ -273,14 +273,14 @@ export default function ImportMasivaGastosDialog({ open, onClose }) {
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
           {procesados.length === 0 ? (
-            <Button onClick={procesarTodos} disabled={!archivos.length || procesando}>
+            <Button type="button" onClick={procesarTodos} disabled={!archivos.length || procesando}>
               {procesando ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
               Analizar con IA
             </Button>
           ) : (
-            <Button onClick={importarTodos} disabled={procesando || procesados.length === 0}>
+            <Button type="button" onClick={importarTodos} disabled={procesando || procesados.length === 0}>
               {procesando ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
               Importar {procesados.filter(p => !p.duplicado).length} gasto(s)
             </Button>

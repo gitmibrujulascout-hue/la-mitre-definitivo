@@ -36,7 +36,9 @@ export default function ReporteProveedorDialog({ encargos, onClose }) {
     mutationFn: async () => {
       const updates = marcables.map(e => ({ id: e.id, estado: 'Pedido a proveedor' }));
       if (updates.length === 0) return;
-      await base44.entities.PreEncargoTienda.bulkUpdate(updates);
+      await Promise.all(
+        updates.map(({ id, ...values }) => base44.entities.PreEncargoTienda.update(id, values))
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
@@ -108,6 +110,7 @@ export default function ReporteProveedorDialog({ encargos, onClose }) {
           <div className="flex-1" />
           {marcables.length > 0 && (
             <Button
+              type="button"
               variant="default"
               size="sm"
               onClick={() => { if (confirm(`¿Marcar ${marcables.length} encargo(s) como "Pedido a proveedor"? Dejarán de aparecer en futuros pedidos.`)) marcarPedidoProveedor.mutate(); }}

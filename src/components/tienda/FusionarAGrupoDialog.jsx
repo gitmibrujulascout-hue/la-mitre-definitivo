@@ -97,7 +97,9 @@ export default function FusionarAGrupoDialog({ open, onClose, preEncargos, benef
         observaciones: `Fusionado al Grupo`,
       }));
       if (updates.length > 0) {
-        await base44.entities.PreEncargoTienda.bulkUpdate(updates);
+        await Promise.all(
+          updates.map(({ id, ...values }) => base44.entities.PreEncargoTienda.update(id, values))
+        );
       }
     },
     onSuccess: () => {
@@ -179,6 +181,7 @@ export default function FusionarAGrupoDialog({ open, onClose, preEncargos, benef
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button
+            type="button"
             onClick={() => fusionar.mutate()}
             disabled={fusionar.isPending || encargosSeleccionados.length === 0}
           >

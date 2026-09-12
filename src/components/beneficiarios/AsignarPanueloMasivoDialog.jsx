@@ -37,16 +37,20 @@ export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiario
       toast.error('Seleccioná al menos un miembro');
       return;
     }
+
     setSaving(true);
     try {
-      const updates = selected.map(id => ({ id, estado_panuelo: panuelo === '__blank__' ? '' : panuelo }));
-      await base44.entities.Beneficiario.bulkUpdate(updates);
+      const valor = panuelo === '__blank__' ? '' : panuelo;
+      await Promise.all(
+        selected.map(id => base44.entities.Beneficiario.update(id, { estado_panuelo: valor }))
+      );
       toast.success(`${selected.length} miembro(s) actualizado(s)`);
       onDone?.();
       onClose();
       setSelected([]);
     } catch (err) {
-      toast.error('Error al asignar pañuelos');
+      console.error('Error al asignar pañuelos:', err);
+      toast.error(err instanceof Error ? err.message : 'Error al asignar pañuelos');
     } finally {
       setSaving(false);
     }
@@ -137,8 +141,8 @@ export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiario
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleAsignar} disabled={saving || selected.length === 0}>
+          <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button type="button" onClick={handleAsignar} disabled={saving || selected.length === 0}>
             {saving ? 'Guardando...' : `Asignar a ${selected.length}`}
           </Button>
         </DialogFooter>
