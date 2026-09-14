@@ -13,6 +13,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import RamaBadge from '@/components/shared/RamaBadge';
 import { TODOS_LOS_ROLES, formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
+import { downloadXlsx } from '@/lib/downloadXlsx';
 import jsPDF from 'jspdf';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -82,11 +83,8 @@ export default function ReporteBeneficiarios() {
   const COLS = ['Nombre', 'Rama', 'Tipo', 'DNI', 'Activo', 'Becado', 'Meses pagados', 'Deuda cuotas', 'Deuda camp.', 'Total pagado', 'Afiliación'];
 
   const exportarXLS = async () => {
-    const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs');
-    const ws = XLSX.utils.aoa_to_sheet([COLS, ...filas()]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `Reporte ${anio}`);
-    XLSX.writeFile(wb, `reporte-beneficiarios-${anio}.xlsx`);
+    const rows = filas().map((values) => Object.fromEntries(COLS.map((column, index) => [column, values[index]])));
+    await downloadXlsx(rows, `Reporte ${anio}`, `reporte-beneficiarios-${anio}.xlsx`);
   };
 
   const ORDEN_PDF = ['Lobatos', 'Tropa', 'KM', 'Rovers', 'Voluntario', 'Educador'];
