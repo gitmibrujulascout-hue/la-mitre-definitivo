@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { FileText, Download, Filter, FileSpreadsheet } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
-import * as XLSX from 'xlsx';
+import { downloadXlsx } from '@/lib/downloadXlsx';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -117,17 +117,7 @@ function exportarExcel(pagosFiltrados, beneficiariosMap) {
     };
   });
 
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(filas, {
-    header: [
-      'Fecha Comprobante','Producto / Servicio','Precio Unitario','Cantidad','Total',
-      'Tipo','Facturado Desde','Facturado Hasta','Condicion de Venta','Condicion de IVA',
-      'CUIT o DNI (Opcional)','Email (Opcional)'
-    ]
-  });
-
-  XLSX.utils.book_append_sheet(wb, ws, 'Datos de Facturas');
-  XLSX.writeFile(wb, `facturacion_masiva_${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })}.xlsx`);
+  void downloadXlsx(filas, 'Datos de Facturas', `facturacion_masiva_${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })}.xlsx`);
 }
 
 export default function ReportePagos() {

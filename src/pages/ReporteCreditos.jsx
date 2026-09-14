@@ -10,6 +10,7 @@ import { Gift, Download, Filter, Coins, TrendingUp, Calendar, ShieldCheck, Shopp
 import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
+import { downloadXlsx } from '@/lib/downloadXlsx';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -154,12 +155,7 @@ export default function ReporteCreditos() {
       'Monto': e.monto_pagado || 0,
     }));
     const filas = [...filasPago, ...filasTienda, ...filasEncargo];
-    import('xlsx').then(({ utils, writeFile }) => {
-      const wb = utils.book_new();
-      const ws = utils.json_to_sheet(filas);
-      utils.book_append_sheet(wb, ws, 'Créditos utilizados');
-      writeFile(wb, `creditos_utilizados_${anio}.xlsx`);
-    });
+    void downloadXlsx(filas, 'Créditos utilizados', `creditos_utilizados_${anio}.xlsx`);
   };
 
   return (

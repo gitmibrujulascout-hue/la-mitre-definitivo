@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
-    "test": "node --test src/services/access/*.test.js src/services/users/*.test.js",
+    "test": "node --test src/services/access/*.test.js src/services/users/*.test.js src/lib/*.test.js src/api/*.test.js",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview"
   },
@@ -79,7 +79,6 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.171.0",
     "vaul": "^1.1.2",
-    "xlsx": "^0.18.5",
     "zod": "^3.24.2"
   },
   "devDependencies": {

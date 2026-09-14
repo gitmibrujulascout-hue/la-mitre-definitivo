@@ -9,16 +9,25 @@ export function parseDateValue(value) {
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     const [year, month, day] = raw.split('-').map(Number);
-    return new Date(year, month - 1, day, 12);
+    return validCalendarDate(year, month, day);
   }
 
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
     const [day, month, year] = raw.split('/').map(Number);
-    return new Date(year, month - 1, day, 12);
+    return validCalendarDate(year, month, day);
   }
 
   const parsed = new Date(raw);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function validCalendarDate(year, month, day) {
+  const date = new Date(year, month - 1, day, 12);
+  return date.getFullYear() === year
+    && date.getMonth() === month - 1
+    && date.getDate() === day
+    ? date
+    : null;
 }
 
 export function formatDisplayDate(value) {
