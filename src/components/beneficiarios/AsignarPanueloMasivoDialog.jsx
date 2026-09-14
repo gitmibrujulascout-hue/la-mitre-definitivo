@@ -41,15 +41,12 @@ export default function AsignarPanueloMasivoDialog({ open, onClose, beneficiario
     setSaving(true);
     try {
       const valor = panuelo === '__blank__' ? '' : panuelo;
-      await Promise.all(
-        selected.map(id => base44.entities.Beneficiario.update(id, { estado_panuelo: valor }))
-      );
+      await base44.entities.Beneficiario.bulkUpdate(selected.map(id => ({ id, estado_panuelo: valor })));
       toast.success(`${selected.length} miembro(s) actualizado(s)`);
       onDone?.();
       onClose();
       setSelected([]);
     } catch (err) {
-      console.error('Error al asignar pañuelos:', err);
       toast.error(err instanceof Error ? err.message : 'Error al asignar pañuelos');
     } finally {
       setSaving(false);

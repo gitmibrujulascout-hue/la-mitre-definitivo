@@ -1,54 +1,14 @@
 import { readTenantPeople } from '../services/access/tenantPeople';
 import { scholarshipWrite } from '../services/access/scholarships';
+import { createTenantEntity } from '../services/access/tenantEntities.js';
 import { supabase } from './supabaseClient';
 import { uploadFile } from './supabaseStorage';
 import { getActiveTenantId } from './tenantContext';
 import { extractionSchema } from '../services/access/extractionSchema';
-import { normalizeBulkUpdatePlan } from './bulkUpdatePlan.js';
 
-const snake = value => value.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase();
-const normalize = value => Array.isArray(value) ? value.map(normalize) : (!value || typeof value !== 'object' ? value : Object.fromEntries(Object.entries(value).map(([key, val]) => [snake(key), normalize(val)])));
-const entityValues = (name, values) => name === 'Beneficiario' ? scholarshipWrite(normalize(values)) : normalize(values);
-const updateRowById = async (tableName, id, values) => {
-  const payload = { ...entityValues(tableName, values), updated_at: new Date().toISOString() };
-  const tenant = await getActiveTenantId();
-  let q = supabase.from(snake(tableName)).update(payload).eq('id', id).eq('tenant_id', tenant);
-  const { data, error } = await q.select().single();
-  if (error) throw error;
-  return data;
-};
-const entity = name => ({
-  async list(sort = '-created_date', limit = name === 'Beneficiario' ? undefined : 100) { if (name === 'Beneficiario') return readTenantPeople(supabase, await getActiveTenantId(), {}, sort, limit); const desc = String(sort).startsWith('-'); const col = snake(String(sort).replace(/^-/, '').replace(/_date$/, '_at')); let q = supabase.from(snake(name)).select('*'); const tenant = await getActiveTenantId(); if (tenant) q = q.eq('tenant_id', tenant); q = q.order(col, { ascending: !desc }); if (limit) q = q.limit(limit); const { data, error } = await q; if (error) throw error; return data || []; },
-  async filter(filters = {}, sort = '-created_date', limit = name === 'Beneficiario' ? undefined : 100) { if (name === 'Beneficiario') return readTenantPeople(supabase, await getActiveTenantId(), normalize(filters), sort, limit); const desc = String(sort).startsWith('-'); const col = snake(String(sort).replace(/^-/, '').replace(/_date$/, '_at')); let q = supabase.from(snake(name)).select('*'); const tenant = await getActiveTenantId(); if (tenant) q = q.eq('tenant_id', tenant); for (const [key, value] of Object.entries(normalize(filters))) q = value === null ? q.is(key, null) : q.eq(key, value); q = q.order(col, { ascending: !desc }); if (limit) q = q.limit(limit); const { data, error } = await q; if (error) throw error; return data || []; },
-  async create(values) { const payload = entityValues(name, values); const tenant = await getActiveTenantId(); const next = tenant && !payload.tenant_id ? { ...payload, tenant_id: tenant } : payload; const { data, error } = await supabase.from(snake(name)).insert(next).select().single(); if (error) throw error; return data; },
-  async update(id, values) {
-    const tenant = await getActiveTenantId();
-    if (!tenant) throw new Error('No hay una organización activa.');
-    return updateRowById(name, id, values);
-  },
-  async delete(id) { let q = supabase.from(snake(name)).delete().eq('id', id); const tenant = await getActiveTenantId(); if (!tenant) throw new Error('No hay una organización activa.'); q = q.eq('tenant_id', tenant); const { error } = await q; if (error) throw error; return true; },
-  async deleteMany(filters = {}) { let q = supabase.from(snake(name)).delete(); const tenant = await getActiveTenantId(); if (!tenant) throw new Error('No hay una organización activa.'); q = q.eq('tenant_id', tenant); for (const [key, value] of Object.entries(normalize(filters))) q = q.eq(key, value); const { error } = await q; if (error) throw error; return true; },
-  async bulkCreate(records) { const tenant = await getActiveTenantId(); if (!tenant) throw new Error('No hay una organización activa.'); const payload = records.map(row => entityValues(name, row)).map(row => row.tenant_id ? row : { ...row, tenant_id: tenant }); const { data, error } = await supabase.from(snake(name)).insert(payload).select(); if (error) throw error; return data || []; },
-  async bulkUpdate(filters, values) {
-    const plan = normalizeBulkUpdatePlan(filters, values);
-    if (Array.isArray(plan)) {
-      const results = [];
-      const settled = await Promise.allSettled(plan.map(({ id, values: rowValues }) => updateRowById(name, id, rowValues)));
-      const failures = settled.filter(result => result.status === 'rejected');
-      if (failures.length) throw new Error(`No se pudieron actualizar ${failures.length} registro(s). No se reintentó sin el filtro del grupo.`);
-      for (const result of settled) if (result.status === 'fulfilled' && result.value) results.push(result.value);
-      return results;
-    }
-
-    const tenant = await getActiveTenantId();
-    if (!tenant) throw new Error('No hay una organización activa.');
-    let q = supabase.from(snake(name)).update({ ...entityValues(name, plan.values), updated_at: new Date().toISOString() });
-    q = q.eq('tenant_id', tenant);
-    for (const [key, value] of Object.entries(normalize(plan.filters))) q = value === null ? q.is(key, null) : q.eq(key, value);
-    const { data, error } = await q.select();
-    if (error) throw error;
-    return data || [];
-  }
+const entity = name => createTenantEntity({
+  client: supabase, getTenant: getActiveTenantId, name, readPeople: readTenantPeople,
+  writeValues: value => name === 'Beneficiario' ? scholarshipWrite(value) : value,
 });
 
 const names = ['AccesoCampamento','ActividadEconomica','Afiliacion','Beneficiario','CajaChica','Campamento','ConfigAfiliacion','ConfigCuota','ConfigGeneral','ConsultaDni','CreditoBeneficiario','EventoCalendario','Gasto','GastoActividad','MovimientoBanco','Pago','PreEncargoTienda','ProductoActividad','ProductoTienda','RendicionAfiliacion','SolicitudCambioSalud','User','VentaActividad','VentaTienda'];
@@ -59,8 +19,10 @@ export const base44 = {
   auth: { me: async () => { const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Not authenticated'); const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(); return { ...user, ...(profile || {}) }; }, logout: () => supabase.auth.signOut(), redirectToLogin: () => window.location.assign('/login') },
   functions: { invoke: async (name, body = {}) => {
     if (name === 'validar_clave_admin') {
-      const { data: config, error } = await supabase.from('config_general').select('clave_admin').limit(1).maybeSingle();
-      if (error) throw error;
+      const tenant = await getActiveTenantId();
+      if (!tenant) throw new Error('Seleccioná un grupo para continuar.');
+      const { data: config, error } = await supabase.from('config_general').select('clave_admin').eq('tenant_id', tenant).limit(1).maybeSingle();
+      if (error) throw new Error('No pudimos validar el acceso del grupo. Intentá nuevamente.');
       return { valido: Boolean(config?.clave_admin && config.clave_admin === body.clave), sinClave: !config?.clave_admin };
     }
     throw new Error(`La función ${name} todavía debe migrarse a Supabase Edge Functions.`);

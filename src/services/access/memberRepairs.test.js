@@ -38,16 +38,17 @@ test('CSV soporta saltos y comillas escapadas, rechaza filas rotas', () => {
 });
 const id = '00000000-0000-4000-8000-000000000001';
 test('actualización masiva limita tenant e IDs y permite falso', async () => {
-  const calls = []; const client = { from(table) { calls.push(table); return this; }, update(patch) { calls.push(patch); return this; }, eq(...args) { calls.push(args); return this; }, in(...args) { calls.push(args); return this; }, select() { return { data: [{ id }], error: null }; } };
-  assert.equal(await saveMemberBulkEdit(client, 'tenant-a', [id], ['becado'], { becado: false }), 1);
-  assert.deepEqual(calls[2], ['tenant_id', 'tenant-a']); assert.deepEqual(calls[3], ['id', [id]]);
-  assert.equal(calls[1].beca_override, false);
+  const calls = []; const client = { async rpc(name,body) { calls.push({name,body}); return {data:[{id,tenant_id:id}],error:null}; } };
+  assert.equal(await saveMemberBulkEdit(client, id, [id], ['becado'], { becado: false }), 1);
+  assert.equal(calls.length,1);assert.equal(calls[0].name,'apply_tenant_batch');
+  assert.equal(calls[0].body.target_tenant_id,id);assert.equal(calls[0].body.operations[0].id,id);
+  assert.equal(calls[0].body.operations[0].values.beca_override, false);
 });
 test('actualización masiva deniega sin tenant, incompleta o rechazada por RLS', async () => {
   await assert.rejects(saveMemberBulkEdit({}, null, [id], ['becado'], { becado: true }));
-  await assert.rejects(saveMemberBulkEdit({}, 'tenant-a', [id], ['becado'], {}));
-  const denied = { from() { return this; }, update() { return this; }, eq() { return this; }, in() { return this; }, select() { return { data: [], error: null }; } };
-  await assert.rejects(saveMemberBulkEdit(denied, 'tenant-a', [id], ['becado'], { becado: true }));
+  await assert.rejects(saveMemberBulkEdit({}, id, [id], ['becado'], {}));
+  const denied = { async rpc() { return {data:null,error:{code:'42501'}}; } };
+  await assert.rejects(saveMemberBulkEdit(denied, id, [id], ['becado'], { becado: true }));
 });
 test('recibos sin fecha o total no se transforman en gastos válidos', () => {
   const draft = receiptDraft({ descripcion: 'Prueba', monto_total: null, fecha: null, proveedor: null, numero_factura: null, categoria: null });

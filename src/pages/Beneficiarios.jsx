@@ -142,7 +142,23 @@ export default function Beneficiarios() {
   };
 
   const doSave = async (data, hermanosIds = [], condonarDeuda = false) => {
-    if (editing) {
+    const familyUpdates = new Map();
+    if (data.grupo_familiar) for (const id of hermanosIds) {
+      if (id !== editing?.id) familyUpdates.set(id, { grupo_familiar: data.grupo_familiar });
+    }
+    if (editing?.grupo_familiar && data.grupo_familiar !== editing.grupo_familiar) {
+      for (const member of beneficiarios) {
+        if (member.id !== editing.id && member.grupo_familiar === editing.grupo_familiar && !hermanosIds.includes(member.id)) {
+          familyUpdates.set(member.id, { grupo_familiar: '' });
+        }
+      }
+    }
+    if (familyUpdates.size) {
+      await base44.entities.Beneficiario.atomic([
+        editing ? { type: 'update', id: editing.id, values: data } : { type: 'create', values: data },
+        ...Array.from(familyUpdates, ([id, values]) => ({ type: 'update', id, values })),
+      ]);
+    } else if (editing) {
       await base44.entities.Beneficiario.update(editing.id, data);
     } else {
       await base44.entities.Beneficiario.create(data);
@@ -164,24 +180,6 @@ export default function Beneficiarios() {
         fecha_pago: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
         observaciones: 'Deuda condonada por baja del beneficiario',
       });
-    }
-
-    // Actualizar grupo_familiar en los hermanos seleccionados
-    if (hermanosIds.length > 0 && data.grupo_familiar) {
-      await Promise.all(
-        hermanosIds.map(id => base44.entities.Beneficiario.update(id, { grupo_familiar: data.grupo_familiar }))
-      );
-    }
-    // Si se des-vincularon hermanos, limpiarles el grupo
-    if (editing && editing.grupo_familiar) {
-      const exHermanos = beneficiarios.filter(b =>
-        b.id !== editing.id &&
-        b.grupo_familiar === editing.grupo_familiar &&
-        !hermanosIds.includes(b.id)
-      );
-      if (exHermanos.length > 0 && data.grupo_familiar !== editing.grupo_familiar) {
-        await Promise.all(exHermanos.map(b => base44.entities.Beneficiario.update(b.id, { grupo_familiar: '' })));
-      }
     }
 
     queryClient.invalidateQueries({ queryKey: ['beneficiarios'] });

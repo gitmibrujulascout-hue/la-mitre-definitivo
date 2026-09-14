@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { scholarshipWrite } from './scholarships.js';
+import { createTenantEntity } from './tenantEntities.js';
 const schema = z.object({
   rama: z.enum(['Lobatos', 'Tropa', 'KM', 'Rovers', 'Voluntario', 'Educador']).optional(),
   tipo: z.enum(['Beneficiario', 'Voluntario']).optional(),
@@ -14,9 +15,7 @@ export async function saveMemberBulkEdit(client, tenant, ids, fields, values) {
   const selected = z.array(z.string().uuid()).min(1).max(1000).parse([...new Set(ids)]);
   if (!fields.length || fields.some(field => values[field] === undefined)) throw new Error('Elegí un valor para cada campo marcado.');
   const patch = schema.parse(Object.fromEntries(fields.map(field => [field, values[field] === '__blank__' ? '' : values[field]])));
-  const { data, error } = await client.from('beneficiario').update({ ...scholarshipWrite(patch), updated_at: new Date().toISOString() })
-    .eq('tenant_id', tenant).in('id', selected).select('id');
-  if (error) throw new Error('No pudimos guardar los cambios. Revisá tus permisos e intentá nuevamente.');
-  if (data?.length !== selected.length) throw new Error('No se actualizaron todos los miembros. Recargá el listado y revisá tus permisos antes de reintentar.');
+  const entity = createTenantEntity({client, getTenant: async () => tenant, name: 'Beneficiario', writeValues: scholarshipWrite});
+  const data = await entity.bulkUpdate(selected.map(id => ({id, ...patch})));
   return data.length;
 }

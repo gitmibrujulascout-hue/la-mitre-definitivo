@@ -14,11 +14,13 @@ import RamaBadge from '@/components/shared/RamaBadge';
 import { TODOS_LOS_ROLES, formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { downloadXlsx } from '@/lib/downloadXlsx';
+import { useReportExport } from '@/components/shared/useReportExport';
 import jsPDF from 'jspdf';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 export default function ReporteBeneficiarios() {
+  const { exporting, runExport } = useReportExport();
   const anioActual = new Date().getFullYear();
   const [anio, setAnio] = useState(anioActual.toString());
   const [filtroRama, setFiltroRama] = useState('todas');
@@ -84,7 +86,7 @@ export default function ReporteBeneficiarios() {
 
   const exportarXLS = async () => {
     const rows = filas().map((values) => Object.fromEntries(COLS.map((column, index) => [column, values[index]])));
-    await downloadXlsx(rows, `Reporte ${anio}`, `reporte-beneficiarios-${anio}.xlsx`);
+    await downloadXlsx(rows, `Reporte ${anio}`, `reporte-beneficiarios-${anio}.xlsx`, COLS);
   };
 
   const ORDEN_PDF = ['Lobatos', 'Tropa', 'KM', 'Rovers', 'Voluntario', 'Educador'];
@@ -225,15 +227,15 @@ export default function ReporteBeneficiarios() {
       <PageHeader title="Reporte de Beneficiarios" description="Estado de miembros, pagos y deudas por período">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" disabled={filtrados.length === 0}>
-              <Download className="w-4 h-4 mr-2" />Exportar
+            <Button variant="outline" className="min-h-11" aria-busy={exporting} disabled={exporting || filtrados.length === 0}>
+              <Download className="w-4 h-4 mr-2" />{exporting ? 'Preparando…' : 'Exportar'}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={exportarXLS}>
+            <DropdownMenuItem onClick={() => runExport(exportarXLS)}>
               <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" />Excel (.xlsx)
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={exportarPDF}>
+            <DropdownMenuItem onClick={() => runExport(exportarPDF)}>
               <FileText className="w-4 h-4 mr-2 text-red-600" />PDF
             </DropdownMenuItem>
           </DropdownMenuContent>

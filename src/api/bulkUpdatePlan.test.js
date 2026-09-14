@@ -22,3 +22,10 @@ test('mantiene filtros y valores para bulkUpdate con filtro', () => {
     values: { activo: true },
   });
 });
+
+test('rechaza lotes vacíos, repetidos, sin cambios y filtros malformados', () => {
+  for (const rows of [[],[null],[{id:'a'}],[{id:'a',estado:'x'},{id:'a',estado:'y'}]]) assert.throws(()=>normalizeBulkUpdatePlan(rows));
+  for (const values of [null,undefined,[],{}]) assert.throws(()=>normalizeBulkUpdatePlan({id:'a'},values));
+  assert.throws(()=>normalizeBulkUpdatePlan({}, {estado:'x'}));
+  assert.throws(()=>normalizeBulkUpdatePlan(null, {estado:'x'}));
+});

@@ -11,6 +11,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { downloadXlsx } from '@/lib/downloadXlsx';
+import { useReportExport } from '@/components/shared/useReportExport';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -22,6 +23,7 @@ function extraerOrigen(obs) {
 }
 
 export default function ReporteCreditos() {
+  const { exporting, runExport } = useReportExport();
   const hoy = new Date();
   const [anio, setAnio] = useState(hoy.getFullYear().toString());
   const [desde, setDesde] = useState('');
@@ -155,7 +157,7 @@ export default function ReporteCreditos() {
       'Monto': e.monto_pagado || 0,
     }));
     const filas = [...filasPago, ...filasTienda, ...filasEncargo];
-    void downloadXlsx(filas, 'Créditos utilizados', `creditos_utilizados_${anio}.xlsx`);
+    return downloadXlsx(filas, 'Créditos utilizados', `creditos_utilizados_${anio}.xlsx`);
   };
 
   return (
@@ -164,12 +166,12 @@ export default function ReporteCreditos() {
         title="Créditos utilizados"
         description="Créditos de actividad imputados a cuotas/campamentos — dinero a trasladar de la caja de créditos al ingreso del grupo"
       >
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
           <Button variant="outline" onClick={() => window.print()} disabled={creditosUsados.length === 0 && ventasTiendaUsadas.length === 0 && preEncargosUsados.length === 0}>
             <Download className="w-4 h-4 mr-2" />PDF
           </Button>
-          <Button onClick={exportarExcel} disabled={creditosUsados.length === 0 && ventasTiendaUsadas.length === 0 && preEncargosUsados.length === 0}>
-            <Download className="w-4 h-4 mr-2" />Excel
+          <Button className="min-h-11" aria-busy={exporting} onClick={() => runExport(exportarExcel)} disabled={exporting || creditosUsados.length === 0 && ventasTiendaUsadas.length === 0 && preEncargosUsados.length === 0}>
+            <Download className="w-4 h-4 mr-2" />{exporting ? 'Preparando…' : 'Excel'}
           </Button>
         </div>
       </PageHeader>

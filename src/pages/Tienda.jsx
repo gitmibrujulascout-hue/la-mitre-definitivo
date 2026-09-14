@@ -148,9 +148,7 @@ export default function Tienda() {
   const confirmarFamilia = useMutation({
     mutationFn: async (ids) => {
       const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
-      await Promise.all(
-        ids.map(id => base44.entities.PreEncargoTienda.update(id, { estado: 'Confirmado', fecha_confirmacion: hoy }))
-      );
+      await base44.entities.PreEncargoTienda.bulkUpdate(ids.map(id => ({ id, estado: 'Confirmado', fecha_confirmacion: hoy })));
     },
     onSuccess: (_data, ids) => {
       queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
@@ -159,6 +157,7 @@ export default function Tienda() {
       queryClient.invalidateQueries({ queryKey: ['productos_tienda_familia'] });
       toast.success(`${ids.length} pedido(s) confirmado(s)`);
     },
+    onError: error => toast.error(error.message),
   });
 
   const registrarPagoEncargo = useMutation({

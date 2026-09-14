@@ -66,8 +66,7 @@ export default function FusionarAGrupoDialog({ open, onClose, preEncargos, benef
       const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
 
       // 1. Crear un pre-encargo del Grupo por cada grupo de fusión
-      for (const g of gruposFusion) {
-        await base44.entities.PreEncargoTienda.create({
+      const creates = gruposFusion.map(g => ({ type: 'create', values: {
           beneficiario_id: null,
           beneficiario_nombre: 'Grupo',
           es_grupo: true,
@@ -85,21 +84,20 @@ export default function FusionarAGrupoDialog({ open, onClose, preEncargos, benef
           fecha: hoy,
           estado: 'Pendiente',
           observaciones: `Fusionado desde ${beneficiarioNombre}`,
-        });
-      }
+      } }));
 
       // 2. Cancelar los pre-encargos originales
       const updates = encargosSeleccionados.map(e => ({
-        id: e.id,
+        type: 'update', id: e.id, expected_updated_at: e.updated_at,
+        values: {
         estado: 'Cancelado',
         monto_pagado: 0,
         stock_reservado: false,
-        observaciones: `Fusionado al Grupo`,
+        observaciones: `Fusionado al Grupo`, },
       }));
       if (updates.length > 0) {
-        await Promise.all(
-          updates.map(({ id, ...values }) => base44.entities.PreEncargoTienda.update(id, values))
-        );
+        if (encargosSeleccionados.some(e => !e.updated_at)) throw new Error('Actualizá los pedidos antes de fusionarlos.');
+        await base44.entities.PreEncargoTienda.atomic([...updates, ...creates]);
       }
     },
     onSuccess: () => {

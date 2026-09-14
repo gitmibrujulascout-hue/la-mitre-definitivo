@@ -10,6 +10,7 @@ import { FileText, Download, Filter, FileSpreadsheet } from 'lucide-react';
 import { formatMoney } from '@/lib/ramaUtils';
 import { cn } from '@/lib/utils';
 import { downloadXlsx } from '@/lib/downloadXlsx';
+import { useReportExport } from '@/components/shared/useReportExport';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -117,10 +118,11 @@ function exportarExcel(pagosFiltrados, beneficiariosMap) {
     };
   });
 
-  void downloadXlsx(filas, 'Datos de Facturas', `facturacion_masiva_${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })}.xlsx`);
+  return downloadXlsx(filas, 'Datos de Facturas', `facturacion_masiva_${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })}.xlsx`);
 }
 
 export default function ReportePagos() {
+  const { exporting, runExport } = useReportExport();
   const hoy = new Date();
   const primerDiaMes = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-01`;
   const [desde, setDesde] = useState(primerDiaMes);
@@ -193,14 +195,14 @@ export default function ReportePagos() {
             <p className="text-sm text-muted-foreground">Para facturación — seleccioná el período</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={handleImprimir} disabled={pagosFiltrados.length === 0}>
             <Download className="w-4 h-4 mr-2" />
             Imprimir PDF
           </Button>
-          <Button onClick={() => exportarExcel(pagosFiltrados, beneficiariosMap)} disabled={pagosFiltrados.length === 0}>
+          <Button className="min-h-11" aria-busy={exporting} onClick={() => runExport(() => exportarExcel(pagosFiltrados, beneficiariosMap))} disabled={exporting || pagosFiltrados.length === 0}>
             <FileSpreadsheet className="w-4 h-4 mr-2" />
-            Exportar Excel facturación
+            {exporting ? 'Preparando…' : 'Exportar Excel facturación'}
           </Button>
         </div>
       </div>

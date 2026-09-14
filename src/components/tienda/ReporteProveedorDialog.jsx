@@ -36,9 +36,7 @@ export default function ReporteProveedorDialog({ encargos, onClose }) {
     mutationFn: async () => {
       const updates = marcables.map(e => ({ id: e.id, estado: 'Pedido a proveedor' }));
       if (updates.length === 0) return;
-      await Promise.all(
-        updates.map(({ id, ...values }) => base44.entities.PreEncargoTienda.update(id, values))
-      );
+      await base44.entities.PreEncargoTienda.bulkUpdate(updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre_encargos'] });
