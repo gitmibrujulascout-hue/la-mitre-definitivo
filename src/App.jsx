@@ -10,6 +10,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import SuperAdminLayout from '@/components/layout/SuperAdminLayout';
 import WorkspaceHome from '@/components/access/WorkspaceHome';
 import BranchWorkspace from '@/pages/BranchWorkspace';
+import GroupWorkspace from '@/pages/GroupWorkspace';
 import Beneficiarios from '@/pages/Beneficiarios';
 import Pagos from '@/pages/Pagos';
 import Gastos from '@/pages/Gastos';
@@ -64,6 +65,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route path="/app/administracion/inicio" element={<Navigate to={getAuthenticatedHome(user)} replace />} />
       <Route element={<AppLayout />}>
+        <Route path="/mi-grupo" element={<PermissionRoute permission={PERMISSIONS.groupWorkspace}><GroupWorkspace /></PermissionRoute>} />
         <Route path="/app" element={<PermissionRoute permission={PERMISSIONS.dashboardView}><WorkspaceHome /></PermissionRoute>} />
         <Route path="/mi-rama" element={<PermissionRoute permission={PERMISSIONS.branchView}><BranchWorkspace /></PermissionRoute>} />
         <Route path="/beneficiarios" element={<PermissionRoute permission={PERMISSIONS.membersManage}><Beneficiarios /></PermissionRoute>} />

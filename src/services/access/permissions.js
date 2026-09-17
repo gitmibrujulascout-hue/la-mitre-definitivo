@@ -4,6 +4,14 @@ export const TENANT_ROLES = Object.freeze({
   administration: 'administration',
   treasury: 'treasury',
   branchLeader: 'branch_leader',
+  branchDeputy: 'branch_deputy',
+  branchAssistant: 'branch_assistant',
+  volunteer: 'volunteer',
+  associationPresident: 'association_president',
+  associationLegal: 'association_legal',
+  associationSecretary: 'association_secretary',
+  associationBoard: 'association_board',
+  parentRepresentative: 'parent_representative',
   support: 'support',
   institutional: 'institutional',
   family: 'family',
@@ -28,7 +36,7 @@ export const TENANT_ROLE_OPTIONS = Object.freeze([
     value: TENANT_ROLES.administration,
     label: 'Administración',
     shortLabel: 'Administración',
-    description: 'Gestiona miembros, configuración, afiliaciones y usuarios.'
+    description: 'Gestiona miembros y afiliaciones. No asigna accesos.'
   },
   {
     value: TENANT_ROLES.treasury,
@@ -38,33 +46,33 @@ export const TENANT_ROLE_OPTIONS = Object.freeze([
   },
   {
     value: TENANT_ROLES.branchLeader,
-    label: 'Responsable de rama',
+    label: 'Jefe de rama',
     shortLabel: 'Rama',
-    description: 'Digitaliza las fichas médicas de sus ramas. En Emergencias consulta fichas y contactos de todo el grupo. Sin finanzas.'
+    description: 'Responsable único de una rama: equipo, personas, fichas médicas, actividades y caja de su rama.'
   },
   {
     value: TENANT_ROLES.support,
     label: 'Equipo de apoyo',
     shortLabel: 'Apoyo',
-    description: 'Colaboradores autorizados: consultan fichas médicas y contactos de emergencia del grupo, sin editar personas.'
+    description: 'Consulta contactos, alergias, medicación y alertas de emergencia; sin ficha médica completa.'
   },
   {
     value: TENANT_ROLES.institutional,
     label: 'Relaciones institucionales',
     shortLabel: 'Institucional',
-    description: 'Colaboradores institucionales: pueden consultar las fichas y contactos de emergencia del grupo.'
+    description: 'Consulta contactos y resumen de emergencia, sin ficha médica completa.'
   },
   {
     value: TENANT_ROLES.family,
     label: 'Familia',
     shortLabel: 'Familia',
-    description: 'Acceso futuro al portal privado de la familia.'
+    description: 'Consulta sus hijos vinculados y confirma la ficha digitalizada. Vota cuando es habilitado.'
   },
   {
     value: TENANT_ROLES.youth,
     label: 'Miembro juvenil',
     shortLabel: 'Juvenil',
-    description: 'Acceso futuro al espacio juvenil.'
+    description: 'Caminantes y Rover: cuenta individual, caja de su rama, calendario y votaciones habilitadas.'
   },
   {
     value: TENANT_ROLES.viewer,
@@ -72,9 +80,20 @@ export const TENANT_ROLE_OPTIONS = Object.freeze([
     shortLabel: 'Consulta',
     description: 'Rol reservado para vistas de lectura que todavía no están disponibles.'
   }
+  , ...[
+    ['branch_deputy','Subjefe de rama','Educador. Personas y actividades de su rama; otras acciones por delegación del jefe.'],
+    ['branch_assistant','Ayudante de rama','Educador. Personas y actividades de su rama; otras acciones por delegación del jefe.'],
+    ['volunteer','Voluntario','Contactos y resumen de emergencia del grupo.'],
+    ['association_president','Presidente de la asociación','Consulta cajas y resumen de emergencia. Cargo con mandato.'],
+    ['association_legal','Representante legal','Consulta cajas y resumen de emergencia. Cargo con mandato.'],
+    ['association_secretary','Secretario de la asociación','Consulta cajas y resumen de emergencia. Cargo con mandato.'],
+    ['association_board','Vocal de la asociación','Consulta cajas y resumen de emergencia. Cargo con mandato.'],
+    ['parent_representative','Representante de padres','Participa en asambleas cuando se lo habilita. No administra personas.']
+  ].map(([value,label,description])=>({value,label,shortLabel:label,description}))
 ]);
 
 export const PERMISSIONS = Object.freeze({
+  groupWorkspace: 'group.workspace',
   healthDigitize: 'health.digitize',
   branchView: 'branch.view',
   financialReportsView: 'financial-reports.view',
@@ -101,8 +120,8 @@ const ALL_TENANT_PERMISSIONS = Object.freeze(Object.values(PERMISSIONS));
 const ROLE_PERMISSION_MAP = Object.freeze({
   [TENANT_ROLES.tenantAdmin]: ALL_TENANT_PERMISSIONS,
   [TENANT_ROLES.groupLeadership]: Object.freeze([
-    PERMISSIONS.healthDigitize,
     PERMISSIONS.dashboardView,
+    PERMISSIONS.groupWorkspace,
     PERMISSIONS.membersManage,
     PERMISSIONS.campsManage,
     PERMISSIONS.reportsView,
@@ -111,7 +130,6 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     PERMISSIONS.usersManage
   ]),
   [TENANT_ROLES.administration]: Object.freeze([
-    PERMISSIONS.healthDigitize,
     PERMISSIONS.dashboardView,
     PERMISSIONS.membersManage,
     PERMISSIONS.campsManage,
@@ -120,10 +138,10 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     PERMISSIONS.affiliationsManage,
     PERMISSIONS.assistantUse,
     PERMISSIONS.emergencyView,
-    PERMISSIONS.familyQueriesView,
-    PERMISSIONS.usersManage
+    PERMISSIONS.familyQueriesView
   ]),
   [TENANT_ROLES.treasury]: Object.freeze([
+    PERMISSIONS.groupWorkspace,
     PERMISSIONS.emergencyView,
     PERMISSIONS.financialReportsView,
     PERMISSIONS.dashboardView,
@@ -140,11 +158,16 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     PERMISSIONS.assistantUse,
     PERMISSIONS.familyQueriesView
   ]),
-  [TENANT_ROLES.branchLeader]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.branchView, PERMISSIONS.emergencyView, PERMISSIONS.healthDigitize]),
-  [TENANT_ROLES.support]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.emergencyView]),
-  [TENANT_ROLES.institutional]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.emergencyView]),
-  [TENANT_ROLES.family]: Object.freeze([]),
-  [TENANT_ROLES.youth]: Object.freeze([]),
+  [TENANT_ROLES.branchLeader]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.groupWorkspace, PERMISSIONS.branchView, PERMISSIONS.emergencyView, PERMISSIONS.healthDigitize]),
+  [TENANT_ROLES.branchDeputy]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.groupWorkspace, PERMISSIONS.branchView, PERMISSIONS.emergencyView]),
+  [TENANT_ROLES.branchAssistant]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.groupWorkspace, PERMISSIONS.branchView, PERMISSIONS.emergencyView]),
+  [TENANT_ROLES.volunteer]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.emergencyView, PERMISSIONS.groupWorkspace]),
+  ...Object.fromEntries(['association_president','association_legal','association_secretary','association_board'].map(role=>[role,Object.freeze([PERMISSIONS.dashboardView,PERMISSIONS.groupWorkspace,PERMISSIONS.emergencyView])])),
+  [TENANT_ROLES.parentRepresentative]: Object.freeze([PERMISSIONS.dashboardView,PERMISSIONS.groupWorkspace]),
+  [TENANT_ROLES.support]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.groupWorkspace, PERMISSIONS.emergencyView]),
+  [TENANT_ROLES.institutional]: Object.freeze([PERMISSIONS.dashboardView, PERMISSIONS.groupWorkspace, PERMISSIONS.emergencyView]),
+  [TENANT_ROLES.family]: Object.freeze([PERMISSIONS.dashboardView,PERMISSIONS.groupWorkspace]),
+  [TENANT_ROLES.youth]: Object.freeze([PERMISSIONS.dashboardView,PERMISSIONS.groupWorkspace]),
   [TENANT_ROLES.viewer]: Object.freeze([])
 });
 
@@ -155,6 +178,7 @@ const LEGACY_ROLE_MAP = Object.freeze({
 });
 
 export const ROUTE_PERMISSIONS = Object.freeze({
+  '/mi-grupo': PERMISSIONS.groupWorkspace,
   '/mi-rama': PERMISSIONS.branchView,
   '/app': PERMISSIONS.dashboardView,
   '/beneficiarios': PERMISSIONS.membersManage,

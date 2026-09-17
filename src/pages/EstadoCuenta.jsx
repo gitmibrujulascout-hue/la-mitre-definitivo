@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { feePeriodDate } from '@/lib/ramaUtils';
+import { applyPeriodScholarship } from '@/services/access/scholarships';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
@@ -93,7 +95,7 @@ export default function EstadoCuenta() {
     const pagosAnio = pagosDelBen.filter(p => Number(p.anio) === Number(anio));
     const mesesPagados = pagosCuotasAnio.flatMap(p => p.meses || (p.mes ? [p.mes] : []));
     const montoPorMes = calcularMontoPorMes(pagosCuotasAnio, b, activos);
-    const esperadoPorMes = calcularEsperadoPorMes(pagosCuotasAnio, b, activos);
+    const esperadoPorMes = calcularEsperadoPorMes(pagosCuotasAnio, b, activos,configCuotas);
 
     const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
     const esPrimeraVez = !b.fecha_primer_afiliacion || afiliacionAnio?.es_primera_vez === true;
@@ -118,14 +120,14 @@ export default function EstadoCuenta() {
     if (esBeneficiarioConCuota(b)) {
       const mesesPendientes = mesesQueGeneranDeuda.filter(m => {
         const baseMes = getCuotaBaseMes(m, anio, configCuotas) || CUOTA_EFECTIVO;
-        const cuotaBenMes = getCuotaBeneficiario(b, activos, baseMes);
-        const esperadoMes = esperadoPorMes[m] || cuotaBenMes;
+        const cuotaBenMes = getCuotaBeneficiario(b, activos, baseMes,feePeriodDate(anio,m));
+        const esperadoMes = esperadoPorMes[m] ?? cuotaBenMes;
         return (montoPorMes[m] || 0) < esperadoMes - 0.01;
       });
       deudaCuotas = mesesPendientes.reduce((s, m) => {
         const baseMes = getCuotaBaseMes(m, anio, configCuotas) || CUOTA_EFECTIVO;
-        const cuotaBenMes = getCuotaBeneficiario(b, activos, baseMes);
-        const esperadoMes = esperadoPorMes[m] || cuotaBenMes;
+        const cuotaBenMes = getCuotaBeneficiario(b, activos, baseMes,feePeriodDate(anio,m));
+        const esperadoMes = esperadoPorMes[m] ?? cuotaBenMes;
         return s + Math.max(0, esperadoMes - (montoPorMes[m] || 0));
       }, 0);
       pagadoCuotas = pagosCuotasAnio.reduce((s, p) => s + (p.monto || 0), 0);
@@ -146,7 +148,7 @@ export default function EstadoCuenta() {
       if (esAdulto) {
         return s + (c.adultos_pagan ? (c.costo_adultos || c.costo_por_persona || 0) : 0);
       }
-      return s + (c.costo_por_persona || 0);
+      return s + applyPeriodScholarship(c.costo_por_persona||0,b,c.fecha_inicio||`${anio}-01-01`,'camp',c.id);
     }, 0);
     const saldoCamp = pagadoCamp - totalCampamentos;
 
@@ -490,7 +492,8 @@ export default function EstadoCuenta() {
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                   {MESES.map(mes => {
                     const montoMes = cuenta.montoPorMes[mes] || 0;
-                    const esperadoMes = cuenta.esperadoPorMes?.[mes] || cuenta.cuotaEfectiva || CUOTA_EFECTIVO;
+                    const esperadoMes = cuenta.esperadoPorMes?.[mes] ?? getCuotaBeneficiario(b,beneficiarios,getCuotaBaseMes(mes,anio,configCuotas),feePeriodDate(anio,mes));
+                    const becadoMes = esperadoMes === 0 && !MESES_SIN_CUOTA.includes(mes);
                     const pagadoTotal = montoMes >= esperadoMes - 0.01;
                     const parcial = montoMes > 0 && montoMes < esperadoMes - 0.01;
                     const saldoMes = parcial ? esperadoMes - montoMes : 0;
@@ -504,13 +507,13 @@ export default function EstadoCuenta() {
                     // o entre la baja y el reingreso) → no genera deuda
                     const esBaja = mesExcluidoPorActividad(mesIdx, b, anio, afiliaciones);
 
-                    const esDeuda = !sinCuota && !b.becado && !bonificado && !pagadoTotal && !esBaja && yaTranscurrioEsteAnio && esBeneficiarioConCuota(b);
+                    const esDeuda = !sinCuota && !becadoMes && !bonificado && !pagadoTotal && !esBaja && yaTranscurrioEsteAnio && esBeneficiarioConCuota(b);
                     return (
                      <Card key={mes} className={cn(
                         'p-2.5 text-center',
                         sinCuota ? 'bg-slate-50 border-slate-200 opacity-40' :
                         esBaja ? 'bg-slate-100 border-slate-300 opacity-60' :
-                        b.becado || bonificado ? 'bg-amber-50 border-amber-200' :
+                        becadoMes || bonificado ? 'bg-amber-50 border-amber-200' :
                         pagadoTotal ? 'bg-green-50 border-green-200' :
                         parcial ? 'bg-orange-50 border-orange-300' :
                         esDeuda ? 'bg-red-100 border-red-400' : 'bg-slate-50 border-slate-200'
@@ -520,7 +523,7 @@ export default function EstadoCuenta() {
                           <p className="text-xs text-slate-300 mt-1">—</p>
                         ) : esBaja ? (
                           <UserX className="w-4 h-4 text-slate-400 mx-auto mt-1" title="De baja" />
-                        ) : b.becado ? (
+                        ) : becadoMes ? (
                           <Award className="w-4 h-4 text-amber-500 mx-auto mt-1" />
                         ) : bonificado && montoMes === 0 ? (
                           <Award className="w-4 h-4 text-amber-400 mx-auto mt-1" />

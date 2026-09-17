@@ -23,11 +23,11 @@ test('a tenant admin without global privileges enters the tenant dashboard', () 
   assert.equal(getAuthenticatedHome(user), AUTH_PATHS.tenantAdmin);
 });
 
-test('a non-admin account cannot access administration', () => {
+test('a family account enters the scoped workspace', () => {
   const user = { tenant_roles: ['family'], is_super_admin: false, tenant_id: 'tenant-1' };
 
-  assert.equal(canAccessAdministration(user), false);
-  assert.equal(getAuthenticatedHome(user), AUTH_PATHS.noAccess);
+  assert.equal(canAccessAdministration(user), true);
+  assert.equal(getAuthenticatedHome(user), AUTH_PATHS.tenantAdmin);
 });
 
 test('an anonymous visitor is sent to login', () => {

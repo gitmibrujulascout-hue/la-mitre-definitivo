@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { feePeriodDate } from '@/lib/ramaUtils';
+import { scholarshipPercentage } from '@/services/access/scholarships';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -13,11 +15,9 @@ function getApellido(nombre) {
 }
 
 function getMesStatus(cuenta, mes, mesIndex, anio) {
-  // Becado: todos los meses van a becado
-  if (cuenta.becado) return 'becado';
-
   // Meses sin cuota (Enero, Febrero)
   if (MESES_SIN_CUOTA.includes(mes)) return 'sin-cuota';
+  if (scholarshipPercentage(cuenta,feePeriodDate(anio,mes))===100) return 'becado';
 
   // Marzo bonificado
   if (mes === 'Marzo' && cuenta.marzoGratis) return 'bonificado';

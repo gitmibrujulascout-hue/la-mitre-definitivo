@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/api/supabaseClient';
 import { readHealthQueue } from '@/services/access/healthDigitization';
 import HealthDigitizationDialog from '@/features/health/HealthDigitizationDialog';
+import {hasPermission,PERMISSIONS} from '@/services/access/permissions';
 
 export default function BranchWorkspace() {
   const { user } = useAuth();
   const branches = user?.branch_scopes || [];
   const [selected,setSelected]=useState(null);
   const [onlyPending,setOnlyPending]=useState(false);
-  const health=useQuery({queryKey:['health-queue',user?.tenant_id,user?.id,branches],queryFn:()=>readHealthQueue(supabase,user.tenant_id),retry:false});
+  const health=useQuery({queryKey:['health-queue',user?.tenant_id,user?.id,branches],queryFn:()=>readHealthQueue(supabase,user.tenant_id),enabled:hasPermission(user,PERMISSIONS.healthDigitize),retry:false});
   const query = useQuery({ queryKey: ['branch-people',user?.tenant_id,user?.id,branches], queryFn: async () => (await base44.entities.Beneficiario.list('nombre')).filter(person => branches.includes(person.rama)) });
   return <div className="space-y-5"><h1 className="text-2xl font-bold">Mis ramas</h1><p className="text-muted-foreground">Personas y contactos de emergencia de las ramas asignadas a tu acceso.</p>
     <label className="flex min-h-11 gap-3 items-center"><input type="checkbox" checked={onlyPending} onChange={event=>setOnlyPending(event.target.checked)}/>Mostrar solo fichas pendientes de digitalizar</label>

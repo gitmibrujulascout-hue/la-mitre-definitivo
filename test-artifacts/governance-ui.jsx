@@ -1,0 +1,10 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
+import {BrowserRouter} from 'react-router-dom';
+import GroupWorkspace from '../src/pages/GroupWorkspace';
+import GovernanceReminder from '../src/features/governance/GovernanceReminder';
+import '../src/index.css';
+const params=new URLSearchParams(location.search);
+if(params.get('frames'))createRoot(document.getElementById('root')).render(<main>{[360,768,1280].map(width=><section key={width}><h2>Validación {width}px</h2><iframe title={`Vista ${width}`} style={{width,height:900,border:0}} src={`?role=${params.get('role')||'admin'}`}/></section>)}</main>);
+else createRoot(document.getElementById('root')).render(<BrowserRouter><QueryClientProvider client={new QueryClient()}><main className="bg-background text-foreground p-4"><GovernanceReminder/><GroupWorkspace/></main></QueryClientProvider></BrowserRouter>);

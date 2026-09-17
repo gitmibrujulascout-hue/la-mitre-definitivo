@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { feePeriodDate } from '@/lib/ramaUtils';
+import { applyPeriodScholarship } from '@/services/access/scholarships';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
@@ -75,11 +77,10 @@ export default function CuentaCorriente() {
       const pagosCuotaBen = pagosDelBen.filter(p => p.tipo_pago !== 'Campamento');
       const montoPorMes = calcularMontoPorMes(pagosCuotaBen, b, activos);
       const esperadoPorMes = calcularEsperadoPorMes(pagosCuotaBen, b, activos);
-      const cuotaIndividualCalc = esBeneficiarioConCuota(b) ? getCuotaBeneficiario(b, activos) : 0;
       // Meses totalmente pagados (total >= esperado según método de pago)
-      const mesesPagados = Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) >= (esperadoPorMes[m] || cuotaIndividualCalc) - 0.01);
+      const mesesPagados = Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) >= (esperadoPorMes[m] ?? getCuotaBeneficiario(b,activos,CUOTA_EFECTIVO,feePeriodDate(anio,m))) - 0.01);
       // Meses parcialmente pagados (0 < total < esperado)
-      const mesesParciales = Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) > 0 && (montoPorMes[m] || 0) < (esperadoPorMes[m] || cuotaIndividualCalc) - 0.01);
+      const mesesParciales = Object.keys(montoPorMes).filter(m => (montoPorMes[m] || 0) > 0 && (montoPorMes[m] || 0) < (esperadoPorMes[m] ?? getCuotaBeneficiario(b,activos,CUOTA_EFECTIVO,feePeriodDate(anio,m))) - 0.01);
       const totalPagado = pagosDelBen.reduce((s, p) => s + (p.monto || 0), 0);
 
       // Campamentos donde participó (como niño o como adulto que paga)
@@ -91,7 +92,7 @@ export default function CuentaCorriente() {
       );
       const totalCampamentos = anio >= AÑO_INICIO ? campBen.reduce((s, c) => {
         if (esAdulto) return s + (c.costo_adultos || c.costo_por_persona || 0);
-        return s + (c.costo_por_persona || 0);
+        return s + applyPeriodScholarship(c.costo_por_persona||0,b,c.fecha_inicio||`${anio}-01-01`,'camp',c.id);
       }, 0) : 0;
       // Restar lo pagado de campamentos
       const pagadoCamp = pagosDelBen.filter(p => p.tipo_pago === 'Campamento').reduce((s, p) => s + (p.monto || 0), 0);
@@ -106,7 +107,7 @@ export default function CuentaCorriente() {
       // El monto esperado depende del método de pago usado (transferencia > efectivo).
       const deudaCuotas = (!esBeneficiarioConCuota(b)) ? 0 : mesesQueGeneranDeuda.reduce((s, m) => {
         const pagado = montoPorMes[m] || 0;
-        const esperado = esperadoPorMes[m] || cuotaIndividual;
+        const esperado = esperadoPorMes[m] ?? getCuotaBeneficiario(b,activos,CUOTA_EFECTIVO,feePeriodDate(anio,m));
         return s + Math.max(0, esperado - pagado);
       }, 0);
       // Afiliación del año: el monto debido se calcula según el tipo_afiliacion actual
@@ -138,10 +139,10 @@ export default function CuentaCorriente() {
         esPrimeraVezAfiliacion: esPrimeraVez,
         cuotaIndividual,
         tieneDescuentoHermanos: !esAdulto && cuotaIndividual < CUOTA_EFECTIVO_REF && esBeneficiarioConCuota(b),
-        alDia: b.becado || saldo >= 0,
+        alDia: saldo >= 0,
         marzoGratis,
         creditoDisponible,
-        mesesDeuda: esBeneficiarioConCuota(b) ? mesesQueGeneranDeuda.filter(m => !mesesPagados.includes(m)) : [],
+        mesesDeuda: esBeneficiarioConCuota(b) ? mesesQueGeneranDeuda.filter(m => (montoPorMes[m]||0)<(esperadoPorMes[m]??getCuotaBeneficiario(b,activos,CUOTA_EFECTIVO,feePeriodDate(anio,m)))-0.01) : [],
         deudaCampamento: Math.max(0, totalCampamentos - pagadoCamp),
       };
     });

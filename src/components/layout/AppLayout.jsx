@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import { useAuth } from '@/lib/AuthContext';
 import WorkspaceWatermark from '@/components/shared/WorkspaceWatermark';
 import HealthDigitizationReminder from '@/features/health/HealthDigitizationReminder';
+import GovernanceReminder from '@/features/governance/GovernanceReminder';
 
 export default function AppLayout() {
   const { user } = useAuth();
@@ -15,6 +16,7 @@ export default function AppLayout() {
         <div className="relative z-10 mx-auto max-w-7xl p-4 pt-16 lg:p-8 lg:pt-8">
           {!user?.tenant_id && <div className="mb-4 rounded-lg border border-ember/30 bg-ember-soft px-4 py-3 text-sm text-forest-deep">Tu usuario todavía no tiene una organización asignada. Un superadministrador debe asignarte un tenant antes de cargar datos.</div>}
           <HealthDigitizationReminder />
+          <GovernanceReminder />
           <Outlet />
         </div>
       </main>

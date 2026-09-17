@@ -25,6 +25,9 @@ export function createTenantEntity({ client, getTenant, name, readPeople, writeV
       delete data.id;
       delete data.created_at;
       delete data.updated_at;
+      delete data.scholarship_periods;
+      delete data.inactive_periods;
+      delete data.legacy_becado;
     }
     return data;
   }
@@ -64,6 +67,11 @@ export function createTenantEntity({ client, getTenant, name, readPeople, writeV
     return rows.data;
   }
   return {
+    async get(id) {
+      if (!tenantSchema.safeParse(id).success) throw new Error('El registro solicitado no es válido.');
+      const rows=await read({id},'-created_date',1);
+      return rows[0]??null;
+    },
     list: (sort = '-created_date', limit = name === 'Beneficiario' ? undefined : 100) => read({}, sort, limit),
     filter: (where = {}, sort = '-created_date', limit = name === 'Beneficiario' ? undefined : 100) => read(where, sort, limit),
     async create(values) {

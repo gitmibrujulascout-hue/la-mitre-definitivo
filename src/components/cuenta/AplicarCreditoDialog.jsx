@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient,useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { base44 } from '@/api/base44Client';
-import { MESES, MESES_SIN_CUOTA, CUOTA_EFECTIVO, formatMoney, getCuotaBeneficiario, marzoEsBonificado } from '@/lib/ramaUtils';
+import { MESES, MESES_SIN_CUOTA, formatMoney, marzoEsBonificado } from '@/lib/ramaUtils';
+import { monthlyFee,splitFeePayment } from '@/services/access/feePayments';
 import { MONTO_SEGURO_AFILIACION } from '@/lib/registros';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -15,6 +16,7 @@ import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Gift, ShieldCheck } 
 
 export default function AplicarCreditoDialog({ creditos, beneficiarioId, beneficiarioNombre, beneficiario, campamentos, todosLosBeneficiarios, pagos, anio, afiliacion, esPrimeraVezAfiliacion, onClose, onSaved }) {
   const queryClient = useQueryClient();
+  const {data:configCuotas=[]}=useQuery({queryKey:['config_cuotas'],queryFn:()=>base44.entities.ConfigCuota.list()});
   const [tipo, setTipo] = useState('Cuota');
   const [meses, setMeses] = useState([]);
   const [campamentoId, setCampamentoId] = useState('');
@@ -44,11 +46,7 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
     return no;
   }, [marzoGratis]);
 
-  // Cuota unitaria del beneficiario (con descuento familiar si aplica)
-  const cuotaUnitaria = useMemo(() => {
-    if (!beneficiario) return CUOTA_EFECTIVO;
-    return getCuotaBeneficiario(beneficiario, todosLosBeneficiarios);
-  }, [beneficiario, todosLosBeneficiarios]);
+  const feeFor=month=>beneficiario?monthlyFee(beneficiario,todosLosBeneficiarios,anio,month,'Efectivo',configCuotas,afiliacion?[afiliacion]:[]):0;
 
   // Saldo pendiente de la afiliación del año
   const saldoPendienteAfiliacion = useMemo(() => {
@@ -63,7 +61,7 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
 
   // Total a cubrir según el tipo seleccionado
   const totalACubrir = tipo === 'Cuota'
-    ? meses.length * cuotaUnitaria
+    ? meses.reduce((sum,month)=>sum+feeFor(month),0)
     : tipo === 'Afiliación' ? saldoPendienteAfiliacion : 0;
 
   // Auto-seleccionar primer mes adeudado
@@ -88,7 +86,7 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
       const dif = saldoPendienteAfiliacion - credAuto;
       setDiferenciaEfectivo(dif > 0 ? dif.toString() : '');
     }
-  }, [tipo, meses.length, cuotaUnitaria, totalACubrir, totalDisponible, saldoPendienteAfiliacion]);
+  }, [tipo, meses.length, totalACubrir, totalDisponible, saldoPendienteAfiliacion]);
 
   const creditoNum = Math.min(parseFloat(montoCredito) || 0, totalDisponible);
   const diferenciaNum = parseFloat(diferenciaEfectivo) || 0;
@@ -146,7 +144,7 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
 
       if (tipo === 'Cuota') {
         // Pago con crédito unificado
-        await base44.entities.Pago.create({
+        await base44.entities.Pago.bulkCreate(splitFeePayment({
           beneficiario_id: beneficiarioId,
           beneficiario_nombre: beneficiarioNombre,
           tipo_pago: 'Cuota',
@@ -158,10 +156,10 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
           monto: creditoNum,
           fecha_pago: fechaPago,
           observaciones: `Crédito aplicado de: ${fuentesLabel}`,
-        });
+        },[beneficiario,...todosLosBeneficiarios.filter(b=>b.id!==beneficiario.id)],configCuotas,afiliacion?[afiliacion]:[]));
         // Diferencia en efectivo
         if (diferenciaNum > 0) {
-          await base44.entities.Pago.create({
+          await base44.entities.Pago.bulkCreate(splitFeePayment({
             beneficiario_id: beneficiarioId,
             beneficiario_nombre: beneficiarioNombre,
             tipo_pago: 'Cuota',
@@ -173,7 +171,7 @@ export default function AplicarCreditoDialog({ creditos, beneficiarioId, benefic
             monto: diferenciaNum,
             fecha_pago: fechaPago,
             observaciones: `Diferencia en efectivo (complementa crédito de: ${fuentesLabel})`,
-          });
+          },[beneficiario,...todosLosBeneficiarios.filter(b=>b.id!==beneficiario.id)],configCuotas,afiliacion?[afiliacion]:[]));
         }
       } else if (tipo === 'Campamento') {
         await base44.entities.Pago.create({

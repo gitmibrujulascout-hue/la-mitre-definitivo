@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { hasPermission, PERMISSIONS, roleLabels } from '@/services/access/permissions';
 
 const navItems = [
+  { path: '/mi-grupo', label: 'Mi grupo', icon: Users, permission: PERMISSIONS.groupWorkspace },
   { path: '/mi-rama', label: 'Mis ramas', icon: Users, permission: PERMISSIONS.branchView },
   { path: '/app', label: 'Dashboard', icon: LayoutDashboard, permission: PERMISSIONS.dashboardView },
   { path: '/beneficiarios', label: 'Beneficiarios', icon: Users, permission: PERMISSIONS.membersManage },

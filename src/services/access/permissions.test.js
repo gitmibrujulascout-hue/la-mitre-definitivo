@@ -37,7 +37,7 @@ test('treasury can enter finance routes but cannot manage users', () => {
   assert.equal(canAccessPath(user, '/usuarios'), false);
 });
 
-test('administration can manage members and users but not cash', () => {
+test('administration can manage members but cannot assign access', () => {
   const user = {
     tenant_id: 'tenant-1',
     tenant_roles: ['administration'],
@@ -45,19 +45,20 @@ test('administration can manage members and users but not cash', () => {
   };
 
   assert.equal(canAccessPath(user, '/beneficiarios'), true);
-  assert.equal(canAccessPath(user, '/usuarios'), true);
+  assert.equal(canAccessPath(user, '/usuarios'), false);
   assert.equal(canAccessPath(user, '/caja'), false);
 });
 
-test('future portal roles cannot enter the administrative workspace', () => {
+test('family enters only scoped tools', () => {
   const user = {
     tenant_id: 'tenant-1',
     tenant_roles: ['family'],
     permissions: permissionsForRoles(['family'])
   };
 
-  assert.equal(canAccessTenantWorkspace(user), false);
-  assert.equal(canAccessPath(user, '/app'), false);
+  assert.equal(canAccessTenantWorkspace(user), true);
+  assert.equal(canAccessPath(user, '/mi-grupo'), true);
+  assert.equal(canAccessPath(user, '/beneficiarios'), false);
 });
 
 test('super administrators bypass tenant route permissions', () => {
@@ -66,4 +67,3 @@ test('super administrators bypass tenant route permissions', () => {
   assert.equal(hasPermission(user, PERMISSIONS.usersManage), true);
   assert.equal(canAccessPath(user, '/usuarios'), true);
 });
-

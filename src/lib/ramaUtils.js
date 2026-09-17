@@ -1,3 +1,4 @@
+import { applyPeriodScholarship } from '../services/access/scholarships.js';
 export const RAMAS = ['Lobatos', 'Tropa', 'KM', 'Rovers'];
 export const TODOS_LOS_ROLES = ['Lobatos', 'Tropa', 'KM', 'Rovers', 'Voluntario', 'Educador'];
 
@@ -121,7 +122,7 @@ export function getLabelCreditoMes(mes, anio) {
 // Crédito para un mes bonificado: porcentaje_credito % del valor en EFECTIVO de ese mes,
 // con descuento de hermanos aplicado. No depende del medio de pago usado.
 export function getCreditoMesBeneficiario(mes, anio, b, todosBeneficiarios = [], cuotaBase, configCuotas = []) {
-  const cuotaEfectiva = getCuotaBeneficiario(b, todosBeneficiarios, cuotaBase);
+  const cuotaEfectiva = getCuotaBeneficiario(b, todosBeneficiarios, cuotaBase,feePeriodDate(anio,mes));
   const pct = getPorcentajeCreditoMes(mes, anio, configCuotas) / 100;
   return Math.round(cuotaEfectiva * pct);
 }
@@ -170,6 +171,13 @@ export function getCuotaTransferenciaMes(mes, anio, configCuotas = []) {
  *   - Reingreso: vuelve a generar deuda desde el mes de reingreso.
  */
 export function calcularIntervalosActivos(b, anio, afiliaciones = []) {
+  if (b.inactive_periods?.length) {
+    const base = calcularIntervalosActivos({ ...b, inactive_periods: [], fecha_baja: null, fecha_reingreso: null }, anio, afiliaciones);
+    return Array.from({length:12},(_,month)=>month).filter(month=>{
+      const period=`${anio}-${String(month+1).padStart(2,'0')}-01`;
+      return base.some(([start,end])=>month>=start&&month<=end)&&!b.inactive_periods.some(p=>p.starts_on<=period&&(!p.ends_on||p.ends_on>period));
+    }).map(month=>[month,month]);
+  }
   const afiliacionAnio = afiliaciones.find(a => a.beneficiario_id === b.id && Number(a.anio) === Number(anio));
   const esPrimeraVez = !b.fecha_primer_afiliacion;
   const fechaAlta = b.fecha_primer_afiliacion || (esPrimeraVez && afiliacionAnio?.fecha_pago ? afiliacionAnio.fecha_pago : null);
@@ -254,7 +262,7 @@ export function getCuotaMes(mes, cuotaBase, alDia = false) {
 const DESCUENTO_HERMANOS = { 2: 0.10, 4: 0.25 }; // porcentaje de descuento sobre la cuota
 
 export function esBeneficiarioConCuota(b) {
-  return b.tipo !== 'Voluntario' && !b.becado && !['Voluntario', 'Educador'].includes(b.rama);
+  return b.tipo !== 'Voluntario' && (!b.becado||b.scholarship_periods?.length>0) && !['Voluntario', 'Educador'].includes(b.rama);
 }
 
 /**
@@ -263,9 +271,9 @@ export function esBeneficiarioConCuota(b) {
  * @param {object} b - beneficiario
  * @param {array} todosBeneficiarios - lista completa de beneficiarios activos
  */
-export function getCuotaBeneficiario(b, todosBeneficiarios = [], baseEfectivo = CUOTA_EFECTIVO) {
-  if (!esBeneficiarioConCuota(b)) return 0;
-  if (!b.grupo_familiar) return baseEfectivo;
+export function getCuotaBeneficiario(b, todosBeneficiarios = [], baseEfectivo = CUOTA_EFECTIVO, onDate = new Date().toISOString().slice(0,10)) {
+  if (b.tipo==='Voluntario'||['Voluntario','Educador'].includes(b.rama)) return 0;
+  if (!b.grupo_familiar) return applyPeriodScholarship(baseEfectivo,b,onDate);
 
   // Contar hermanos que también pagan cuota (activos, mismo grupo_familiar)
   const hermanos = todosBeneficiarios.filter(x =>
@@ -283,7 +291,7 @@ export function getCuotaBeneficiario(b, todosBeneficiarios = [], baseEfectivo = 
     if (cantidadTotal >= nivel) descuento = DESCUENTO_HERMANOS[nivel];
   }
 
-  return Math.round(baseEfectivo * (1 - descuento));
+  return applyPeriodScholarship(Math.round(baseEfectivo * (1 - descuento)),b,onDate);
 }
 
 /**
@@ -311,15 +319,12 @@ export function calcularMontoPorMes(pagosCuota, beneficiario, todosBeneficiarios
  * Efectivo/Crédito/Subsidio → cuotaEfectiva (con descuento de hermanos aplicado).
  * Los meses sin pago no aparecen en el resultado (fallback: cuotaEfectiva).
  */
-export function calcularEsperadoPorMes(pagosCuota, beneficiario, todosBeneficiarios = []) {
-  const cuotaEfectiva = getCuotaBeneficiario(beneficiario, todosBeneficiarios);
-  const cuotaTransferencia = getCuotaBeneficiario(beneficiario, todosBeneficiarios, CUOTA_TRANSFERENCIA);
+export function calcularEsperadoPorMes(pagosCuota, beneficiario, todosBeneficiarios = [],configCuotas=[]) {
   const esperado = {};
   pagosCuota.forEach(p => {
     const meses = p.meses || (p.mes ? [p.mes] : []);
     if (meses.length === 0) return;
-    const valor = p.forma_pago === 'Transferencia' ? cuotaTransferencia : cuotaEfectiva;
-    meses.forEach(m => { esperado[m] = valor; });
+    meses.forEach(m => { esperado[m] = getCuotaBeneficiario(beneficiario,todosBeneficiarios,p.forma_pago==='Transferencia'?getCuotaTransferenciaMes(m,p.anio,configCuotas):getCuotaBaseMes(m,p.anio,configCuotas),feePeriodDate(p.anio,m)); });
   });
   return esperado;
 }
@@ -377,3 +382,5 @@ export function ramaDesdeEdad(fechaNacimiento) {
   if (edad >= 7) return 'Lobatos';
   return null;
 }
+
+export function feePeriodDate(year,month){return `${year}-${String(MESES.indexOf(month)+1).padStart(2,'0')}-01`;}

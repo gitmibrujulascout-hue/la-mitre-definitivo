@@ -8,7 +8,7 @@ export async function readTenantPeople(client, tenantId, filters = {}, sort = '-
     if (error) throw new Error('No pudimos cargar las personas autorizadas. Revisá la conexión o la actualización de permisos.');
     const page = rowsSchema.parse(data);
     if (page.some(row => row.tenant_id !== tenantId)) throw new Error('Respuesta de otro grupo rechazada.');
-    rows.push(...page);
+    rows.push(...page.map(row=>row.scholarship_periods?.length?{...row,legacy_becado:row.becado,becado:false}:row));
     if (page.length < 500) {
       const descending = sort.startsWith('-');
       const field = sort.replace(/^-/, '').replace(/_date$/, '_at');

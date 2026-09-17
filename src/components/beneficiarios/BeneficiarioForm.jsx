@@ -331,21 +331,7 @@ export default function BeneficiarioForm({ open, onClose, onSave, initialData, t
                 <p className="text-xs text-blue-500">Buscá familiares para vincular al grupo.</p>
               )}
             </div>
-            {form.tipo === 'Beneficiario' && (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg bg-muted">
-                <div>
-                  <p className="text-sm font-medium">Becado</p>
-                  <p className="text-xs text-muted-foreground">
-                    No abona cuota mensual
-                    {' · Se aplica según la decisión del grupo.'}
-                  </p>
-                </div>
-                <Select value={form.beca_override == null ? 'inherit' : String(form.beca_override)} onValueChange={value => update('beca_override',value === 'inherit' ? null : value === 'true')}>
-                  <SelectTrigger aria-label="Beca de cuota mensual" className="w-full sm:w-56"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="inherit">Usar regla del grupo</SelectItem><SelectItem value="true">Beca individual</SelectItem><SelectItem value="false">Paga cuota (excepción)</SelectItem></SelectContent>
-                </Select>
-              </div>
-            )}
+            {form.tipo === 'Beneficiario' && <p className="rounded border p-3 text-sm">Las becas se administran por porcentaje y período en Mi grupo → Becas. Las afiliaciones no se becan.</p>}
 
             {/* Baja temporal */}
             <div className={`p-3 rounded-lg border space-y-3 ${form.activo === false ? 'border-red-200 bg-red-50' : 'border-border bg-muted/30'}`}>

@@ -5,6 +5,7 @@
  */
 
 import { base44 } from '@/api/base44Client';
+import { splitFeePayment } from '@/services/access/feePayments';
 
 // ──────────────────────────────────────────────
 // Constantes centralizadas
@@ -15,9 +16,9 @@ export const MONTO_SEGURO_AFILIACION = 42000;
 // Registro de PAGOS (cuota / campamento)
 // La entidad Pago es la fuente única — cajaUtils deriva el movimiento de caja.
 // ──────────────────────────────────────────────
-export async function registrarPagos(pagos) {
-  const pagoCreados = await Promise.all(pagos.map(p => base44.entities.Pago.create(p)));
-  return pagoCreados;
+export async function registrarPagos(pagos,context) {
+  const rows=context?pagos.flatMap(p=>splitFeePayment(p,context.people,context.config,context.affiliations)):pagos;
+  return base44.entities.Pago.bulkCreate(rows);
 }
 
 // ──────────────────────────────────────────────

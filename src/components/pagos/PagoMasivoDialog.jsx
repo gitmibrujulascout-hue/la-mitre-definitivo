@@ -7,11 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { MESES, CUOTA_EFECTIVO, CUOTA_TRANSFERENCIA, formatMoney, estaAlDia, calcularMesesQueGeneranDeuda, getCreditoJulioBeneficiario, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
+import { MESES, formatMoney, estaAlDia, calcularMesesQueGeneranDeuda, getCreditoJulioBeneficiario, JULIO_LABEL_CREDITO } from '@/lib/ramaUtils';
 import { toast } from 'sonner';
 import { Users, CheckSquare, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { registrarPagos } from '@/lib/registros';
+import { monthlyFee } from '@/services/access/feePayments';
 
 export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
   const [mesesSeleccionados, setMesesSeleccionados] = useState([]);
@@ -49,7 +50,7 @@ export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
 
   const bulkMutation = useMutation({
     mutationFn: async (pagos) => {
-      await registrarPagos(pagos);
+      await registrarPagos(pagos,{people:beneficiarios,config:configCuotas,affiliations:afiliaciones});
       // Procesar crédito de Julio para cada beneficiario al día
       const anioNum = parseInt(anio);
       const labelJulio = `${JULIO_LABEL_CREDITO} ${anioNum}`;
@@ -89,10 +90,8 @@ export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
     },
   });
 
-  const cuotaUnitaria = formaPago === 'Efectivo' ? CUOTA_EFECTIVO : formaPago === 'Transferencia' ? CUOTA_TRANSFERENCIA : 0;
+  const {data:configCuotas=[]}=useQuery({queryKey:['config_cuotas'],queryFn:()=>base44.entities.ConfigCuota.list()});
   const destino = formaPago === 'Transferencia' ? 'Banco' : 'Caja';
-  const montoPorPersona = mesesSeleccionados.length * cuotaUnitaria;
-  const totalGeneral = montoPorPersona * bensSeleccionados.length;
 
   // Meses ya pagados por cada beneficiario
   const mesesPagadosPorBen = useMemo(() => {
@@ -104,6 +103,8 @@ export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
     }
     return map;
   }, [bensSeleccionados, pagosExistentes, anio]);
+  const amountFor=(ben,months)=>months.reduce((sum,m)=>sum+monthlyFee(ben,beneficiarios,anio,m,formaPago,configCuotas,afiliaciones),0);
+  const totalGeneral=bensSeleccionados.reduce((sum,id)=>{const ben=beneficiarios.find(b=>b.id===id);return sum+(ben?amountFor(ben,mesesSeleccionados.filter(m=>!(mesesPagadosPorBen[id]||[]).includes(m))):0);},0);
 
   const toggleBen = (id) => {
     setBensSeleccionados(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -128,7 +129,7 @@ export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
     for (const benId of bensSeleccionados) {
       const ben = beneficiarios.find(b => b.id === benId);
       const yaPagados = mesesPagadosPorBen[benId] || [];
-      const mesesNuevos = mesesSeleccionados.filter(m => !yaPagados.includes(m));
+      const mesesNuevos = mesesSeleccionados.filter(m => !yaPagados.includes(m)&&monthlyFee(ben,beneficiarios,anio,m,formaPago,configCuotas,afiliaciones)>0);
       if (mesesNuevos.length === 0) continue;
       pagos.push({
         beneficiario_id: benId,
@@ -139,7 +140,7 @@ export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
         mes: mesesNuevos[0],
         forma_pago: formaPago,
         destino,
-        monto: mesesNuevos.length * cuotaUnitaria,
+        monto: amountFor(ben,mesesNuevos),
         fecha_pago: fechaPago,
       });
     }
@@ -269,7 +270,7 @@ export default function PagoMasivoDialog({ open, onClose, beneficiarios }) {
               <p className="font-semibold text-green-800 mb-2">Resumen del registro masivo</p>
               <div className="flex justify-between text-green-700">
                 <span>{bensSeleccionados.length} beneficiarios × {mesesSeleccionados.length} mes(es)</span>
-                <span>{formatMoney(montoPorPersona)} c/u</span>
+                <span>Importes según mes, familia y beca</span>
               </div>
               <div className="flex justify-between font-bold text-green-800 border-t border-green-200 pt-1 mt-1">
                 <span>Total a registrar</span>

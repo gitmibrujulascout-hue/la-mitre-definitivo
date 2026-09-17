@@ -42,3 +42,11 @@ test('editar formulario completo conserva id y no reescribe fecha de creación',
   const payload=calls.find(c=>c[0]==='update')[1];
   assert.equal(payload.id,undefined);assert.equal(payload.created_at,undefined);assert.equal(payload.estado,'Confirmado');
 });
+test('consulta por id exige tenant, valida identidad y respeta denegación sin fallback',async()=>{
+  const allowed=fixture();assert.equal(await allowed.entity.get(id),null);
+  assert.ok(allowed.calls.some(c=>c[0]==='eq'&&c[1]==='id'&&c[2]===id));
+  assert.ok(allowed.calls.some(c=>c[0]==='eq'&&c[1]==='tenant_id'&&c[2]===tenant));
+  const absent=fixture(null);await assert.rejects(()=>absent.entity.get(id));assert.equal(absent.calls.length,0);
+  const invalid=fixture();await assert.rejects(()=>invalid.entity.get('invalid'));assert.equal(invalid.calls.length,0);
+  const denied=fixture(tenant,{code:'42501',message:'internal'});await assert.rejects(()=>denied.entity.get(id),error=>!error.message.includes('internal'));
+});

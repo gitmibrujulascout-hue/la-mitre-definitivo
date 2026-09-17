@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { feePeriodDate } from '@/lib/ramaUtils';
+import { scholarshipPercentage } from '@/services/access/scholarships';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
@@ -36,7 +38,6 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
   const pagosCuotaAnio = pagosAnio.filter(p => p.tipo_pago !== 'Campamento');
   const montoPorMes = calcularMontoPorMes(pagosCuotaAnio, beneficiario, todosLosBeneficiarios);
   const esperadoPorMes = calcularEsperadoPorMes(pagosCuotaAnio, beneficiario, todosLosBeneficiarios);
-  const cuotaEfectiva = getCuotaBeneficiario(beneficiario, todosLosBeneficiarios);
   const marzoGratis = marzoEsBonificado(afiliacion, esPrimeraVezAfiliacion);
 
   // Afiliación del año para el cálculo de períodos activos (alta/baja/reingreso)
@@ -146,7 +147,8 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-6">
         {MESES.map((mes, idx) => {
           const montoMes = montoPorMes[mes] || 0;
-          const esperadoMes = esperadoPorMes[mes] || cuotaEfectiva;
+          const esperadoMes = esperadoPorMes[mes] ?? getCuotaBeneficiario(beneficiario,todosLosBeneficiarios,undefined,feePeriodDate(anio,mes));
+          const becadoMes = scholarshipPercentage(beneficiario,feePeriodDate(anio,mes)) === 100;
           const pagadoTotal = montoMes >= esperadoMes - 0.01;
           const parcial = montoMes > 0 && montoMes < esperadoMes - 0.01;
           const saldoMes = parcial ? esperadoMes - montoMes : 0;
@@ -160,14 +162,14 @@ export default function CuentaDetalle({ beneficiario, pagos, campamentos, anio, 
             <Card key={mes} className={cn(
               'p-3 text-center transition-all',
               sinCuota || antesDeInicio ? 'bg-slate-50 border-slate-200 opacity-50' :
-              beneficiario.becado || bonificado ? 'bg-amber-50 border-amber-200' :
+              becadoMes || bonificado ? 'bg-amber-50 border-amber-200' :
               pagadoTotal ? 'bg-green-50 border-green-200' :
               parcial ? 'bg-orange-50 border-orange-300' : 'bg-muted/50'
             )}>
               <p className="text-xs font-medium text-muted-foreground">{mes.substring(0, 3)}</p>
               {sinCuota || antesDeInicio ? (
                 <p className="text-xs text-slate-400 mt-1">—</p>
-              ) : beneficiario.becado ? (
+              ) : becadoMes ? (
                 <Award className="w-5 h-5 text-amber-500 mx-auto mt-1" />
               ) : bonificado && montoMes === 0 ? (
                 <>

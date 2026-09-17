@@ -20,7 +20,7 @@ export async function listTenantAccess(tenantId) {
     loadRoles(tenantId),
     loadProfiles(userIds),
     loadInvitations(tenantId),
-    supabase.from('tenant_branch_scopes').select('user_id,branch').eq('tenant_id',tenantId)
+    supabase.from('tenant_branch_scopes').select('user_id,branch,role').eq('tenant_id',tenantId)
   ]);
 
   const rolesByUser = new Map();
@@ -43,7 +43,7 @@ export async function listTenantAccess(tenantId) {
       email: profile.email || '',
       status: membership.status || 'active',
       roles: normalizeTenantRoles(rolesByUser.get(membership.user_id), membership.role),
-      branches: (scopesResult.data || []).filter(scope => scope.user_id === membership.user_id).map(scope => scope.branch),
+      branches: (scopesResult.data || []).filter(scope => scope.user_id === membership.user_id && scope.role==='branch_leader').map(scope => scope.branch),
       createdAt: membership.created_at
     };
   });
@@ -87,7 +87,7 @@ export async function updateTenantMemberRoles(tenantId, userId, roles, branches 
   if (!parsed.success) return { ok: false, validationError: parsed.error };
 
   const branchResult = policySchema.safeParse(branches);
-  if (!branchResult.success || (roles.includes('branch_leader') && !branches.length)) return { ok:false, message:'Elegí al menos una rama para el responsable.' };
+  if (!branchResult.success || (roles.includes('branch_leader') && branches.length!==1)) return { ok:false, message:'Elegí una única rama para el jefe. Las ayudantías se asignan en Mi grupo.' };
   const { error } = await supabase.rpc('set_tenant_member_access', {
     target_tenant_id: tenantId,
     target_user_id: userId,

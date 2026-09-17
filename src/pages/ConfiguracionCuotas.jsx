@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import PageHeader from '@/components/shared/PageHeader';
 import ConfigAfiliacionPanel from '@/components/afiliaciones/ConfigAfiliacionPanel';
-import ScholarshipPolicyCard from '@/components/afiliaciones/ScholarshipPolicyCard';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { hasPermission, PERMISSIONS } from '@/services/access/permissions';
 import { MESES, MESES_SIN_CUOTA, formatMoney, esBeneficiarioConCuota, calcularMesesQueGeneranDeuda, getCuotaBaseMes, getMesesBonificadosCredito, getCreditoMesBeneficiario, getLabelCreditoMes, getMontoCreditoMes } from '@/lib/ramaUtils';
@@ -256,7 +256,7 @@ export default function ConfiguracionCuotas() {
           </SelectContent>
         </Select>
       </PageHeader>
-      <ScholarshipPolicyCard />
+      <p className="mb-5 rounded border p-4">Las becas individuales y por rama se administran por período en <Link className="underline" to="/mi-grupo">Mi grupo → Becas</Link>.</p>
 
       {/* Configuración de afiliaciones */}
       <ConfigAfiliacionPanel anio={Number(anioFiltro)} />
